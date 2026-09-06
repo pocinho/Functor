@@ -1,51 +1,53 @@
-namespace Functor.Domain.Core
+namespace Functor.Domain.Editing
 
-open Functor.Domain.Editing
-open Functor.Domain.Document
-open Functor.Domain.Syntax
-open Functor.Domain.Navigation
-open Functor.Domain.Diagnostics
-
-/// Represents every meaningful event that can occur in the editor.
-/// This is the root event union for the entire Domain.
-/// All subdomain events are composed here.
-type CoreEvent =
+/// Events related to text editing:
+/// - character insertion
+/// - deletion
+/// - cursor movement
+/// - selection manipulation
+/// - line operations
+type EditingEvent =
     // ────────────────────────────────────────────────
-    // Document Lifecycle
+    // Text Input
     // ────────────────────────────────────────────────
-    | OpenDocument of path:string
-    | CloseDocument of id:System.Guid
-    | SwitchDocument of id:System.Guid
-    | ApplyDocumentEvent of DocumentEvent
+    | InsertChar of char
+    | InsertString of string
+    | Backspace
+    | Delete
 
     // ────────────────────────────────────────────────
-    // Editing (text buffer, cursor, selection)
+    // Cursor Movement
     // ────────────────────────────────────────────────
-    | ApplyEditingEvent of EditingEvent
+    | MoveLeft
+    | MoveRight
+    | MoveUp
+    | MoveDown
+    | MoveToLineStart
+    | MoveToLineEnd
+    | MoveToDocumentStart
+    | MoveToDocumentEnd
 
     // ────────────────────────────────────────────────
-    // Syntax Highlighting + Tokenization
+    // Selection
     // ────────────────────────────────────────────────
-    | ApplySyntaxEvent of SyntaxEvent
+    | StartSelection
+    | UpdateSelection
+    | ClearSelection
 
     // ────────────────────────────────────────────────
-    // Navigation (jump list, search, symbols)
+    // Line Operations
     // ────────────────────────────────────────────────
-    | ApplyNavigationEvent of NavigationEvent
+    | InsertNewLine
+    | DeleteLine
+    | DuplicateLine
 
     // ────────────────────────────────────────────────
-    // Diagnostics (LSP errors, warnings, hints)
+    // Undo / Redo
     // ────────────────────────────────────────────────
-    | ApplyDiagnosticsEvent of DiagnosticsEvent
+    | Undo
+    | Redo
 
     // ────────────────────────────────────────────────
-    // Editor Mode (normal, insert, visual)
+    // Editing Modes
     // ────────────────────────────────────────────────
-    | SetMode of EditorMode
-
-    // ────────────────────────────────────────────────
-    // Rendering + Layout
-    // ────────────────────────────────────────────────
-    | SetViewport of Viewport
-    | SetVerticalOffset of int
-    | SetHorizontalOffset of int
+    | ToggleOverwriteMode
