@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Keyboard.fs" />
+    <Compile Include="Mouse.fs" />
+    <Compile Include="TextInput.fs" />
+    <Compile Include="Keymap.fs" />
+  </ItemGroup>
+
+</Project>

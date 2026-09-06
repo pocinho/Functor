@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Core\CoreModel.fs" />
+    <Compile Include="Core\CoreEvent.fs" />
+    <Compile Include="Core\CoreLogic.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Editing\TextBuffer.fs" />
+    <Compile Include="Editing\Cursor.fs" />
+    <Compile Include="Editing\Selection.fs" />
+    <Compile Include="document\DocumentModel.fs" />
+    <Compile Include="document\DocumentEvent.fs" />
+    <Compile Include="document\DocumentLogic.fs" />
+    <Compile Include="syntax\Tokenizer.fs" />
+    <Compile Include="syntax\Highlighter.fs" />
+    <Compile Include="navigation\JumpList.fs" />
+    <Compile Include="navigation\Search.fs" />
+    <Compile Include="Diagnostics\DiagnosticModel.fs" />
+    <Compile Include="Diagnostics\DiagnosticEvent.fs" />
+    <Compile Include="Diagnostics\DiagnosticLogic.fs" />
+    <Folder Include="Core\" />
+    <Folder Include="Document\" />
+    <Folder Include="Navigation\" />
+    <Folder Include="Diagnostics\" />
+    <Folder Include="Syntax\" />
+  </ItemGroup>
+
+</Project>
