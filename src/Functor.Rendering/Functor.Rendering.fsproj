@@ -6,9 +6,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="RenderingModel.fs" />
+    <Compile Include="SlicingEngine.fs" />
+    <Compile Include="LayoutEngine.fs" />
+    <Compile Include="RenderingPipeline.fs" />
     <Compile Include="Surface.fs" />
     <Compile Include="Layout.fs" />
     <Compile Include="Theme.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
   </ItemGroup>
 
 </Project>
