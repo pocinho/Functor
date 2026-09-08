@@ -100,20 +100,6 @@ module CoreLogic =
         // Editing
         | ApplyEditingEvent evt -> applyEditingEvent model evt
 
-        | CoreEvent.InsertChar ch -> applyEditingEvent model (EditingEvent.InsertChar ch)
-
-        | CoreEvent.InsertNewline -> applyEditingEvent model (EditingEvent.InsertNewLine)
-
-        | CoreEvent.Backspace -> applyEditingEvent model (EditingEvent.Backspace)
-
-        | CoreEvent.MoveCursorLeft -> applyEditingEvent model (EditingEvent.MoveLeft)
-
-        | CoreEvent.MoveCursorRight -> applyEditingEvent model (EditingEvent.MoveRight)
-
-        | CoreEvent.MoveCursorUp -> applyEditingEvent model (EditingEvent.MoveUp)
-
-        | CoreEvent.MoveCursorDown -> applyEditingEvent model (EditingEvent.MoveDown)
-
         // Syntax
         | ApplySyntaxEvent evt -> applySyntaxEvent model evt
 

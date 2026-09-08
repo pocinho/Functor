@@ -1,5 +1,6 @@
 namespace Functor.App.Controls
 
+open System
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
@@ -7,6 +8,7 @@ open Avalonia.Media
 open Avalonia.Skia
 
 open Functor.Domain.Core
+open Functor.Domain.Editing
 open Functor.App.Rendering
 open Functor.Rendering
 
@@ -21,6 +23,10 @@ type EditorControl() =
 
     let renderingConfig =
         { RenderingPipeline.Metrics = { LineHeight = 16.0f; CharWidth = 8.0f } }
+
+    member private this.ApplyEditingEvent(event: EditingEvent) =
+        coreModel <- CoreLogic.update (CoreEvent.ApplyEditingEvent event) coreModel
+        this.InvalidateVisual()
 
     // ------------------------------------------------------------
     // Helpers
@@ -46,25 +52,35 @@ type EditorControl() =
             this.UpdateViewport()
             this.InvalidateVisual()
 
+    override this.OnAttachedToVisualTree(e: VisualTreeAttachmentEventArgs) =
+        base.OnAttachedToVisualTree(e)
+        this.Focus() |> ignore
+
+    override this.OnTextInput(e: TextInputEventArgs) =
+        base.OnTextInput(e)
+
+        if not (String.IsNullOrEmpty(e.Text)) then
+            this.ApplyEditingEvent(EditingEvent.InsertString e.Text)
+            e.Handled <- true
+
     override this.OnKeyDown(e: KeyEventArgs) =
         base.OnKeyDown(e)
 
-        let evt =
+        let editingEvent =
             match e.Key with
-            | Key.Left -> CoreEvent.MoveCursorLeft
-            | Key.Right -> CoreEvent.MoveCursorRight
-            | Key.Up -> CoreEvent.MoveCursorUp
-            | Key.Down -> CoreEvent.MoveCursorDown
-            | Key.Back -> CoreEvent.Backspace
-            | Key.Enter -> CoreEvent.InsertNewline
-            | _ ->
-                if e.Key.ToString().Length = 1 then
-                    CoreEvent.InsertChar(e.Key.ToString()[0])
-                else
-                    CoreEvent.NoOp
+            | Key.Left -> Some EditingEvent.MoveLeft
+            | Key.Right -> Some EditingEvent.MoveRight
+            | Key.Up -> Some EditingEvent.MoveUp
+            | Key.Down -> Some EditingEvent.MoveDown
+            | Key.Back -> Some EditingEvent.Backspace
+            | Key.Enter -> Some EditingEvent.InsertNewLine
+            | _ -> None
 
-        coreModel <- CoreLogic.update evt coreModel
-        this.InvalidateVisual()
+        match editingEvent with
+        | Some event ->
+            this.ApplyEditingEvent(event)
+            e.Handled <- true
+        | None -> ()
 
     override this.Render(context: DrawingContext) =
         base.Render(context)

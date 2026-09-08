@@ -43,12 +43,11 @@ module EditingLogic =
     let private insertString (model: EditingModel) str = str |> Seq.fold insertChar model
 
     let private backspace (model: EditingModel) =
-        if model.Cursor.Column = 0 then
-            model
-        else
+        let line = model.Cursor.Line
+        let col = model.Cursor.Column
+
+        if col > 0 then
             let model = pushUndo model
-            let line = model.Cursor.Line
-            let col = model.Cursor.Column
             let current = model.Buffer.[line]
 
             let updatedLine = current.Remove(col - 1, 1)
@@ -59,6 +58,24 @@ module EditingLogic =
             { model with
                 Buffer = updatedBuffer
                 Cursor = { model.Cursor with Column = col - 1 }
+                IsDirty = true }
+        elif line = 0 then
+            model
+        else
+            let model = pushUndo model
+            let previous = model.Buffer.[line - 1]
+            let current = model.Buffer.[line]
+
+            let updatedBuffer =
+                (model.Buffer |> List.take (line - 1))
+                @ [ previous + current ]
+                @ (model.Buffer |> List.skip (line + 1))
+
+            { model with
+                Buffer = updatedBuffer
+                Cursor =
+                    { Line = line - 1
+                      Column = previous.Length }
                 IsDirty = true }
 
     let private delete (model: EditingModel) =

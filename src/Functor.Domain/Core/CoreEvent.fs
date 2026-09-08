@@ -22,16 +22,6 @@ type CoreEvent =
     // ────────────────────────────────────────────────
     | ApplyEditingEvent of EditingEvent
 
-    // Minimal direct editing events for EditorSurface
-    | InsertChar of char
-    | InsertNewline
-    | Backspace
-
-    | MoveCursorLeft
-    | MoveCursorRight
-    | MoveCursorUp
-    | MoveCursorDown
-
     // ────────────────────────────────────────────────
     // Syntax Highlighting + Tokenization
     // ────────────────────────────────────────────────
