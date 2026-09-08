@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <Compile Include="Rendering\RenderingSurface.fs" />
-    <Compile Include="Controls\EditorSurface.fs" />
+    <Compile Include="Controls\EditorControl.fs" />
     <Compile Include="ViewModels\ViewModelBase.fs" />
     <Compile Include="ViewModels\MainViewModel.fs" />
     <Compile Include="Views\MainWindow.axaml.fs" />

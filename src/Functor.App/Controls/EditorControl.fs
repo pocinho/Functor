@@ -10,7 +10,7 @@ open Functor.Domain.Core
 open Functor.App.Rendering
 open Functor.Rendering
 
-type EditorSurface() =
+type EditorControl() =
     inherit Control()
 
     // ------------------------------------------------------------
