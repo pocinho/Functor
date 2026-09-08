@@ -4,6 +4,57 @@ namespace Functor.Domain.Editing
 /// Applies an EditingEvent to an EditingModel and returns a new EditingModel.
 module EditingLogic =
 
+    let selectedText (model: EditingModel) =
+        let normalized =
+            model.Selection
+            |> Option.map (fun selection ->
+                if
+                    compare (selection.Start.Line, selection.Start.Column) (selection.End.Line, selection.End.Column)
+                    <= 0
+                then
+                    selection
+                else
+                    { Start = selection.End
+                      End = selection.Start })
+
+        match normalized with
+        | None -> None
+        | Some selection when selection.Start = selection.End -> None
+        | Some selection ->
+            let lines =
+                model.Buffer
+                |> List.skip selection.Start.Line
+                |> List.take (selection.End.Line - selection.Start.Line + 1)
+
+            let selected =
+                lines
+                |> List.mapi (fun index line ->
+                    if index = 0 then
+                        line.Substring(selection.Start.Column)
+                    elif index = lines.Length - 1 then
+                        line.Substring(0, selection.End.Column)
+                    else
+                        line)
+                |> String.concat "\n"
+
+            Some selected
+
+    let private normalizeNewlines (text: string) =
+        text.Replace("\r\n", "\n").Replace('\r', '\n')
+
+    let private normalizedSelection (model: EditingModel) =
+        model.Selection
+        |> Option.map (fun selection ->
+            if
+                compare (selection.Start.Line, selection.Start.Column) (selection.End.Line, selection.End.Column)
+                <= 0
+            then
+                selection
+            else
+                { Start = selection.End
+                  End = selection.Start })
+        |> Option.filter (fun selection -> selection.Start <> selection.End)
+
     // ────────────────────────────────────────────────
     // Helpers
     // ────────────────────────────────────────────────
@@ -38,9 +89,80 @@ module EditingLogic =
         { model with
             Buffer = updatedBuffer
             Cursor = { model.Cursor with Column = col + 1 }
+            PreferredColumn = None
             IsDirty = true }
 
-    let private insertString (model: EditingModel) str = str |> Seq.fold insertChar model
+    let private replaceSelection (model: EditingModel) (selection: Selection) (text: string) =
+        let startText = model.Buffer.[selection.Start.Line]
+        let endText = model.Buffer.[selection.End.Line]
+        let prefix = startText.Substring(0, selection.Start.Column)
+        let suffix = endText.Substring(selection.End.Column)
+        let pieces = (normalizeNewlines text).Split('\n') |> Array.toList
+
+        let replacement =
+            match pieces with
+            | [] -> [ prefix + suffix ]
+            | [ piece ] -> [ prefix + piece + suffix ]
+            | first :: rest ->
+                let last = List.last rest
+                let middle = rest |> List.take (rest.Length - 1)
+                [ prefix + first ] @ middle @ [ last + suffix ]
+
+        let buffer =
+            (model.Buffer |> List.take selection.Start.Line)
+            @ replacement
+            @ (model.Buffer |> List.skip (selection.End.Line + 1))
+
+        { model with
+            Buffer = buffer
+            Cursor =
+                { Line = selection.Start.Line + replacement.Length - 1
+                  Column = (List.last replacement).Length - suffix.Length }
+            PreferredColumn = None
+            Selection = None
+            IsDirty = true }
+
+    let private deleteSelection (model: EditingModel) =
+        normalizedSelection model
+        |> Option.map (fun selection -> replaceSelection (pushUndo model) selection "")
+        |> Option.defaultValue model
+
+    let private insertString (model: EditingModel) (text: string) =
+        let text = normalizeNewlines text
+
+        match normalizedSelection model with
+        | Some selection -> replaceSelection (pushUndo model) selection text
+        | None when text.Contains('\n') ->
+            replaceSelection
+                (pushUndo model)
+                { Start = model.Cursor
+                  End = model.Cursor }
+                text
+        | None ->
+            if
+                model.OverwriteMode
+                && model.Cursor.Column < model.Buffer.[model.Cursor.Line].Length
+            then
+                let line = model.Buffer.[model.Cursor.Line]
+                let count = min text.Length (line.Length - model.Cursor.Column)
+
+                let updated =
+                    line.Remove(model.Cursor.Column, count).Insert(model.Cursor.Column, text)
+
+                let buffer =
+                    model.Buffer
+                    |> List.mapi (fun index value -> if index = model.Cursor.Line then updated else value)
+
+                { model with
+                    Buffer = buffer
+                    Cursor =
+                        { model.Cursor with
+                            Column = model.Cursor.Column + text.Length }
+                    PreferredColumn = None
+                    Selection = None
+                    IsDirty = true }
+            else
+                text |> Seq.fold insertChar model
 
     let private backspace (model: EditingModel) =
         let line = model.Cursor.Line
@@ -58,6 +180,7 @@ module EditingLogic =
             { model with
                 Buffer = updatedBuffer
                 Cursor = { model.Cursor with Column = col - 1 }
+                PreferredColumn = None
                 IsDirty = true }
         elif line = 0 then
             model
@@ -76,6 +199,7 @@ module EditingLogic =
                 Cursor =
                     { Line = line - 1
                       Column = previous.Length }
+                PreferredColumn = None
                 IsDirty = true }
 
     let private delete (model: EditingModel) =
@@ -83,7 +207,9 @@ module EditingLogic =
         let col = model.Cursor.Column
         let current = model.Buffer.[line]
 
-        if col >= current.Length then
+        if normalizedSelection model |> Option.isSome then
+            deleteSelection model
+        elif col >= current.Length then
             model
         else
             let model = pushUndo model
@@ -94,6 +220,7 @@ module EditingLogic =
 
             { model with
                 Buffer = updatedBuffer
+                PreferredColumn = None
                 IsDirty = true }
 
     // ────────────────────────────────────────────────
@@ -102,7 +229,18 @@ module EditingLogic =
 
     let private moveCursor (model: EditingModel) newCursor =
         { model with
-            Cursor = clampCursor model newCursor }
+            Cursor = clampCursor model newCursor
+            PreferredColumn = None }
+
+    let private moveVertically (model: EditingModel) delta =
+        let preferred = model.PreferredColumn |> Option.defaultValue model.Cursor.Column
+        let line = max 0 (min (model.Buffer.Length - 1) (model.Cursor.Line + delta))
+
+        { model with
+            Cursor =
+                { Line = line
+                  Column = min preferred model.Buffer.[line].Length }
+            PreferredColumn = Some preferred }
 
     // ────────────────────────────────────────────────
     // Selection
@@ -154,6 +292,7 @@ module EditingLogic =
         { model with
             Buffer = updatedBuffer
             Cursor = { Line = line + 1; Column = 0 }
+            PreferredColumn = None
             IsDirty = true }
 
     let private deleteLine (model: EditingModel) =
@@ -174,6 +313,7 @@ module EditingLogic =
             { model with
                 Buffer = updatedBuffer
                 Cursor = { Line = newLine; Column = 0 }
+                PreferredColumn = None
                 IsDirty = true }
 
     let private duplicateLine (model: EditingModel) =
@@ -188,6 +328,7 @@ module EditingLogic =
 
         { model with
             Buffer = updatedBuffer
+            PreferredColumn = None
             IsDirty = true }
 
     // ────────────────────────────────────────────────
@@ -222,8 +363,12 @@ module EditingLogic =
         match evt with
         | InsertChar ch -> insertChar model ch
         | InsertString str -> insertString model str
-        | Backspace -> backspace model
+        | Backspace ->
+            match normalizedSelection model with
+            | Some _ -> deleteSelection model
+            | None -> backspace model
         | Delete -> delete model
+        | DeleteSelection -> deleteSelection model
 
         | MoveLeft ->
             moveCursor
@@ -235,16 +380,8 @@ module EditingLogic =
                 model
                 { model.Cursor with
                     Column = model.Cursor.Column + 1 }
-        | MoveUp ->
-            moveCursor
-                model
-                { model.Cursor with
-                    Line = model.Cursor.Line - 1 }
-        | MoveDown ->
-            moveCursor
-                model
-                { model.Cursor with
-                    Line = model.Cursor.Line + 1 }
+        | MoveUp -> moveVertically model -1
+        | MoveDown -> moveVertically model 1
         | MoveToLineStart -> moveCursor model { model.Cursor with Column = 0 }
         | MoveToLineEnd ->
             let line = model.Cursor.Line

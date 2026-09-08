@@ -35,8 +35,24 @@ module CoreLogic =
     // ────────────────────────────────────────────────
 
     let private applyEditingEvent (model: CoreModel) (evt: Functor.Domain.Editing.EditingEvent) =
+        let editing = EditingLogic.update evt model.Editing
+
+        let activeDocument =
+            if editing.IsDirty then
+                model.ActiveDocument |> Option.map DocumentModel.markDirty
+            else
+                model.ActiveDocument
+
         { model with
-            Editing = EditingLogic.update evt model.Editing }
+            Editing = editing
+            ActiveDocument = activeDocument
+            OpenDocuments =
+                model.OpenDocuments
+                |> List.map (fun document ->
+                    if Some document = model.ActiveDocument then
+                        activeDocument |> Option.defaultValue document
+                    else
+                        document) }
 
     // ────────────────────────────────────────────────
     // Syntax

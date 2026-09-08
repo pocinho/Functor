@@ -1,10 +1,11 @@
-﻿namespace Functor.Rendering.Tests
+namespace Functor.Rendering.Tests
 
-open Functor.Domain.Editing
 open Functor.Domain.Diagnostics
+open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Rendering
 open Xunit
+open TestFixtures
 
 type LayoutEngineTests() =
     [<Fact>]
@@ -14,36 +15,23 @@ type LayoutEngineTests() =
 
     [<Fact>]
     member _.``pointer coordinates map to document position``() =
-        let metrics =
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
-
+        let measurer = createMeasurer ()
         let buffer = [ "first"; "second"; "third"; "fourth"; "fifth" ]
-
-        let position = LayoutEngine.positionAtPoint metrics 2 3 buffer 20.0f 17.0f
+        let position = LayoutEngine.positionAtPoint measurer 2 3 buffer 20.0f 17.0f
 
         Assert.Equal({ Line = 4; Column = 5 }, position)
 
     [<Fact>]
     member _.``pointer coordinates clamp to document bounds``() =
-        let metrics =
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
-
-        let position = LayoutEngine.positionAtPoint metrics 0 0 [ "abc" ] -20.0f 1000.0f
+        let measurer = createMeasurer ()
+        let position = LayoutEngine.positionAtPoint measurer 0 0 [ "abc" ] -20.0f 1000.0f
 
         Assert.Equal({ Line = 0; Column = 0 }, position)
 
     [<Fact>]
     member _.``tokens are converted to styled pixel ranges``() =
-        let metrics =
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
-
-        let lines = LayoutEngine.layoutLines metrics 1 [ 2, "let value" ]
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 1 [ 2, "let value" ]
 
         let token =
             { Kind = "keyword"
@@ -51,7 +39,7 @@ type LayoutEngineTests() =
               Column = 0
               Length = 3 }
 
-        let layout = LayoutEngine.layoutTokens metrics lines [ token ] |> List.exactlyOne
+        let layout = LayoutEngine.layoutTokens measurer lines [ token ] |> List.exactlyOne
 
         Assert.Equal(2, layout.LineIndex)
         Assert.Equal("keyword", layout.Style.Kind)
@@ -62,12 +50,8 @@ type LayoutEngineTests() =
 
     [<Fact>]
     member _.``diagnostics produce glyphs and multiline underlines``() =
-        let metrics =
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
-
-        let lines = LayoutEngine.layoutLines metrics 0 [ 0, "first"; 1, "second" ]
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "first"; 1, "second" ]
 
         let diagnostic =
             { Severity = DiagnosticSeverity.Error
@@ -78,7 +62,7 @@ type LayoutEngineTests() =
               Source = None }
 
         let layout =
-            LayoutEngine.layoutDiagnostics metrics lines [ diagnostic ] |> List.exactlyOne
+            LayoutEngine.layoutDiagnostics measurer lines [ diagnostic ] |> List.exactlyOne
 
         Assert.True(layout.Glyph.IsSome)
         Assert.Equal(2, layout.Underline.Length)
@@ -88,19 +72,12 @@ type LayoutEngineTests() =
 
     [<Fact>]
     member _.``line numbers use document indexes and visible y positions``() =
-        let metrics =
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
-
-        let lines = LayoutEngine.layoutLines metrics 0 [ 4, "fifth"; 5, "sixth" ]
-        let numbers = LayoutEngine.layoutLineNumbers metrics lines
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 4, "fifth"; 5, "sixth" ]
+        let numbers = LayoutEngine.layoutLineNumbers measurer lines
 
         Assert.Equal(2, numbers.Length)
         Assert.Equal("5", numbers.[0].Text)
         Assert.Equal(0.0f, numbers.[0].Y)
         Assert.Equal("6", numbers.[1].Text)
         Assert.Equal(16.0f, numbers.[1].Y)
-
-module Say =
-    let hello name = printfn "Hello %s" name

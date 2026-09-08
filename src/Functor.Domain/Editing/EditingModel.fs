@@ -15,6 +15,7 @@ type Selection = { Start: Position; End: Position }
 type EditingModel =
     {
         Cursor: Position
+        PreferredColumn: int option
         Selection: Selection option
 
         /// The text buffer, represented as a list of lines.
@@ -38,12 +39,10 @@ module EditingModel =
     /// Creates a fresh editing model with a single empty line.
     let create () =
         { Cursor = { Line = 0; Column = 0 }
+          PreferredColumn = None
           Selection = None
-
           Buffer = [ "" ]
-
           UndoStack = []
           RedoStack = []
-
           IsDirty = false
           OverwriteMode = false }

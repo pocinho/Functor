@@ -60,7 +60,7 @@ module LayoutEngine =
         max 0 (buffer.Length - max 1 visibleLineCount)
 
     let positionAtPoint
-        (metrics: TextMetrics)
+        (measurer: TextMeasurer)
         (horizontalOffset: int)
         (verticalOffset: int)
         (buffer: string list)
@@ -72,30 +72,29 @@ module LayoutEngine =
         else
             let line =
                 verticalOffset
-                + max 0 (int (System.Math.Floor(float y / float metrics.LineHeight)))
+                + max 0 (int (System.Math.Floor(float y / float measurer.Metrics.LineHeight)))
 
             let line = max 0 (min (buffer.Length - 1) line)
             let text = buffer.[line]
 
-            let column =
-                horizontalOffset
-                + max 0 (int (System.Math.Floor(float x / float metrics.DefaultAdvance + 0.5)))
+            let lineX = -measurer.MeasureRange text 0 horizontalOffset
+            let column = measurer.HitTestColumn text (x - lineX)
 
             { Line = line
               Column = max 0 (min text.Length column) }
 
     /// Layout visible lines into pixel space.
-    let layoutLines (metrics: TextMetrics) (horizontalOffset: int) (lines: list<int * string>) : list<LineLayout> =
+    let layoutLines (measurer: TextMeasurer) (horizontalOffset: int) (lines: list<int * string>) : list<LineLayout> =
         lines
         |> List.mapi (fun visibleIndex (lineIndex, text) ->
             { LineIndex = lineIndex
               Text = text
-              X = -float32 horizontalOffset * metrics.DefaultAdvance
-              Y = float32 visibleIndex * metrics.LineHeight
-              Height = metrics.LineHeight })
+              X = -measurer.MeasureRange text 0 horizontalOffset
+              Y = float32 visibleIndex * measurer.Metrics.LineHeight
+              Height = measurer.Metrics.LineHeight })
 
     /// Layout visible tokens into pixel space.
-    let layoutTokens (metrics: TextMetrics) (lines: list<LineLayout>) (tokens: list<Token>) : list<TokenLayout> =
+    let layoutTokens (measurer: TextMeasurer) (lines: list<LineLayout>) (tokens: list<Token>) : list<TokenLayout> =
         tokens
         |> List.choose (fun token ->
             lines
@@ -117,13 +116,13 @@ module LayoutEngine =
                 { LineIndex = token.Line
                   Range = tokenRange
                   Style = { Kind = token.Kind }
-                  XStart = line.X + float32 startColumn * metrics.DefaultAdvance
-                  XEnd = line.X + float32 endColumn * metrics.DefaultAdvance
+                  XStart = line.X + measurer.MeasureRange line.Text 0 startColumn
+                  XEnd = line.X + measurer.MeasureRange line.Text 0 endColumn
                   Y = line.Y }))
 
     /// Layout selections into pixel rectangles.
     let layoutSelections
-        (metrics: TextMetrics)
+        (measurer: TextMeasurer)
         (horizontalOffset: int)
         (lines: list<LineLayout>)
         (selections: list<Range>)
@@ -157,16 +156,16 @@ module LayoutEngine =
                             None
                         else
                             Some
-                                { X = float32 (startColumn - horizontalOffset) * metrics.DefaultAdvance
+                                { X = line.X + measurer.MeasureRange line.Text 0 startColumn
                                   Y = line.Y
-                                  Width = float32 (endColumn - startColumn) * metrics.DefaultAdvance
+                                  Width = measurer.MeasureRange line.Text startColumn (endColumn - startColumn)
                                   Height = line.Height })
 
             { Range = selection; Rects = rects })
 
     /// Layout cursors into pixel geometry.
     let layoutCursors
-        (metrics: TextMetrics)
+        (measurer: TextMeasurer)
         (horizontalOffset: int)
         (lines: list<LineLayout>)
         (cursors: list<Position>)
@@ -177,14 +176,14 @@ module LayoutEngine =
             |> List.tryFind (fun line -> line.LineIndex = position.Line)
             |> Option.map (fun line ->
                 { Position = position
-                  X = float32 (position.Column - horizontalOffset) * metrics.DefaultAdvance
+                  X = line.X + measurer.MeasureRange line.Text 0 position.Column
                   Y = line.Y
                   Height = line.Height
-                  Width = max 1.0f (metrics.DefaultAdvance * 0.1f) }))
+                  Width = max 1.0f (measurer.Metrics.DefaultAdvance * 0.1f) }))
 
     /// Layout diagnostics into glyph + underline geometry.
     let layoutDiagnostics
-        (metrics: TextMetrics)
+        (measurer: TextMeasurer)
         (lines: list<LineLayout>)
         (diagnostics: list<Diagnostic>)
         : list<DiagnosticLayout> =
@@ -220,9 +219,9 @@ module LayoutEngine =
                             None
                         else
                             Some
-                                { X = line.X + float32 startColumn * metrics.DefaultAdvance
+                                { X = line.X + measurer.MeasureRange line.Text 0 startColumn
                                   Y = line.Y + line.Height * 0.8f
-                                  Width = float32 (endColumn - startColumn) * metrics.DefaultAdvance
+                                  Width = measurer.MeasureRange line.Text startColumn (endColumn - startColumn)
                                   Height = max 1.0f (line.Height * 0.08f) })
 
             let glyph =
@@ -231,9 +230,9 @@ module LayoutEngine =
                 |> Option.map (fun line ->
                     let column = max 0 (min line.Text.Length range.Start.Column)
 
-                    { X = line.X + float32 column * metrics.DefaultAdvance
+                    { X = line.X + measurer.MeasureRange line.Text 0 column
                       Y = line.Y + line.Height * 0.15f
-                      Width = max 1.0f (metrics.DefaultAdvance * 0.2f)
+                      Width = max 1.0f (measurer.Metrics.DefaultAdvance * 0.2f)
                       Height = max 1.0f (line.Height * 0.2f) })
 
             { Range = range
@@ -242,7 +241,7 @@ module LayoutEngine =
               Underline = underline })
 
     /// Layout line numbers into gutter geometry.
-    let layoutLineNumbers (metrics: TextMetrics) (lines: list<LineLayout>) : list<LineNumber> =
+    let layoutLineNumbers (measurer: TextMeasurer) (lines: list<LineLayout>) : list<LineNumber> =
         lines
         |> List.map (fun line ->
             { LineIndex = line.LineIndex
@@ -252,17 +251,17 @@ module LayoutEngine =
 
     /// Run the full layout pipeline.
     let layoutAll
-        (metrics: TextMetrics)
+        (measurer: TextMeasurer)
         (viewport: Viewport)
         (horizontalOffset: int)
         (sliced: SlicingEngine.SlicedSpans)
         : LayoutResult =
-        let lines = layoutLines metrics horizontalOffset sliced.Lines
-        let tokens = layoutTokens metrics lines sliced.Tokens
-        let selections = layoutSelections metrics horizontalOffset lines sliced.Selections
-        let cursors = layoutCursors metrics horizontalOffset lines sliced.Cursors
-        let diagnostics = layoutDiagnostics metrics lines sliced.Diagnostics
-        let lineNumbers = layoutLineNumbers metrics lines
+        let lines = layoutLines measurer horizontalOffset sliced.Lines
+        let tokens = layoutTokens measurer lines sliced.Tokens
+        let selections = layoutSelections measurer horizontalOffset lines sliced.Selections
+        let cursors = layoutCursors measurer horizontalOffset lines sliced.Cursors
+        let diagnostics = layoutDiagnostics measurer lines sliced.Diagnostics
+        let lineNumbers = layoutLineNumbers measurer lines
 
         { Lines = lines
           Tokens = tokens

@@ -1,9 +1,11 @@
 namespace Functor.App.Controls
 
 open System
+open System.Threading.Tasks
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
+open Avalonia.Input.Platform
 open Avalonia.Media
 open Avalonia.Skia
 
@@ -26,17 +28,18 @@ type EditorControl() =
     let lineHeight = 16.0f
 
     let renderingConfig =
-        { RenderingPipeline.Metrics =
-            { LineHeight = lineHeight
-              DefaultAdvance = RenderingSurface.measureDefaultAdvance lineHeight
-              TabWidth = 4 } }
+        { RenderingPipeline.Measurer =
+            TextMeasurer.create
+                { LineHeight = lineHeight
+                  DefaultAdvance = RenderingSurface.measureDefaultAdvance lineHeight
+                  TabWidth = 4 } }
 
     member private this.VisibleLineCount =
         max 1 (int (Math.Ceiling(this.Bounds.Height / float lineHeight)))
 
     member private this.PositionAtPoint(point: Point) =
         LayoutEngine.positionAtPoint
-            renderingConfig.Metrics
+            renderingConfig.Measurer
             coreModel.HorizontalOffset
             coreModel.VerticalOffset
             coreModel.Editing.Buffer
@@ -49,6 +52,36 @@ type EditorControl() =
         coreModel <- CoreLogic.update (CoreEvent.ApplyEditingEvent event) coreModel
         this.InvalidateVisual()
         this.NotifyScrollStateChanged()
+
+    member private this.CopySelection() =
+        match EditingLogic.selectedText coreModel.Editing, TopLevel.GetTopLevel(this) with
+        | Some text, topLevel when not (isNull topLevel) ->
+            Async.StartImmediate(async { do! topLevel.Clipboard.SetTextAsync(text) |> Async.AwaitTask })
+        | _ -> ()
+
+    member private this.CutSelection() =
+        match EditingLogic.selectedText coreModel.Editing, TopLevel.GetTopLevel(this) with
+        | Some text, topLevel when not (isNull topLevel) ->
+            Async.StartImmediate(
+                async {
+                    do! topLevel.Clipboard.SetTextAsync(text) |> Async.AwaitTask
+                    this.ApplyEditingEvent(EditingEvent.DeleteSelection)
+                }
+            )
+        | _ -> ()
+
+    member private this.Paste() =
+        match TopLevel.GetTopLevel(this) with
+        | topLevel when not (isNull topLevel) ->
+            Async.StartImmediate(
+                async {
+                    let! text = topLevel.Clipboard.TryGetTextAsync() |> Async.AwaitTask
+
+                    if not (isNull text) && not (String.IsNullOrEmpty(text)) then
+                        this.ApplyEditingEvent(EditingEvent.InsertString text)
+                }
+            )
+        | _ -> ()
 
     member this.ScrollStateChanged = scrollStateChanged.Publish
 
@@ -103,6 +136,23 @@ type EditorControl() =
 
     override this.OnKeyDown(e: KeyEventArgs) =
         base.OnKeyDown(e)
+
+        let commandModifier =
+            e.KeyModifiers.HasFlag(KeyModifiers.Control)
+            || e.KeyModifiers.HasFlag(KeyModifiers.Meta)
+
+        if commandModifier then
+            match e.Key with
+            | Key.C ->
+                this.CopySelection()
+                e.Handled <- true
+            | Key.X ->
+                this.CutSelection()
+                e.Handled <- true
+            | Key.V ->
+                this.Paste()
+                e.Handled <- true
+            | _ -> ()
 
         let editingEvent =
             match e.Key with

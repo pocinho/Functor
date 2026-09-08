@@ -14,6 +14,7 @@ type EditingEvent =
     | InsertString of string
     | Backspace
     | Delete
+    | DeleteSelection
 
     // ────────────────────────────────────────────────
     // Cursor Movement

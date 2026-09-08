@@ -4,6 +4,7 @@ open Avalonia
 open Avalonia.Controls
 open Avalonia.Media
 open System.Globalization
+open System.Text
 open Functor.Rendering
 
 /// RenderingSurface is responsible for drawing a complete frame
@@ -15,6 +16,21 @@ open Functor.Rendering
 /// - It does NOT layout text.
 /// - It ONLY draws what RenderingModel provides.
 module RenderingSurface =
+
+    let private expandTabs (tabWidth: int) (text: string) =
+        let builder = StringBuilder()
+        let mutable column = 0
+
+        for character in text do
+            if character = '\t' then
+                let spaces = tabWidth - (column % tabWidth)
+                builder.Append(' ', spaces) |> ignore
+                column <- column + spaces
+            else
+                builder.Append(character) |> ignore
+                column <- column + 1
+
+        builder.ToString()
 
     let private editorTypeface = Typeface("Consolas")
 
@@ -66,7 +82,7 @@ module RenderingSurface =
 
             let text =
                 FormattedText(
-                    line.Text,
+                    expandTabs 4 line.Text,
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
                     editorTypeface,

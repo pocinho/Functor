@@ -18,22 +18,22 @@ module RenderingPipeline =
     /// - gutter width
     /// - tab width
     /// - soft-wrap settings
-    type RenderingConfig = { Metrics: TextMetrics }
+    type RenderingConfig = { Measurer: TextMeasurer }
 
     /// Runs the full rendering pipeline and produces a RenderingModel.
     let render (config: RenderingConfig) (model: CoreModel) : RenderingModel =
         let visibleLineCount =
-            if config.Metrics.LineHeight <= 0.0f then
+            if config.Measurer.Metrics.LineHeight <= 0.0f then
                 1
             else
-                max 1 (int (ceil (float32 model.Viewport.Height / config.Metrics.LineHeight)))
+              max 1 (int (ceil (float32 model.Viewport.Height / config.Measurer.Metrics.LineHeight)))
 
         // 1. Slice domain state into visible spans (Position/Range space)
         let sliced = SlicingEngine.sliceAll visibleLineCount model
 
         // 2. Layout spans into pixel geometry
         let layout =
-            LayoutEngine.layoutAll config.Metrics model.Viewport model.HorizontalOffset sliced
+            LayoutEngine.layoutAll config.Measurer model.Viewport model.HorizontalOffset sliced
 
         // 3. Convert layout result into a RenderingModel
         { VisibleLines =
