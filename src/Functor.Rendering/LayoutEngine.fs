@@ -64,8 +64,12 @@ module LayoutEngine =
 
     /// Layout visible lines into pixel space.
     let layoutLines (metrics: FontMetrics) (viewport: Viewport) (lines: list<int * string>) : list<LineLayout> =
-        // Implementation will be added later.
-        []
+        lines
+        |> List.mapi (fun visibleIndex (lineIndex, text) ->
+            { LineIndex = lineIndex
+              Text = text
+              Y = float32 visibleIndex * metrics.LineHeight
+              Height = metrics.LineHeight })
 
     /// Layout visible tokens into pixel space.
     let layoutTokens (metrics: FontMetrics) (lines: list<LineLayout>) (tokens: list<Token>) : list<TokenLayout> =
@@ -83,8 +87,16 @@ module LayoutEngine =
 
     /// Layout cursors into pixel geometry.
     let layoutCursors (metrics: FontMetrics) (lines: list<LineLayout>) (cursors: list<Position>) : list<CursorLayout> =
-        // Implementation will be added later.
-        []
+        cursors
+        |> List.choose (fun position ->
+            lines
+            |> List.tryFind (fun line -> line.LineIndex = position.Line)
+            |> Option.map (fun line ->
+                { Position = position
+                  X = float32 position.Column * metrics.CharWidth
+                  Y = line.Y
+                  Height = line.Height
+                  Width = max 1.0f (metrics.CharWidth * 0.1f) }))
 
     /// Layout diagnostics into glyph + underline geometry.
     let layoutDiagnostics

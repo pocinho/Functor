@@ -71,5 +71,6 @@ type EditorControl() =
 
         let frame: RenderingModel = RenderingPipeline.render renderingConfig coreModel
 
+        let bounds = Rect(0.0, 0.0, this.Bounds.Width, this.Bounds.Height)
 
-        RenderingSurface.draw context frame
+        RenderingSurface.draw context bounds frame

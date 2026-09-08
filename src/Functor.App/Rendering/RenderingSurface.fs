@@ -3,8 +3,7 @@ namespace Functor.App.Rendering
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Media
-open Avalonia.Skia
-open SkiaSharp
+open System.Globalization
 open Functor.Rendering
 
 /// RenderingSurface is responsible for drawing a complete frame
@@ -19,36 +18,51 @@ module RenderingSurface =
 
     /// Draws a single frame using the provided RenderingModel.
     /// This is called by EditorSurface during OnRender.
-    let draw (context: DrawingContext) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+    let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) =
+        // ------------------------------------------------------------
+        // 1. Draw background
+        // ------------------------------------------------------------
+        let background = Brushes.Black
+        context.FillRectangle(background, bounds)
 
-    /// Draw visible lines (background + text).
-    let private drawLines (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+        /// Debug border
+        let borderPen = Pen(Brushes.Gray, 10.0)
+        context.DrawRectangle(borderPen, bounds)
 
-    /// Draw syntax-highlighted tokens.
-    let private drawTokens (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+        // ------------------------------------------------------------
+        // 2. Cursor(s)
+        // ------------------------------------------------------------
+        let cursorPen = Pen(Brushes.White, 20.0)
 
-    /// Draw selection rectangles.
-    let private drawSelections (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+        for cursor in model.Cursors do
+            let x = float cursor.X
+            let y = float cursor.Y
+            let h = float cursor.Height
 
-    /// Draw cursor(s).
-    let private drawCursors (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+            let p1 = Point(x, y)
+            let p2 = Point(x, y + h)
 
-    /// Draw diagnostics (glyphs + underlines).
-    let private drawDiagnostics (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
-        ()
+            context.DrawLine(cursorPen, p1, p2)
 
-    /// Draw line numbers in the gutter.
-    let private drawLineNumbers (canvas: SKCanvas) (model: RenderingModel) =
-        // Implementation will be added later.
+        let drawText (line: VisibleLine) =
+            let fontSize = max 1.0 (float line.Height * 0.8)
+
+            let text =
+                FormattedText(
+                    line.Text,
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    Typeface("Consolas"),
+                    fontSize,
+                    Brushes.White
+                )
+
+            context.DrawText(text, Point(0.0, float line.Y))
+
+        for line in model.VisibleLines do
+            drawText line
+
+        // ------------------------------------------------------------
+        // 3. TODO: draw text, selections, diagnostics, etc.
+        // ------------------------------------------------------------
         ()
