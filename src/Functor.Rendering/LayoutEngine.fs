@@ -16,6 +16,7 @@ type FontMetrics =
 type LineLayout =
     { LineIndex: int
       Text: string
+      X: float32
       Y: float32
       Height: float32 }
 
@@ -63,11 +64,12 @@ type LayoutResult =
 module LayoutEngine =
 
     /// Layout visible lines into pixel space.
-    let layoutLines (metrics: FontMetrics) (viewport: Viewport) (lines: list<int * string>) : list<LineLayout> =
+    let layoutLines (metrics: FontMetrics) (horizontalOffset: int) (lines: list<int * string>) : list<LineLayout> =
         lines
         |> List.mapi (fun visibleIndex (lineIndex, text) ->
             { LineIndex = lineIndex
               Text = text
+              X = -float32 horizontalOffset * metrics.CharWidth
               Y = float32 visibleIndex * metrics.LineHeight
               Height = metrics.LineHeight })
 
@@ -79,21 +81,60 @@ module LayoutEngine =
     /// Layout selections into pixel rectangles.
     let layoutSelections
         (metrics: FontMetrics)
+        (horizontalOffset: int)
         (lines: list<LineLayout>)
         (selections: list<Range>)
         : list<SelectionLayout> =
-        // Implementation will be added later.
-        []
+        selections
+        |> List.map (fun selection ->
+            let selection = Range.normalize selection
+
+            let rects =
+                lines
+                |> List.choose (fun line ->
+                    if line.LineIndex < selection.Start.Line || line.LineIndex > selection.End.Line then
+                        None
+                    else
+                        let startColumn =
+                            if line.LineIndex = selection.Start.Line then
+                                selection.Start.Column
+                            else
+                                0
+
+                        let endColumn =
+                            if line.LineIndex = selection.End.Line then
+                                selection.End.Column
+                            else
+                                line.Text.Length
+
+                        let startColumn = max 0 (min line.Text.Length startColumn)
+                        let endColumn = max startColumn (min line.Text.Length endColumn)
+
+                        if startColumn = endColumn then
+                            None
+                        else
+                            Some
+                                { X = float32 (startColumn - horizontalOffset) * metrics.CharWidth
+                                  Y = line.Y
+                                  Width = float32 (endColumn - startColumn) * metrics.CharWidth
+                                  Height = line.Height })
+
+            { Range = selection; Rects = rects })
 
     /// Layout cursors into pixel geometry.
-    let layoutCursors (metrics: FontMetrics) (lines: list<LineLayout>) (cursors: list<Position>) : list<CursorLayout> =
+    let layoutCursors
+        (metrics: FontMetrics)
+        (horizontalOffset: int)
+        (lines: list<LineLayout>)
+        (cursors: list<Position>)
+        : list<CursorLayout> =
         cursors
         |> List.choose (fun position ->
             lines
             |> List.tryFind (fun line -> line.LineIndex = position.Line)
             |> Option.map (fun line ->
                 { Position = position
-                  X = float32 position.Column * metrics.CharWidth
+                  X = float32 (position.Column - horizontalOffset) * metrics.CharWidth
                   Y = line.Y
                   Height = line.Height
                   Width = max 1.0f (metrics.CharWidth * 0.1f) }))
@@ -113,11 +154,16 @@ module LayoutEngine =
         []
 
     /// Run the full layout pipeline.
-    let layoutAll (metrics: FontMetrics) (viewport: Viewport) (sliced: SlicingEngine.SlicedSpans) : LayoutResult =
-        let lines = layoutLines metrics viewport sliced.Lines
+    let layoutAll
+        (metrics: FontMetrics)
+        (viewport: Viewport)
+        (horizontalOffset: int)
+        (sliced: SlicingEngine.SlicedSpans)
+        : LayoutResult =
+        let lines = layoutLines metrics horizontalOffset sliced.Lines
         let tokens = layoutTokens metrics lines sliced.Tokens
-        let selections = layoutSelections metrics lines sliced.Selections
-        let cursors = layoutCursors metrics lines sliced.Cursors
+        let selections = layoutSelections metrics horizontalOffset lines sliced.Selections
+        let cursors = layoutCursors metrics horizontalOffset lines sliced.Cursors
         let diagnostics = layoutDiagnostics metrics lines sliced.Diagnostics
         let lineNumbers = layoutLineNumbers metrics lines
 

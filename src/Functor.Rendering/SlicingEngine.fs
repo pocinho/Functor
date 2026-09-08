@@ -12,89 +12,74 @@ module SlicingEngine =
         // Adjust to your actual buffer representation
         model.Editing.Buffer
 
-    /// Visible lines based on vertical offset + viewport height (in lines).
-    let sliceLines (model: CoreModel) : list<int * string> =
+    let private visibleLineRange visibleLineCount (model: CoreModel) totalLines =
+        let firstLine = max 0 model.VerticalOffset
+        let lastLine = min (totalLines - 1) (firstLine + max 1 visibleLineCount - 1)
+        firstLine, lastLine
+
+    /// Visible lines based on vertical offset and the number of lines that fit in the viewport.
+    let sliceLines visibleLineCount (model: CoreModel) : list<int * string> =
         let lines = getBufferLines model
         let totalLines = lines.Length
 
-        // Assume viewport height is expressed in lines for now
-        let firstLine = max 0 model.VerticalOffset
-        if firstLine >= totalLines then
+        if totalLines = 0 then
             []
         else
-            let lastLine =
-                firstLine + 50
-                |> min (totalLines - 1)
+            let firstLine, lastLine = visibleLineRange visibleLineCount model totalLines
 
-            [ for i in firstLine .. lastLine ->
-                i, lines.[i] ]
+            [ for i in firstLine..lastLine -> i, lines.[i] ]
 
     /// Visible tokens: intersect tokens with visible line range.
-    let sliceTokens (model: CoreModel) (syntax: SyntaxModel) : list<Token> =
-        let firstLine = max 0 model.VerticalOffset
-        let lastLine = firstLine + 50 // temporary until LayoutEngine provides line height
+    let sliceTokens visibleLineCount (model: CoreModel) (syntax: SyntaxModel) : list<Token> =
+        let firstLine, lastLine =
+            visibleLineRange visibleLineCount model model.Editing.Buffer.Length
 
         syntax.Tokens
-        |> List.filter (fun lt ->
-            lt.Line >= firstLine &&
-            lt.Line <= lastLine)
+        |> List.filter (fun lt -> lt.Line >= firstLine && lt.Line <= lastLine)
         |> List.collect (fun lt -> lt.Tokens)
 
 
-        // Horizontal slicing can be added later once LayoutEngine is in place.
-
     /// Visible selections: intersect selection ranges with visible line range.
-    let sliceSelections (model: CoreModel) : list<Range> =
-        let firstLine = max 0 model.VerticalOffset
-        let lastLine =
-            firstLine + 50
+    let sliceSelections visibleLineCount (model: CoreModel) : list<Range> =
+        let firstLine, lastLine =
+            visibleLineRange visibleLineCount model model.Editing.Buffer.Length
 
         model.Editing.Selection
         |> Option.toList
-        |> List.filter (fun selection ->
-            selection.End.Line >= firstLine &&
-            selection.Start.Line <= lastLine)
         |> List.map (fun selection ->
-            {
-                Start = selection.Start
-                End = selection.End
-            })
+            let range: Range =
+                { Start = selection.Start
+                  End = selection.End }
+
+            Range.normalize range)
+        |> List.filter (fun selection -> selection.End.Line >= firstLine && selection.Start.Line <= lastLine)
 
     /// Visible cursors: keep cursors whose positions fall inside visible lines.
-    let sliceCursors (model: CoreModel) : list<Position> =
-        let firstLine = max 0 model.VerticalOffset
-        let lastLine =
-            firstLine + 50
+    let sliceCursors visibleLineCount (model: CoreModel) : list<Position> =
+        let firstLine, lastLine =
+            visibleLineRange visibleLineCount model model.Editing.Buffer.Length
 
         [ model.Editing.Cursor ]
-        |> List.filter (fun p ->
-            p.Line >= firstLine && p.Line <= lastLine)
+        |> List.filter (fun p -> p.Line >= firstLine && p.Line <= lastLine)
 
     /// Visible diagnostics: intersect diagnostic ranges with visible line range.
-    let sliceDiagnostics (model: CoreModel) (diagnostics: DiagnosticsModel) : list<Diagnostic> =
-        let firstLine = max 0 model.VerticalOffset
-        let lastLine =
-            firstLine + 50
+    let sliceDiagnostics visibleLineCount (model: CoreModel) (diagnostics: DiagnosticsModel) : list<Diagnostic> =
+        let firstLine, lastLine =
+            visibleLineRange visibleLineCount model model.Editing.Buffer.Length
 
         diagnostics.All
-        |> List.filter (fun d ->
-            d.RangeEnd.Line >= firstLine &&
-            d.RangeStart.Line <= lastLine)
+        |> List.filter (fun d -> d.RangeEnd.Line >= firstLine && d.RangeStart.Line <= lastLine)
 
     type SlicedSpans =
-        {
-            Lines : list<int * string>
-            Tokens : list<Token>
-            Selections : list<Range>
-            Cursors : list<Position>
-            Diagnostics : list<Diagnostic>
-        }
+        { Lines: list<int * string>
+          Tokens: list<Token>
+          Selections: list<Range>
+          Cursors: list<Position>
+          Diagnostics: list<Diagnostic> }
 
-    let sliceAll (model: CoreModel) : SlicedSpans =
-        {
-            Lines = sliceLines model
-            Tokens = sliceTokens model model.Syntax
-            Selections = sliceSelections model
-            Cursors = sliceCursors model
-            Diagnostics = sliceDiagnostics model model.Diagnostics
-        }
+    let sliceAll visibleLineCount (model: CoreModel) : SlicedSpans =
+        { Lines = sliceLines visibleLineCount model
+          Tokens = sliceTokens visibleLineCount model model.Syntax
+          Selections = sliceSelections visibleLineCount model
+          Cursors = sliceCursors visibleLineCount model
+          Diagnostics = sliceDiagnostics visibleLineCount model model.Diagnostics }

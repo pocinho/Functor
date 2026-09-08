@@ -11,11 +11,7 @@ open Functor.App.Views
 type App() =
     inherit Application()
 
-    override this.Initialize() =
-            AvaloniaXamlLoader.Load(this)
-#if DEBUG
-            this.AttachDeveloperTools() |> ignore
-#endif
+    override this.Initialize() = AvaloniaXamlLoader.Load(this)
 
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with

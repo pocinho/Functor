@@ -22,12 +22,18 @@ module RenderingPipeline =
 
     /// Runs the full rendering pipeline and produces a RenderingModel.
     let render (config: RenderingConfig) (model: CoreModel) : RenderingModel =
+        let visibleLineCount =
+            if config.Metrics.LineHeight <= 0.0f then
+                1
+            else
+                max 1 (int (ceil (float32 model.Viewport.Height / config.Metrics.LineHeight)))
 
         // 1. Slice domain state into visible spans (Position/Range space)
-        let sliced = SlicingEngine.sliceAll model
+        let sliced = SlicingEngine.sliceAll visibleLineCount model
 
         // 2. Layout spans into pixel geometry
-        let layout = LayoutEngine.layoutAll config.Metrics model.Viewport sliced
+        let layout =
+            LayoutEngine.layoutAll config.Metrics model.Viewport model.HorizontalOffset sliced
 
         // 3. Convert layout result into a RenderingModel
         { VisibleLines =
@@ -35,6 +41,7 @@ module RenderingPipeline =
             |> List.map (fun l ->
                 { LineIndex = l.LineIndex
                   Text = l.Text
+                  X = l.X
                   Y = l.Y
                   Height = l.Height })
 

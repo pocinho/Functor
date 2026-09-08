@@ -9,6 +9,17 @@ open Functor.Domain.Navigation
 /// A source range used by rendering geometry.
 type Range = { Start: Position; End: Position }
 
+module Range =
+
+    let normalize range =
+        if
+            compare (range.Start.Line, range.Start.Column) (range.End.Line, range.End.Column)
+            <= 0
+        then
+            range
+        else
+            { Start = range.End; End = range.Start }
+
 /// A rectangle in viewport pixel coordinates.
 type Rect =
     { X: float32
@@ -23,6 +34,7 @@ type SyntaxStyle = { Kind: string }
 type VisibleLine =
     { LineIndex: int
       Text: string
+      X: float32
       Y: float32
       Height: float32 }
 
