@@ -2,4 +2,9 @@
   <PropertyGroup>
     <AvaloniaVersion>12.1.2</AvaloniaVersion>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
 </Project>

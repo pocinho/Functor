@@ -8,12 +8,48 @@ let repositoryRoot = DirectoryInfo(buildDirectory).Parent.FullName
 let project =
     Path.Combine(repositoryRoot, "src", "Functor.App.Desktop", "Functor.App.Desktop.fsproj")
 
-let outputDirectory = Path.Combine(repositoryRoot, "out")
-let configuration = "Debug"
-let targetFramework = "net10.0"
+let resolvePath (path: string) =
+    if Path.IsPathRooted(path) then
+        path
+    else
+        Path.GetFullPath(Path.Combine(repositoryRoot, path))
 
-let projectOutputDirectory =
-    Path.Combine(repositoryRoot, "src", "Functor.App.Desktop", "bin", configuration, targetFramework)
+let parseArguments () =
+    let arguments = fsi.CommandLineArgs |> Array.skip 1
+
+    let rec parse (remaining: string list) (values: Map<string, string>) =
+        match remaining with
+        | [] -> values
+        | optionName :: optionValue :: tail when optionName.StartsWith("--") ->
+            parse tail (Map.add (optionName.Substring(2)) optionValue values)
+        | [ optionName ] when optionName = "--help" ->
+            Console.WriteLine(
+                "Usage: dotnet fsi build.fsx [--runtimeIdentifier VALUE] [--outputRoot VALUE] [--outputDirectory VALUE] [--configuration VALUE]"
+            )
+
+            exit 0
+        | optionName :: _ -> failwithf "Invalid command-line arguments near '%s'. Use --help for usage." optionName
+
+    let values = parse (Array.toList arguments) Map.empty
+
+    let get name defaultValue =
+        Map.tryFind name values |> Option.defaultValue defaultValue
+
+    let runtimeIdentifier = get "runtimeIdentifier" "win-x64"
+
+    let outputRoot =
+        get "outputRoot" (Path.Combine(repositoryRoot, "out")) |> resolvePath
+
+    let outputDirectory =
+        get "outputDirectory" (Path.Combine(outputRoot, runtimeIdentifier))
+        |> resolvePath
+
+    let configuration = get "configuration" "Release"
+
+    runtimeIdentifier, outputRoot, outputDirectory, configuration
+
+let runtimeIdentifier, outputRoot, outputDirectory, configuration =
+    parseArguments ()
 
 let run (command: string) (arguments: string) (workingDirectory: string) =
     let startInfo = ProcessStartInfo(command, arguments)
@@ -44,23 +80,19 @@ let run (command: string) (arguments: string) (workingDirectory: string) =
         failwithf "%s failed with exit code %d." command childProcess.ExitCode
 
 let clean () =
-    if Directory.Exists(outputDirectory) then
-        Directory.Delete(outputDirectory, true)
+    if Directory.Exists(outputRoot) then
+        Directory.Delete(outputRoot, true)
 
-let build () =
-    run "dotnet" (sprintf "build \"%s\" --configuration %s" project configuration) repositoryRoot
-
-let copyOutput () =
-    if not (Directory.Exists(projectOutputDirectory)) then
-        failwithf "Build output directory does not exist: %s" projectOutputDirectory
-
-    Directory.CreateDirectory(outputDirectory) |> ignore
-
-    for sourceFile in Directory.EnumerateFiles(projectOutputDirectory, "*", SearchOption.AllDirectories) do
-        let relativePath = Path.GetRelativePath(projectOutputDirectory, sourceFile)
-        let destinationFile = Path.Combine(outputDirectory, relativePath)
-        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)) |> ignore
-        File.Copy(sourceFile, destinationFile, true)
+let publish () =
+    run
+        "dotnet"
+        (sprintf
+            "publish \"%s\" --configuration %s --runtime %s --no-self-contained --output \"%s\""
+            project
+            configuration
+            runtimeIdentifier
+            outputDirectory)
+        repositoryRoot
 
 let signAndVerify () =
     let certificatePath = Path.Combine(buildDirectory, "FunctorDev.pfx")
@@ -86,8 +118,7 @@ let signAndVerify () =
             run signTool (sprintf "verify /pa \"%s\"" file) repositoryRoot
 
 clean ()
-build ()
-copyOutput ()
+publish ()
 signAndVerify ()
 
 Console.WriteLine(sprintf "Build completed. Output: %s" outputDirectory)

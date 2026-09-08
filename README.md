@@ -50,3 +50,26 @@ Functor/
 
 ```
 ---
+
+## Building Functor
+
+Build-script **help** requires the F# Interactive delimiter:
+
+```
+dotnet fsi .\build\build.fsx -- --help
+```
+
+Use **custom** parameters, for example:
+
+
+```
+dotnet fsi .\build\build.fsx --configuration Debug --runtimeIdentifier win-x64 --outputRoot out --outputDirectory out/win-x64
+```
+
+Or you can run **build-release-win-x64.fsx**, which invokes the reusable script with the Release win-x64 settings:
+
+```
+dotnet fsi .\build\build-release-win-x64.fsx
+```
+
+---
