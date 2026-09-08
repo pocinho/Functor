@@ -9,23 +9,68 @@ This roadmap outlines the major milestones for Functor’s development.
 - Editing, Syntax, Navigation, Diagnostics subdomains
 - CoreModel, CoreEvent, CoreLogic
 - Position-based coordinate system
-- Vertical + horizontal scrolling
+- Vertical scrolling and viewport slicing
 - Domain builds cleanly
+- Domain and rendering test projects
 
 ---
 
-## 🚧 Phase 2 — Rendering Engine
+## 🚧 Phase 2 — Pure Rendering & Text Metrics
 - Text layout engine (line measurement, glyph runs)
 - Syntax token slicing based on viewport + offsets
 - Cursor rendering
 - Selection rendering
-- Diagnostics gutter
+- Diagnostic geometry
 - Line numbers
-- SkiaSharp surface integration
+- Backend-neutral `TextMetrics` and grapheme-aware `TextMeasurer`
+- Rune-aware measurement with UTF-16 offsets preserved
+- SkiaSharp backend integration pending
 
 ---
 
-## 🚧 Phase 3 — Syntax & Language Services
+## ✅ Phase 3 — Application Session Foundation (Started)
+- `Functor.Application` project
+- `EditorSession` owns editor state and dispatches domain events
+- Avalonia controls consume the application session instead of owning `CoreModel`
+
+### Remaining
+- Async application commands and effects
+- Platform-neutral file, clipboard, and dialog services
+- Session status and error reporting
+
+---
+
+## 🚧 Phase 4 — File I/O & Document Lifecycle
+- `EditingModel.createFromText`
+- UTF-8 file loading and saving
+- Newline and encoding policy
+- Dirty-state and saved-snapshot tracking
+- Desktop file dialogs
+- Browser file picker and download/save flow
+- File errors surfaced through application state
+
+---
+
+## 🚧 Phase 5 — Avalonia Hosting & Essential Editor
+- `Functor.Avalonia` shared frontend
+- Desktop and browser WASM targets
+- Android and iOS targets
+- Pointer selection and scrolling
+- Clipboard integration
+- Selection replacement and deletion
+- Vertical cursor movement
+- Basic overwrite mode
+- Tab display and hit-testing consistency
+- Command routing and focus handling
+
+### Remaining
+- Command palette
+- Settings UI
+- Cross-target runtime validation
+
+---
+
+## 🚧 Phase 6 — Syntax & Language Services
 - Tokenizer service
 - SyntaxModel integration
 - Incremental tokenization
@@ -34,7 +79,7 @@ This roadmap outlines the major milestones for Functor’s development.
 
 ---
 
-## 🚧 Phase 4 — Navigation
+## 🚧 Phase 7 — Navigation
 - Search engine
 - Jump list
 - Symbol navigation
@@ -43,7 +88,7 @@ This roadmap outlines the major milestones for Functor’s development.
 
 ---
 
-## 🚧 Phase 5 — Diagnostics
+## 🚧 Phase 8 — Diagnostics
 - LSP diagnostics bridge
 - Severity rendering
 - Inline diagnostics
@@ -51,25 +96,26 @@ This roadmap outlines the major milestones for Functor’s development.
 
 ---
 
-## 🚧 Phase 6 — Editor Features
+## 🚧 Phase 9 — Advanced Editor Features
 - Multi-cursor support
 - Block selections
 - Undo/Redo improvements
-- Clipboard integration
-- File I/O layer
+- Document tabs after per-document session state is stable
+- External file change detection
+- Search/replace editing
 
 ---
 
-## 🚧 Phase 7 — Functor.Avalonia
-- MVU wiring
-- EditorSurface control
-- Input handling
-- Command palette
-- Settings UI
+## 🚧 Phase 10 — Skia Rendering Backend
+- SkiaSharp surface integration
+- Shared renderer contract for Avalonia hosts
+- Backend-specific glyph shaping and measurement
+- Rendering performance and resource caching
+- Visual regression coverage
 
 ---
 
-## 🚧 Phase 8 — Packaging & Distribution
+## 🚧 Phase 11 — Packaging & Distribution
 - Windows installer
 - macOS bundle
 - Linux AppImage
