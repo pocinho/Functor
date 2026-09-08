@@ -1,4 +1,4 @@
-namespace Functor.Core.Tests
+namespace Functor.Tests.Domain
 
 open Functor.Domain.Core
 open Functor.Domain.Editing

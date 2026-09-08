@@ -1,4 +1,4 @@
-namespace Functor.Rendering.Tests
+namespace Functor.Tests.Rendering
 
 open Functor.Domain.Diagnostics
 open Functor.Domain.Editing

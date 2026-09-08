@@ -1,22 +1,26 @@
 <Solution>
+  <Folder Name="/Functor.App/">
+    <Project Path="Functor.Agent/Functor.Agent.fsproj" Id="284fa60d-5b1e-487a-8f95-509f007f55a9" />
+    <Project Path="Functor.App.Android/Functor.App.Android.fsproj" />
+    <Project Path="Functor.App.Browser/Functor.App.Browser.fsproj" />
+    <Project Path="Functor.App.Desktop/Functor.App.Desktop.fsproj" />
+    <Project Path="Functor.App.iOS/Functor.App.iOS.fsproj" />
+    <Project Path="Functor.App/Functor.App.fsproj" />
+    <Project Path="Functor.Domain/Functor.Domain.fsproj" Id="07f89ea2-e8d7-4b0e-b951-993267bb178a" />
+    <Project Path="Functor.Input/Functor.Input.fsproj" Id="31f5541f-f9a4-4af2-b29a-b7a9412400cd" />
+    <Project Path="Functor.Lsp/Functor.Lsp.fsproj" Id="a97c1e1f-4a5a-4ed1-93e3-b6e5399bdbed" />
+    <Project Path="Functor.Platform/Functor.Platform.fsproj" Id="f4cc8eb9-20d1-4b5a-b9c1-a1be68da2e66" />
+    <Project Path="Functor.PluginHost/Functor.PluginHost.fsproj" Id="aa3e8aa8-4c6e-4fe1-84ea-e47f4fb0c5f7" />
+    <Project Path="Functor.Rendering/Functor.Rendering.fsproj" Id="93d550c4-a0fd-4ca5-8d92-ad33c6bd70af" />
+    <Project Path="Functor.Workspace/Functor.Workspace.fsproj" Id="ec1245ed-8ea0-447e-a8ff-a1c41b743711" />
+  </Folder>
+  <Folder Name="/Functor.Tests/">
+    <Project Path="Functor.Tests/Functor.Tests.Domain/Functor.Tests.Domain.fsproj" />
+    <Project Path="Functor.Tests/Functor.Tests.Rendering/Functor.Tests.Rendering.fsproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="../LICENSE.txt" />
     <File Path="../README.md" />
     <File Path="Directory.Build.props" />
   </Folder>
-  <Project Path="Functor.Agent/Functor.Agent.fsproj" Id="284fa60d-5b1e-487a-8f95-509f007f55a9" />
-  <Project Path="Functor.App.Android/Functor.App.Android.fsproj" />
-  <Project Path="Functor.App.Browser/Functor.App.Browser.fsproj" />
-  <Project Path="Functor.App.Desktop/Functor.App.Desktop.fsproj" />
-  <Project Path="Functor.App.iOS/Functor.App.iOS.fsproj" />
-  <Project Path="Functor.App/Functor.App.fsproj" />
-  <Project Path="Functor.Domain/Functor.Domain.fsproj" Id="07f89ea2-e8d7-4b0e-b951-993267bb178a" />
-  <Project Path="Functor.Input/Functor.Input.fsproj" Id="31f5541f-f9a4-4af2-b29a-b7a9412400cd" />
-  <Project Path="Functor.Lsp/Functor.Lsp.fsproj" Id="a97c1e1f-4a5a-4ed1-93e3-b6e5399bdbed" />
-  <Project Path="Functor.Platform/Functor.Platform.fsproj" Id="f4cc8eb9-20d1-4b5a-b9c1-a1be68da2e66" />
-  <Project Path="Functor.PluginHost/Functor.PluginHost.fsproj" Id="aa3e8aa8-4c6e-4fe1-84ea-e47f4fb0c5f7" />
-  <Project Path="Functor.Rendering/Functor.Rendering.fsproj" Id="93d550c4-a0fd-4ca5-8d92-ad33c6bd70af" />
-  <Project Path="Functor.Tests/Functor.Core.Tests/Functor.Core.Tests.fsproj" />
-  <Project Path="Functor.Tests/Functor.Rendering.Tests/Functor.Rendering.Tests.fsproj" />
-  <Project Path="Functor.Workspace/Functor.Workspace.fsproj" Id="ec1245ed-8ea0-447e-a8ff-a1c41b743711" />
 </Solution>
