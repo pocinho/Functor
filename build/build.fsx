@@ -6,7 +6,7 @@ let buildDirectory = __SOURCE_DIRECTORY__
 let repositoryRoot = DirectoryInfo(buildDirectory).Parent.FullName
 
 let project =
-    Path.Combine(repositoryRoot, "src", "Functor.App.Desktop", "Functor.App.Desktop.fsproj")
+    Path.Combine(repositoryRoot, "src", "Functor.Avalonia.Desktop", "Functor.Avalonia.Desktop.fsproj")
 
 let resolvePath (path: string) =
     if Path.IsPathRooted(path) then

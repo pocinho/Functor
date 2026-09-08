@@ -1,0 +1,14 @@
+﻿namespace Functor.Avalonia.Android
+
+open Android.App
+open Android.Content.PM
+open Avalonia
+open Avalonia.Android
+open Functor.Avalonia
+
+[<Application>]
+type Application(javaReference: nativeint, transfer: Android.Runtime.JniHandleOwnership) =
+    inherit AvaloniaAndroidApplication<AvaloniaApp>(javaReference, transfer)
+
+    override _.CustomizeAppBuilder(builder) =
+        base.CustomizeAppBuilder(builder).WithInterFont()

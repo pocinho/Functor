@@ -60,7 +60,7 @@ This roadmap outlines the major milestones for Functor’s development.
 
 ---
 
-## 🚧 Phase 7 — Functor.App (Avalonia)
+## 🚧 Phase 7 — Functor.Avalonia
 - MVU wiring
 - EditorSurface control
 - Input handling

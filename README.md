@@ -38,11 +38,12 @@ Functor/
 |   ├── Functor.Platform/        # OS-specific services
 |   ├── Functor.PluginHost/      # Plugin system
 |   ├── Functor.Shared/          # Common utilities
-|   ├── Functor.App/             # Avalonia frontend
-|   ├── Functor.App.Desktop/
-|   ├── Functor.App.Browser/
-|   ├── Functor.App.Android/
-|   ├── Functor.App.iOS/
+|   ├── Functor.Application/     # Application/session orchestration
+|   ├── Functor.Avalonia/        # Avalonia frontend
+|   ├── Functor.Avalonia.Desktop/
+|   ├── Functor.Avalonia.Browser/
+|   ├── Functor.Avalonia.Android/
+|   ├── Functor.Avalonia.iOS/
 |   └── Functor.Tests/
 └── build/
     ├── build.fsx                        # FAKE build script

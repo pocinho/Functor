@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Functor.Avalonia.ViewModels"
+             xmlns:controls="using:Functor.Avalonia.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Functor.Avalonia.Views.MainView"
+             x:DataType="vm:MainViewModel">
+  <Design.DataContext>
+    <!-- This only sets the DataContext for the previewer in an IDE,
+         to set the actual DataContext for runtime, set the DataContext property in code (look at AvaloniaApp.axaml.fs) -->
+    <vm:MainViewModel />
+  </Design.DataContext>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <controls:EditorControl x:Name="EditorControl"
+                            Grid.Column="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Focusable="True" />
+    <ScrollBar x:Name="VerticalScrollBar"
+               Grid.Column="1"
+               Orientation="Vertical"
+               Minimum="0"
+               Maximum="0"
+               ViewportSize="1"
+               IsEnabled="False" />
+  </Grid>
+</UserControl>

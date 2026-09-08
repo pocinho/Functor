@@ -15,7 +15,8 @@ Functor is structured into clear, independent subdomains:
 - **Functor.Navigation** — Search, jump lists, symbol navigation
 - **Functor.Diagnostics** — LSP diagnostics, ranges, severity
 - **Functor.Rendering** — Layout engine, text surface, cursor rendering
-- **Functor.App** — Avalonia MVU application
+- **Functor.Application** — application/session orchestration
+- **Functor.Avalonia** — Avalonia frontend
 
 Each subdomain is independent and testable.
 
