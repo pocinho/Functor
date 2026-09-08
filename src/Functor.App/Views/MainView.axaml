@@ -13,7 +13,18 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <controls:EditorControl HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch"
-                          Focusable="True" />
+  <Grid ColumnDefinitions="*,Auto">
+    <controls:EditorControl x:Name="EditorControl"
+                            Grid.Column="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            Focusable="True" />
+    <ScrollBar x:Name="VerticalScrollBar"
+               Grid.Column="1"
+               Orientation="Vertical"
+               Minimum="0"
+               Maximum="0"
+               ViewportSize="1"
+               IsEnabled="False" />
+  </Grid>
 </UserControl>

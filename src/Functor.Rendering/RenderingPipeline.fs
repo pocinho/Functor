@@ -18,7 +18,7 @@ module RenderingPipeline =
     /// - gutter width
     /// - tab width
     /// - soft-wrap settings
-    type RenderingConfig = { Metrics: FontMetrics }
+    type RenderingConfig = { Metrics: TextMetrics }
 
     /// Runs the full rendering pipeline and produces a RenderingModel.
     let render (config: RenderingConfig) (model: CoreModel) : RenderingModel =

@@ -16,5 +16,6 @@
   <Project Path="Functor.Platform/Functor.Platform.fsproj" Id="f4cc8eb9-20d1-4b5a-b9c1-a1be68da2e66" />
   <Project Path="Functor.PluginHost/Functor.PluginHost.fsproj" Id="aa3e8aa8-4c6e-4fe1-84ea-e47f4fb0c5f7" />
   <Project Path="Functor.Rendering/Functor.Rendering.fsproj" Id="93d550c4-a0fd-4ca5-8d92-ad33c6bd70af" />
+  <Project Path="Functor.Tests/Functor.Core.Tests/Functor.Core.Tests.fsproj" />
   <Project Path="Functor.Workspace/Functor.Workspace.fsproj" Id="ec1245ed-8ea0-447e-a8ff-a1c41b743711" />
 </Solution>

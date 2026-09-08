@@ -16,6 +16,24 @@ open Functor.Rendering
 /// - It ONLY draws what RenderingModel provides.
 module RenderingSurface =
 
+    let private editorTypeface = Typeface("Consolas")
+
+    let private editorFontSize (lineHeight: float32) =
+        max 1.0 (float lineHeight * (5.0 / 6.0))
+
+    let measureDefaultAdvance (lineHeight: float32) =
+        let text =
+            FormattedText(
+                "M",
+                CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                editorTypeface,
+                editorFontSize lineHeight,
+                Brushes.White
+            )
+
+        float32 text.Width
+
     /// Draws a single frame using the provided RenderingModel.
     /// This is called by EditorSurface during OnRender.
     let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) =
@@ -44,14 +62,14 @@ module RenderingSurface =
                 )
 
         let drawText (line: VisibleLine) =
-            let fontSize = max 1.0 (float line.Height * 0.8)
+            let fontSize = editorFontSize line.Height
 
             let text =
                 FormattedText(
                     line.Text,
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
-                    Typeface("Consolas"),
+                    editorTypeface,
                     fontSize,
                     Brushes.White
                 )

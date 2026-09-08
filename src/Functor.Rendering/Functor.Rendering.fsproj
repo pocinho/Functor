@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="TextMetrics.fs" />
     <Compile Include="RenderingModel.fs" />
     <Compile Include="SlicingEngine.fs" />
     <Compile Include="LayoutEngine.fs" />
