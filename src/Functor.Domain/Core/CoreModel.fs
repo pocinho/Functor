@@ -13,50 +13,41 @@ type EditorMode =
     | Visual
 
 /// Represents the visible area of the editor.
-type Viewport =
-    {
-        Width : int
-        Height : int
-    }
+type Viewport = { Width: int; Height: int }
 
 /// Represents the complete state of the editor.
 type CoreModel =
-    {
-        ActiveDocument : DocumentModel option
-        OpenDocuments : DocumentModel list
+    { ActiveDocument: DocumentModel option
+      OpenDocuments: DocumentModel list
 
-        Editing : EditingModel
-        Syntax : SyntaxModel
-        Navigation : NavigationModel
-        Diagnostics : DiagnosticsModel
+      Editing: EditingModel
+      Syntax: SyntaxModel
+      Navigation: NavigationModel
+      Diagnostics: DiagnosticsModel
 
-        Mode : EditorMode
+      Mode: EditorMode
 
-        Viewport : Viewport
+      Viewport: Viewport
 
-        /// Vertical scroll offset (top line index).
-        VerticalOffset : int
-
-        /// Horizontal scroll offset (column offset).
-        HorizontalOffset : int
-    }
+      VerticalOffset: int
+      HorizontalOffset: int }
 
 module CoreModel =
 
     let create () =
-        {
-            ActiveDocument = None
-            OpenDocuments = []
+        { ActiveDocument = None
+          OpenDocuments = []
 
-            Editing = EditingModel.create ()
-            Syntax = SyntaxModel.create ()
-            Navigation = NavigationModel.create ()
-            Diagnostics = DiagnosticsModel.create ()
+          Editing = EditingModel.create ()
+          Syntax = SyntaxModel.create ()
+          Navigation = NavigationModel.create ()
+          Diagnostics = DiagnosticsModel.create ()
 
-            Mode = EditorMode.Normal
+          Mode = EditorMode.Normal
 
-            Viewport = { Width = 0; Height = 0 }
+          Viewport = { Width = 0; Height = 0 }
 
-            VerticalOffset = 0
-            HorizontalOffset = 0
-        }
+          VerticalOffset = 0
+          HorizontalOffset = 0 }
+
+    let empty = create ()

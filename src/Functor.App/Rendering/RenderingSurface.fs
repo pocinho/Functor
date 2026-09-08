@@ -19,7 +19,7 @@ module RenderingSurface =
 
     /// Draws a single frame using the provided RenderingModel.
     /// This is called by EditorSurface during OnRender.
-    let draw (canvas: SKCanvas) (model: RenderingModel) =
+    let draw (context: DrawingContext) (model: RenderingModel) =
         // Implementation will be added later.
         ()
 

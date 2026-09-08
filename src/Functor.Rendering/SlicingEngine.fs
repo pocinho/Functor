@@ -1,98 +1,95 @@
 namespace Functor.Rendering
 
 open Functor.Domain.Core
+open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Domain.Diagnostics
-open Functor.Domain.Navigation
-
-/// The SlicingEngine is responsible for converting CoreModel state
-/// into *visible* spans (lines, tokens, selections, diagnostics, cursors)
-/// based on viewport size and scroll offsets.
-///
-/// IMPORTANT:
-/// - All slicing is done in Position/Range space (no pixels).
-/// - LayoutEngine will convert these spans into pixel geometry.
-/// - RenderingModel will combine geometry into a frame description.
 
 module SlicingEngine =
 
-    // ─────────────────────────────────────────────────────────────
-    // Visible Lines
-    // ─────────────────────────────────────────────────────────────
+    // Helper: get all buffer lines as (index * text)
+    let private getBufferLines (model: CoreModel) : string list =
+        // Adjust to your actual buffer representation
+        model.Editing.Buffer
 
-    /// Returns the list of visible line indices and their text.
-    /// This is purely based on VerticalOffset, Viewport.Height,
-    /// and the buffer length.
-    let sliceLines
-        (model: CoreModel)
-        : list<int * string> =
-        // Implementation will be added later.
-        []
+    /// Visible lines based on vertical offset + viewport height (in lines).
+    let sliceLines (model: CoreModel) : list<int * string> =
+        let lines = getBufferLines model
+        let totalLines = lines.Length
 
-    // ─────────────────────────────────────────────────────────────
-    // Visible Tokens
-    // ─────────────────────────────────────────────────────────────
+        // Assume viewport height is expressed in lines for now
+        let firstLine = max 0 model.VerticalOffset
+        if firstLine >= totalLines then
+            []
+        else
+            let lastLine =
+                firstLine + 50
+                |> min (totalLines - 1)
 
-    /// Returns the list of syntax tokens that intersect the visible
-    /// line range and horizontal viewport.
-    let sliceTokens
-        (model: CoreModel)
-        (syntax: SyntaxModel)
-        : list<SyntaxToken> =
-        // Implementation will be added later.
-        []
+            [ for i in firstLine .. lastLine ->
+                i, lines.[i] ]
 
-    // ─────────────────────────────────────────────────────────────
-    // Visible Selections
-    // ─────────────────────────────────────────────────────────────
+    /// Visible tokens: intersect tokens with visible line range.
+    let sliceTokens (model: CoreModel) (syntax: SyntaxModel) : list<Token> =
+        let firstLine = max 0 model.VerticalOffset
+        let lastLine = firstLine + 50 // temporary until LayoutEngine provides line height
 
-    /// Returns the list of selection ranges that intersect the viewport.
-    let sliceSelections
-        (model: CoreModel)
-        : list<Range> =
-        // Implementation will be added later.
-        []
+        syntax.Tokens
+        |> List.filter (fun lt ->
+            lt.Line >= firstLine &&
+            lt.Line <= lastLine)
+        |> List.collect (fun lt -> lt.Tokens)
 
-    // ─────────────────────────────────────────────────────────────
-    // Visible Cursors
-    // ─────────────────────────────────────────────────────────────
 
-    /// Returns the list of cursor positions that are visible.
-    /// (Supports multi-cursor in the future.)
-    let sliceCursors
-        (model: CoreModel)
-        : list<Position> =
-        // Implementation will be added later.
-        []
+        // Horizontal slicing can be added later once LayoutEngine is in place.
 
-    // ─────────────────────────────────────────────────────────────
-    // Visible Diagnostics
-    // ─────────────────────────────────────────────────────────────
+    /// Visible selections: intersect selection ranges with visible line range.
+    let sliceSelections (model: CoreModel) : list<Range> =
+        let firstLine = max 0 model.VerticalOffset
+        let lastLine =
+            firstLine + 50
 
-    /// Returns diagnostics whose ranges intersect the visible viewport.
-    let sliceDiagnostics
-        (model: CoreModel)
-        (diagnostics: DiagnosticsModel)
-        : list<Diagnostic> =
-        // Implementation will be added later.
-        []
+        model.Editing.Selection
+        |> Option.toList
+        |> List.filter (fun selection ->
+            selection.End.Line >= firstLine &&
+            selection.Start.Line <= lastLine)
+        |> List.map (fun selection ->
+            {
+                Start = selection.Start
+                End = selection.End
+            })
 
-    // ─────────────────────────────────────────────────────────────
-    // Combined Slicing
-    // ─────────────────────────────────────────────────────────────
+    /// Visible cursors: keep cursors whose positions fall inside visible lines.
+    let sliceCursors (model: CoreModel) : list<Position> =
+        let firstLine = max 0 model.VerticalOffset
+        let lastLine =
+            firstLine + 50
 
-    /// Performs all slicing steps and returns a structured record
-    /// containing all visible spans (still in Position/Range space).
+        [ model.Editing.Cursor ]
+        |> List.filter (fun p ->
+            p.Line >= firstLine && p.Line <= lastLine)
+
+    /// Visible diagnostics: intersect diagnostic ranges with visible line range.
+    let sliceDiagnostics (model: CoreModel) (diagnostics: DiagnosticsModel) : list<Diagnostic> =
+        let firstLine = max 0 model.VerticalOffset
+        let lastLine =
+            firstLine + 50
+
+        diagnostics.All
+        |> List.filter (fun d ->
+            d.RangeEnd.Line >= firstLine &&
+            d.RangeStart.Line <= lastLine)
+
     type SlicedSpans =
         {
             Lines : list<int * string>
-            Tokens : list<SyntaxToken>
+            Tokens : list<Token>
             Selections : list<Range>
             Cursors : list<Position>
             Diagnostics : list<Diagnostic>
         }
 
-    /// Runs the full slicing pipeline.
     let sliceAll (model: CoreModel) : SlicedSpans =
         {
             Lines = sliceLines model

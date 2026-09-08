@@ -26,6 +26,7 @@ type EditingEvent =
     | MoveToLineEnd
     | MoveToDocumentStart
     | MoveToDocumentEnd
+    | SetCursor of Position
 
     // ────────────────────────────────────────────────
     // Selection
@@ -33,6 +34,7 @@ type EditingEvent =
     | StartSelection
     | UpdateSelection
     | ClearSelection
+    | SetSelection of Selection option
 
     // ────────────────────────────────────────────────
     // Line Operations
@@ -51,3 +53,4 @@ type EditingEvent =
     // Editing Modes
     // ────────────────────────────────────────────────
     | ToggleOverwriteMode
+    | SetOverwriteMode of bool

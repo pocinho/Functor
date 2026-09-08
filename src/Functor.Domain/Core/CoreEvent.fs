@@ -1,27 +1,36 @@
 namespace Functor.Domain.Core
 
-open Functor.Domain.Editing
 open Functor.Domain.Document
+open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Domain.Navigation
 open Functor.Domain.Diagnostics
 
-/// Represents every meaningful event that can occur in the editor.
-/// This is the root event union for the entire Domain.
+/// Root event union for the entire editor.
 /// All subdomain events are composed here.
 type CoreEvent =
     // ────────────────────────────────────────────────
     // Document Lifecycle
     // ────────────────────────────────────────────────
-    | OpenDocument of path:string
-    | CloseDocument of id:System.Guid
-    | SwitchDocument of id:System.Guid
+    | OpenDocument of path: string
+    | CloseDocument of id: DocumentId
+    | SwitchDocument of id: DocumentId
     | ApplyDocumentEvent of DocumentEvent
 
     // ────────────────────────────────────────────────
-    // Editing (text buffer, cursor, selection)
+    // Editing (buffer, cursor, selection)
     // ────────────────────────────────────────────────
     | ApplyEditingEvent of EditingEvent
+
+    // Minimal direct editing events for EditorSurface
+    | InsertChar of char
+    | InsertNewline
+    | Backspace
+
+    | MoveCursorLeft
+    | MoveCursorRight
+    | MoveCursorUp
+    | MoveCursorDown
 
     // ────────────────────────────────────────────────
     // Syntax Highlighting + Tokenization
@@ -41,11 +50,26 @@ type CoreEvent =
     // ────────────────────────────────────────────────
     // Editor Mode (normal, insert, visual)
     // ────────────────────────────────────────────────
-    | SetMode of EditorMode
+    | ChangeMode of EditorMode
 
     // ────────────────────────────────────────────────
     // Rendering + Layout
     // ────────────────────────────────────────────────
-    | SetViewport of Viewport
-    | SetVerticalOffset of int
-    | SetHorizontalOffset of int
+    | ResizeViewport of width: int * height: int
+    | ScrollTo of offset: int
+    | ScrollBy of delta: int
+
+    // ────────────────────────────────────────────────
+    // Workspace-level events (future extension)
+    // ────────────────────────────────────────────────
+    | WorkspaceEvent of obj
+
+    // ────────────────────────────────────────────────
+    // Agentic events (OpFlow, MCP, AI integration)
+    // ────────────────────────────────────────────────
+    | AgentEvent of obj
+
+    // ────────────────────────────────────────────────
+    // No-op (safe default)
+    // ────────────────────────────────────────────────
+    | NoOp

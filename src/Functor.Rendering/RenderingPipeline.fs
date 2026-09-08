@@ -18,82 +18,56 @@ module RenderingPipeline =
     /// - gutter width
     /// - tab width
     /// - soft-wrap settings
-    type RenderingConfig =
-        {
-            Metrics : FontMetrics
-        }
+    type RenderingConfig = { Metrics: FontMetrics }
 
     /// Runs the full rendering pipeline and produces a RenderingModel.
-    let render
-        (config: RenderingConfig)
-        (model: CoreModel)
-        : RenderingModel =
+    let render (config: RenderingConfig) (model: CoreModel) : RenderingModel =
 
         // 1. Slice domain state into visible spans (Position/Range space)
         let sliced = SlicingEngine.sliceAll model
 
         // 2. Layout spans into pixel geometry
-        let layout =
-            LayoutEngine.layoutAll
-                config.Metrics
-                model.Viewport
-                sliced
+        let layout = LayoutEngine.layoutAll config.Metrics model.Viewport sliced
 
         // 3. Convert layout result into a RenderingModel
-        {
-            VisibleLines =
-                layout.Lines
-                |> List.map (fun l ->
-                    {
-                        LineIndex = l.LineIndex
-                        Text = l.Text
-                        Y = l.Y
-                        Height = l.Height
-                    })
+        { VisibleLines =
+            layout.Lines
+            |> List.map (fun l ->
+                { LineIndex = l.LineIndex
+                  Text = l.Text
+                  Y = l.Y
+                  Height = l.Height })
 
-            VisibleTokens =
-                layout.Tokens
-                |> List.map (fun t ->
-                    {
-                        LineIndex = t.LineIndex
-                        Range = t.Range
-                        Style = t.Style
-                        XStart = t.XStart
-                        XEnd = t.XEnd
-                        Y = t.Y
-                    })
+          VisibleTokens =
+            layout.Tokens
+            |> List.map (fun t ->
+                { LineIndex = t.LineIndex
+                  Range = t.Range
+                  Style = t.Style
+                  XStart = t.XStart
+                  XEnd = t.XEnd
+                  Y = t.Y })
 
-            Selections =
-                layout.Selections
-                |> List.map (fun s ->
-                    {
-                        Range = s.Range
-                        Rects = s.Rects
-                    })
+          Selections = layout.Selections |> List.map (fun s -> { Range = s.Range; Rects = s.Rects })
 
-            Cursors =
-                layout.Cursors
-                |> List.map (fun c ->
-                    {
-                        Position = c.Position
-                        X = c.X
-                        Y = c.Y
-                        Height = c.Height
-                        Width = c.Width
-                    })
+          Cursors =
+            layout.Cursors
+            |> List.map (fun (c: CursorLayout) ->
+                { Position = c.Position
+                  X = c.X
+                  Y = c.Y
+                  Height = c.Height
+                  Width = c.Width })
 
-            Diagnostics =
-                layout.Diagnostics
-                |> List.map (fun d ->
-                    {
-                        Range = d.Range
-                        Severity = d.Severity
-                        Glyph = d.Glyph
-                        Underline = d.Underline
-                    })
+          Diagnostics =
+            layout.Diagnostics
+            |> List.map (fun d ->
+                { Range = d.Range
+                  Severity = d.Severity
+                  Glyph = d.Glyph
+                  Underline = d.Underline })
 
-            LineNumbers = layout.LineNumbers
+          LineNumbers = layout.LineNumbers
 
-            ViewportWidth = float32 model.Viewport.Width
-            ViewportHeight = float32 model.Viewport.Height
-        }
+          ViewportWidth = float32 model.Viewport.Width
+          ViewportHeight = float32 model.Viewport.Height }

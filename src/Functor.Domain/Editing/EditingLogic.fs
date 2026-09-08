@@ -9,15 +9,9 @@ module EditingLogic =
     // ────────────────────────────────────────────────
 
     let private clampCursor (model: EditingModel) (cursor: Position) =
-        let line =
-            cursor.Line
-            |> max 0
-            |> min (model.Buffer.Length - 1)
+        let line = cursor.Line |> max 0 |> min (model.Buffer.Length - 1)
 
-        let column =
-            cursor.Column
-            |> max 0
-            |> min (model.Buffer.[line].Length)
+        let column = cursor.Column |> max 0 |> min (model.Buffer.[line].Length)
 
         { Line = line; Column = column }
 
@@ -36,35 +30,31 @@ module EditingLogic =
         let col = model.Cursor.Column
         let current = model.Buffer.[line]
 
-        let updatedLine =
-            current.Insert(col, string ch)
+        let updatedLine = current.Insert(col, string ch)
 
         let updatedBuffer =
-            model.Buffer
-            |> List.mapi (fun i l -> if i = line then updatedLine else l)
+            model.Buffer |> List.mapi (fun i l -> if i = line then updatedLine else l)
 
         { model with
             Buffer = updatedBuffer
             Cursor = { model.Cursor with Column = col + 1 }
             IsDirty = true }
 
-    let private insertString (model: EditingModel) str =
-        str |> Seq.fold insertChar model
+    let private insertString (model: EditingModel) str = str |> Seq.fold insertChar model
 
     let private backspace (model: EditingModel) =
-        if model.Cursor.Column = 0 then model
+        if model.Cursor.Column = 0 then
+            model
         else
             let model = pushUndo model
             let line = model.Cursor.Line
             let col = model.Cursor.Column
             let current = model.Buffer.[line]
 
-            let updatedLine =
-                current.Remove(col - 1, 1)
+            let updatedLine = current.Remove(col - 1, 1)
 
             let updatedBuffer =
-                model.Buffer
-                |> List.mapi (fun i l -> if i = line then updatedLine else l)
+                model.Buffer |> List.mapi (fun i l -> if i = line then updatedLine else l)
 
             { model with
                 Buffer = updatedBuffer
@@ -76,14 +66,14 @@ module EditingLogic =
         let col = model.Cursor.Column
         let current = model.Buffer.[line]
 
-        if col >= current.Length then model
+        if col >= current.Length then
+            model
         else
             let model = pushUndo model
             let updatedLine = current.Remove(col, 1)
 
             let updatedBuffer =
-                model.Buffer
-                |> List.mapi (fun i l -> if i = line then updatedLine else l)
+                model.Buffer |> List.mapi (fun i l -> if i = line then updatedLine else l)
 
             { model with
                 Buffer = updatedBuffer
@@ -94,23 +84,30 @@ module EditingLogic =
     // ────────────────────────────────────────────────
 
     let private moveCursor (model: EditingModel) newCursor =
-        { model with Cursor = clampCursor model newCursor }
+        { model with
+            Cursor = clampCursor model newCursor }
 
     // ────────────────────────────────────────────────
     // Selection
     // ────────────────────────────────────────────────
 
     let private startSelection (model: EditingModel) =
-        { model with Selection = Some { Start = model.Cursor; End = model.Cursor } }
+        { model with
+            Selection =
+                Some
+                    { Start = model.Cursor
+                      End = model.Cursor } }
 
     let private updateSelection (model: EditingModel) =
         match model.Selection with
         | None -> model
         | Some sel ->
-            { model with Selection = Some { sel with End = model.Cursor } }
+            { model with
+                Selection = Some { sel with End = model.Cursor } }
 
-    let private clearSelection (model: EditingModel) =
-        { model with Selection = None }
+    let private clearSelection (model: EditingModel) = { model with Selection = None }
+
+    let private setSelection (model: EditingModel) selection = { model with Selection = selection }
 
     // ────────────────────────────────────────────────
     // Line Operations
@@ -134,7 +131,7 @@ module EditingLogic =
 
         let updatedBuffer =
             (model.Buffer |> List.take line)
-            @ [before; after]
+            @ [ before; after ]
             @ (model.Buffer |> List.skip (line + 1))
 
         { model with
@@ -143,7 +140,8 @@ module EditingLogic =
             IsDirty = true }
 
     let private deleteLine (model: EditingModel) =
-        if model.Buffer.Length = 1 then model
+        if model.Buffer.Length = 1 then
+            model
         else
             let model = pushUndo model
             let line = model.Cursor.Line
@@ -154,8 +152,7 @@ module EditingLogic =
                 |> List.filter (fun (i, _) -> i <> line)
                 |> List.map snd
 
-            let newLine =
-                line |> min (updatedBuffer.Length - 1)
+            let newLine = line |> min (updatedBuffer.Length - 1)
 
             { model with
                 Buffer = updatedBuffer
@@ -169,7 +166,7 @@ module EditingLogic =
 
         let updatedBuffer =
             (model.Buffer |> List.take (line + 1))
-            @ [text]
+            @ [ text ]
             @ (model.Buffer |> List.skip (line + 1))
 
         { model with
@@ -211,10 +208,26 @@ module EditingLogic =
         | Backspace -> backspace model
         | Delete -> delete model
 
-        | MoveLeft -> moveCursor model { model.Cursor with Column = model.Cursor.Column - 1 }
-        | MoveRight -> moveCursor model { model.Cursor with Column = model.Cursor.Column + 1 }
-        | MoveUp -> moveCursor model { model.Cursor with Line = model.Cursor.Line - 1 }
-        | MoveDown -> moveCursor model { model.Cursor with Line = model.Cursor.Line + 1 }
+        | MoveLeft ->
+            moveCursor
+                model
+                { model.Cursor with
+                    Column = model.Cursor.Column - 1 }
+        | MoveRight ->
+            moveCursor
+                model
+                { model.Cursor with
+                    Column = model.Cursor.Column + 1 }
+        | MoveUp ->
+            moveCursor
+                model
+                { model.Cursor with
+                    Line = model.Cursor.Line - 1 }
+        | MoveDown ->
+            moveCursor
+                model
+                { model.Cursor with
+                    Line = model.Cursor.Line + 1 }
         | MoveToLineStart -> moveCursor model { model.Cursor with Column = 0 }
         | MoveToLineEnd ->
             let line = model.Cursor.Line
@@ -225,10 +238,12 @@ module EditingLogic =
             let last = model.Buffer.Length - 1
             let col = model.Buffer.[last].Length
             moveCursor model { Line = last; Column = col }
+        | SetCursor cursor -> moveCursor model cursor
 
         | StartSelection -> startSelection model
         | UpdateSelection -> updateSelection model
         | ClearSelection -> clearSelection model
+        | SetSelection selection -> setSelection model selection
 
         | InsertNewLine -> insertNewLine model
         | DeleteLine -> deleteLine model
@@ -238,5 +253,7 @@ module EditingLogic =
         | Redo -> redo model
 
         | ToggleOverwriteMode ->
-            // Overwrite mode not yet implemented — placeholder
-            model
+            { model with
+                OverwriteMode = not model.OverwriteMode }
+
+        | SetOverwriteMode enabled -> { model with OverwriteMode = enabled }

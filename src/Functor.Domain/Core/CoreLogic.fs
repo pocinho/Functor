@@ -16,15 +16,15 @@ module CoreLogic =
 
     let private applyDocumentEvent (model: CoreModel) (evt: DocumentEvent) =
         let updatedActive =
-            model.ActiveDocument
-            |> Option.map (fun doc -> DocumentLogic.update evt doc)
+            model.ActiveDocument |> Option.map (fun doc -> DocumentLogic.update evt doc)
 
         let updatedOpen =
             model.OpenDocuments
             |> List.map (fun doc ->
                 if Some doc = model.ActiveDocument then
                     updatedActive |> Option.defaultValue doc
-                else doc)
+                else
+                    doc)
 
         { model with
             ActiveDocument = updatedActive
@@ -34,29 +34,33 @@ module CoreLogic =
     // Editing
     // ────────────────────────────────────────────────
 
-    let private applyEditingEvent (model: CoreModel) (evt: EditingEvent) =
-        { model with Editing = EditingLogic.update evt model.Editing }
+    let private applyEditingEvent (model: CoreModel) (evt: Functor.Domain.Editing.EditingEvent) =
+        { model with
+            Editing = EditingLogic.update evt model.Editing }
 
     // ────────────────────────────────────────────────
     // Syntax
     // ────────────────────────────────────────────────
 
     let private applySyntaxEvent (model: CoreModel) (evt: SyntaxEvent) =
-        { model with Syntax = SyntaxLogic.update evt model.Syntax }
+        { model with
+            Syntax = SyntaxLogic.update evt model.Syntax }
 
     // ────────────────────────────────────────────────
     // Navigation
     // ────────────────────────────────────────────────
 
     let private applyNavigationEvent (model: CoreModel) (evt: NavigationEvent) =
-        { model with Navigation = NavigationLogic.update evt model.Navigation }
+        { model with
+            Navigation = NavigationLogic.update evt model.Navigation }
 
     // ────────────────────────────────────────────────
     // Diagnostics
     // ────────────────────────────────────────────────
 
     let private applyDiagnosticEvent (model: CoreModel) (evt: DiagnosticsEvent) =
-        { model with Diagnostics = DiagnosticsLogic.update evt model.Diagnostics }
+        { model with
+            Diagnostics = DiagnosticsLogic.update evt model.Diagnostics }
 
     // ────────────────────────────────────────────────
     // Core Update
@@ -68,14 +72,13 @@ module CoreLogic =
         // Document Lifecycle
         | OpenDocument path ->
             let doc = DocumentModel.createFromFile path ""
+
             { model with
                 ActiveDocument = Some doc
                 OpenDocuments = doc :: model.OpenDocuments }
 
         | CloseDocument id ->
-            let remaining =
-                model.OpenDocuments
-                |> List.filter (fun d -> d.Id <> id)
+            let remaining = model.OpenDocuments |> List.filter (fun d -> d.Id <> id)
 
             let newActive =
                 match model.ActiveDocument with
@@ -87,43 +90,56 @@ module CoreLogic =
                 OpenDocuments = remaining }
 
         | SwitchDocument id ->
-            let newActive =
-                model.OpenDocuments
-                |> List.tryFind (fun d -> d.Id = id)
+            let newActive = model.OpenDocuments |> List.tryFind (fun d -> d.Id = id)
 
-            { model with ActiveDocument = newActive }
+            { model with
+                ActiveDocument = newActive }
 
-        | ApplyDocumentEvent evt ->
-            applyDocumentEvent model evt
+        | ApplyDocumentEvent evt -> applyDocumentEvent model evt
 
         // Editing
-        | ApplyEditingEvent evt ->
-            applyEditingEvent model evt
+        | ApplyEditingEvent evt -> applyEditingEvent model evt
+
+        | CoreEvent.InsertChar ch -> applyEditingEvent model (EditingEvent.InsertChar ch)
+
+        | CoreEvent.InsertNewline -> applyEditingEvent model (EditingEvent.InsertNewLine)
+
+        | CoreEvent.Backspace -> applyEditingEvent model (EditingEvent.Backspace)
+
+        | CoreEvent.MoveCursorLeft -> applyEditingEvent model (EditingEvent.MoveLeft)
+
+        | CoreEvent.MoveCursorRight -> applyEditingEvent model (EditingEvent.MoveRight)
+
+        | CoreEvent.MoveCursorUp -> applyEditingEvent model (EditingEvent.MoveUp)
+
+        | CoreEvent.MoveCursorDown -> applyEditingEvent model (EditingEvent.MoveDown)
 
         // Syntax
-        | ApplySyntaxEvent evt ->
-            applySyntaxEvent model evt
+        | ApplySyntaxEvent evt -> applySyntaxEvent model evt
 
         // Navigation
-        | ApplyNavigationEvent evt ->
-            applyNavigationEvent model evt
+        | ApplyNavigationEvent evt -> applyNavigationEvent model evt
 
         // Diagnostics
-        | ApplyDiagnosticsEvent evt ->
-            applyDiagnosticEvent model evt
+        | ApplyDiagnosticsEvent evt -> applyDiagnosticEvent model evt
 
         // Mode
-        | SetMode mode ->
-            { model with Mode = mode }
+        | ChangeMode mode -> { model with Mode = mode }
 
         // Viewport
-        | SetViewport vp ->
-            { model with Viewport = vp }
+        | ResizeViewport(width, height) ->
+            { model with
+                Viewport = { Width = width; Height = height } }
 
         // Vertical Scrolling
-        | SetVerticalOffset offset ->
-            { model with VerticalOffset = max 0 offset }
+        | ScrollTo offset ->
+            { model with
+                VerticalOffset = max 0 offset }
 
-        // Horizontal Scrolling (new)
-        | SetHorizontalOffset offset ->
-            { model with HorizontalOffset = max 0 offset }
+        | ScrollBy delta ->
+            { model with
+                VerticalOffset = max 0 (model.VerticalOffset + delta) }
+
+        | WorkspaceEvent _
+        | AgentEvent _
+        | NoOp -> model

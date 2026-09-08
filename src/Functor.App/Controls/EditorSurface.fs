@@ -1,121 +1,75 @@
-namespace Functor.App
+namespace Functor.App.Controls
 
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
+open Avalonia.Media
 open Avalonia.Skia
-open SkiaSharp
 
 open Functor.Domain.Core
-open Functor.Domain.CoreEvent
+open Functor.App.Rendering
 open Functor.Rendering
 
-/// EditorSurface is the Avalonia control that hosts the Skia canvas.
-/// It connects user input → CoreEvent, and rendering pipeline → Skia drawing.
-///
-/// IMPORTANT:
-/// - EditorSurface does NOT compute geometry.
-/// - It does NOT slice tokens.
-/// - It does NOT layout text.
-/// - It ONLY orchestrates input + pipeline + drawing.
-type EditorSurface() as this =
+type EditorSurface() =
     inherit Control()
 
-    // The current CoreModel (editor state).
-    // In the real implementation, this will be injected or bound.
-    let mutable coreModel : CoreModel = CoreModel.empty
+    // ------------------------------------------------------------
+    // Internal state
+    // ------------------------------------------------------------
 
-    // Rendering configuration (font metrics, theme, etc.)
-    let mutable renderingConfig : RenderingPipeline.RenderingConfig =
-        { Metrics = { LineHeight = 16.0f; CharWidth = 8.0f } }
+    let mutable coreModel: CoreModel = CoreModel.empty
 
-    // Request a redraw when the model changes.
-    member private this.Invalidate() =
-        this.InvalidateVisual()
+    let renderingConfig =
+        { RenderingPipeline.Metrics = { LineHeight = 16.0f; CharWidth = 8.0f } }
 
-    // Update the CoreModel using CoreEvent and trigger redraw.
-    member private this.ApplyEvent(evt: CoreEvent) =
-        coreModel <- CoreLogic.update evt coreModel
-        this.Invalidate()
+    // ------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------
 
-    // ─────────────────────────────────────────────────────────────
-    // Rendering
-    // ─────────────────────────────────────────────────────────────
+    member private this.UpdateViewport() =
+        let b = this.Bounds
 
-    override this.Render(context: DrawingContext) =
-        match context.PlatformImpl with
-        | :? ISkiaDrawingContextImpl as skia ->
-            let canvas = skia.SkCanvas
+        coreModel <-
+            { coreModel with
+                Viewport =
+                    { Width = int b.Width
+                      Height = int b.Height } }
 
-            // 1. Run the rendering pipeline
-            let frame = RenderingPipeline.render renderingConfig coreModel
+    // ------------------------------------------------------------
+    // Avalonia overrides
+    // ------------------------------------------------------------
 
-            // 2. Draw the frame
-            RenderingSurface.draw canvas frame
-        | _ ->
-            ()
+    override this.OnPropertyChanged(e) =
+        base.OnPropertyChanged(e)
 
-    // ─────────────────────────────────────────────────────────────
-    // Input Handling
-    // ─────────────────────────────────────────────────────────────
+        if e.Property = Control.BoundsProperty then
+            this.UpdateViewport()
+            this.InvalidateVisual()
 
     override this.OnKeyDown(e: KeyEventArgs) =
         base.OnKeyDown(e)
 
-        // Translate Avalonia key → CoreEvent
-        // (Implementation will be added later)
-        ()
+        let evt =
+            match e.Key with
+            | Key.Left -> CoreEvent.MoveCursorLeft
+            | Key.Right -> CoreEvent.MoveCursorRight
+            | Key.Up -> CoreEvent.MoveCursorUp
+            | Key.Down -> CoreEvent.MoveCursorDown
+            | Key.Back -> CoreEvent.Backspace
+            | Key.Enter -> CoreEvent.InsertNewline
+            | _ ->
+                if e.Key.ToString().Length = 1 then
+                    CoreEvent.InsertChar(e.Key.ToString()[0])
+                else
+                    CoreEvent.NoOp
 
-    override this.OnTextInput(e: TextInputEventArgs) =
-        base.OnTextInput(e)
+        coreModel <- CoreLogic.update evt coreModel
+        this.InvalidateVisual()
 
-        // Translate typed characters → CoreEvent.InsertChar
-        // (Implementation will be added later)
-        ()
+    override this.Render(context: DrawingContext) =
+        base.Render(context)
 
-    override this.OnPointerPressed(e: PointerPressedEventArgs) =
-        base.OnPointerPressed(e)
+        let frame: RenderingModel = RenderingPipeline.render renderingConfig coreModel
 
-        // Translate pointer → cursor movement / selection start
-        // (Implementation will be added later)
-        ()
 
-    override this.OnPointerMoved(e: PointerEventArgs) =
-        base.OnPointerMoved(e)
-
-        // Translate pointer drag → selection update
-        // (Implementation will be added later)
-        ()
-
-    override this.OnPointerWheelChanged(e: PointerWheelEventArgs) =
-        base.OnPointerWheelChanged(e)
-
-        // Translate scroll → CoreEvent.ScrollVertical / ScrollHorizontal
-        // (Implementation will be added later)
-        ()
-
-    // ─────────────────────────────────────────────────────────────
-    // Focus Handling
-    // ─────────────────────────────────────────────────────────────
-
-    override this.OnGotFocus(e: GotFocusEventArgs) =
-        base.OnGotFocus(e)
-        // Future: IME composition start, cursor blinking, etc.
-
-    override this.OnLostFocus(e: RoutedEventArgs) =
-        base.OnLostFocus(e)
-        // Future: stop cursor blinking, commit IME, etc.
-
-    // ─────────────────────────────────────────────────────────────
-    // Public API
-    // ─────────────────────────────────────────────────────────────
-
-    /// Replace the CoreModel (e.g., when loading a file).
-    member this.SetModel(model: CoreModel) =
-        coreModel <- model
-        this.Invalidate()
-
-    /// Replace rendering configuration (theme, font metrics, etc.)
-    member this.SetRenderingConfig(config: RenderingPipeline.RenderingConfig) =
-        renderingConfig <- config
-        this.Invalidate()
+        RenderingSurface.draw context frame
