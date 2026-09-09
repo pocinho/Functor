@@ -1,6 +1,6 @@
 # Functor
 
-*A cross‑platform text editor built with F#.*
+*A functional editor for creative minds.*
 
 Functor is a modern, experimental text editor designed around **clarity**, **predictability**, and **modularity**. It uses a pure **Domain Core** and a rendering pipeline that stays backend-neutral, with Avalonia as the current concrete frontend and drawing backend.
 
@@ -15,6 +15,18 @@ The current implementation already includes a clear render pipeline:
 - current concrete drawing through Avalonia
 
 This keeps the editor core portable while leaving room for a future Skia-specific backend behind the same abstraction.
+
+---
+
+## Screenshots
+
+Where it all started:
+
+![initial project](./doc/Screenshot-2026-09-08.png)
+
+Where it is at:
+
+![initial project](./doc/Screenshot-2026-09-09.png)
 
 ---
 
