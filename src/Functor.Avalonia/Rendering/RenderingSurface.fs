@@ -50,25 +50,98 @@ module RenderingSurface =
 
         float32 text.Width
 
+    let private colorFromArgb (argb: uint32) =
+        let a = byte ((argb >>> 24) &&& 0xFFu)
+        let r = byte ((argb >>> 16) &&& 0xFFu)
+        let g = byte ((argb >>> 8) &&& 0xFFu)
+        let b = byte (argb &&& 0xFFu)
+        Color.FromArgb(a, r, g, b)
+
+    let private resolvedGutterWidth (model: RenderingModel) =
+        let textRightEdge (lineNumber: LineNumber) =
+            float lineNumber.X + float (measureDefaultAdvance 16.0f) * float lineNumber.Text.Length + 4.0
+
+        model.LineNumbers
+        |> List.map textRightEdge
+        |> List.fold max 0.0
+        |> max 16.0
+
     /// Draws a single frame using the provided RenderingModel.
     /// This is called by EditorSurface during OnRender.
-    let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) =
+    let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) (theme: ThemePalette) =
         use clip = context.PushClip(bounds)
+
+        let borderWidth =
+            match theme.EditorBorder with
+            | Some _ -> max 0.0f theme.EditorBorderWidth
+            | None -> 0.0f
+
+        let contentBounds = bounds.Deflate(float borderWidth)
 
         // ------------------------------------------------------------
         // 1. Draw background
         // ------------------------------------------------------------
-        let background = Brushes.Black
+        let background = SolidColorBrush(colorFromArgb theme.Background)
         context.FillRectangle(background, bounds)
 
-        /// Debug border
-        let borderPen = Pen(Brushes.Gray, 10.0)
-        context.DrawRectangle(borderPen, bounds)
+        match theme.EditorBorder with
+        | Some color when borderWidth > 0.0f ->
+            let borderPen = Pen(SolidColorBrush(colorFromArgb color), float borderWidth)
+            let borderRect = bounds.Deflate(float borderWidth / 2.0)
+            context.DrawRectangle(borderPen, borderRect)
+        | _ ->
+            ()
+
+        let contentTransform = Matrix.CreateTranslation(contentBounds.X, contentBounds.Y)
+        use transform = context.PushTransform(contentTransform)
+        use contentClip = context.PushClip(Rect(0.0, 0.0, contentBounds.Width, contentBounds.Height))
+
+        let gutterWidth = resolvedGutterWidth model
+
+        let gutterBrush = SolidColorBrush(colorFromArgb theme.GutterBackground)
+        context.FillRectangle(gutterBrush, Rect(0.0, 0.0, gutterWidth, contentBounds.Height))
+
+        match theme.GutterSeparator with
+        | Some color ->
+            let separatorPen = Pen(SolidColorBrush(colorFromArgb color), 1.0)
+            context.DrawLine(separatorPen, Point(gutterWidth, 0.0), Point(gutterWidth, contentBounds.Height))
+        | None ->
+            ()
+
+        let lineNumberBrush = SolidColorBrush(colorFromArgb theme.LineNumber)
+
+        for lineNumber in model.LineNumbers do
+            let text =
+                FormattedText(
+                    lineNumber.Text,
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    editorTypeface,
+                    editorFontSize (
+                        model.VisibleLines
+                        |> List.tryHead
+                        |> Option.map (fun line -> line.Height)
+                        |> Option.defaultValue 16.0f
+                    ),
+                    lineNumberBrush
+                )
+
+            context.DrawText(text, Point(float lineNumber.X, float lineNumber.Y))
+
+        use editorContentClip =
+            context.PushClip(
+                Rect(
+                    gutterWidth,
+                    0.0,
+                    max 0.0 (contentBounds.Width - gutterWidth),
+                    contentBounds.Height
+                )
+            )
 
         // ------------------------------------------------------------
         // 2. Selection(s)
         // ------------------------------------------------------------
-        let selectionBrush = SolidColorBrush(Color.FromArgb(96uy, 70uy, 130uy, 220uy))
+        let selectionBrush = SolidColorBrush(colorFromArgb theme.Selection)
 
         for selection in model.Selections do
             for rect in selection.Rects do
@@ -79,6 +152,7 @@ module RenderingSurface =
 
         let drawText (line: VisibleLine) =
             let fontSize = editorFontSize line.Height
+            let foreground = SolidColorBrush(colorFromArgb theme.Foreground)
 
             let text =
                 FormattedText(
@@ -87,7 +161,7 @@ module RenderingSurface =
                     FlowDirection.LeftToRight,
                     editorTypeface,
                     fontSize,
-                    Brushes.White
+                    foreground
                 )
 
             context.DrawText(text, Point(float line.X, float line.Y))
@@ -98,7 +172,7 @@ module RenderingSurface =
         // ------------------------------------------------------------
         // 3. Cursor(s)
         // ------------------------------------------------------------
-        let cursorPen = Pen(Brushes.White, 1.5)
+        let cursorPen = Pen(SolidColorBrush(colorFromArgb theme.Cursor), 1.5)
 
         for cursor in model.Cursors do
             let x = float cursor.X
@@ -106,3 +180,4 @@ module RenderingSurface =
             let h = float cursor.Height
 
             context.DrawLine(cursorPen, Point(x, y), Point(x, y + h))
+

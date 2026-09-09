@@ -7,6 +7,59 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Functor.Avalonia.Views.MainWindow"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Functor.Avalonia">
-        <views:MainView />
+                                Title="Functor"
+                                WindowDecorations="BorderOnly"
+                                ExtendClientAreaToDecorationsHint="True">
+        <Grid RowDefinitions="32,*" Background="#1E1E1E">
+                <Border x:Name="TitleBar" Grid.Row="0" Background="#2D2D30">
+                        <Grid ColumnDefinitions="Auto,*,Auto" Height="32">
+                                <Menu Grid.Column="0" Background="Transparent" VerticalAlignment="Center">
+                                        <MenuItem Header="_File">
+                                                <MenuItem x:Name="NewMenuItem" Header="_New" InputGesture="Ctrl+N" />
+                                                <MenuItem x:Name="OpenMenuItem" Header="_Open..." InputGesture="Ctrl+O" />
+                                                <Separator />
+                                                <MenuItem x:Name="SaveMenuItem" Header="_Save" InputGesture="Ctrl+S" />
+                                                <MenuItem x:Name="SaveAsMenuItem" Header="Save _As..." InputGesture="Ctrl+Shift+S" />
+                                                <Separator />
+                                                <MenuItem x:Name="CloseMenuItem" Header="_Close" />
+                                        </MenuItem>
+                                        <MenuItem Header="_Edit">
+                                                <MenuItem x:Name="CommandPaletteMenuItem" Header="Command _Palette..." InputGesture="Ctrl+Shift+P" />
+                                                <MenuItem x:Name="SettingsMenuItem" Header="_Settings..." InputGesture="Ctrl+," />
+                                        </MenuItem>
+                                </Menu>
+                                <Border x:Name="TitleBarDragSurface"
+                                        Grid.Column="1"
+                                        Background="Transparent" />
+                                <Button x:Name="CommandCenterButton"
+                                                                Grid.Column="1"
+                                                                Width="360"
+                                                                Height="24"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                HorizontalContentAlignment="Center"
+                                                                Content="Functor - Ctrl+Shift+P"
+                                                                Background="#3C3C3C"
+                                                                BorderBrush="#5A5A5A"
+                                                                Foreground="#F0F0F0"
+                                                                Padding="12,0" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="MinimizeButton" Width="46" Height="32" Content="_" />
+                                          <Button x:Name="MaximizeButton" Width="46" Height="32" Content="[]" />
+                                        <Button x:Name="CloseButton" Width="46" Height="32" Content="X" />
+                                </StackPanel>
+                        </Grid>
+                </Border>
+                <Grid Grid.Row="1">
+                        <views:MainView x:Name="MainView" />
+                        <Border x:Name="CommandPaletteOverlay"
+                                                        IsVisible="False"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Top"
+                                                        Width="560"
+                                                        Margin="0,8,0,0">
+                                <views:CommandPaletteView x:Name="CommandPaletteView" />
+                        </Border>
+                </Grid>
+        </Grid>
 </Window>

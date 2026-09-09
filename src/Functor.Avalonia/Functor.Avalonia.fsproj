@@ -9,12 +9,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Services\AvaloniaClipboardService.fs" />
+    <Compile Include="Services\AvaloniaDialogService.fs" />
     <Compile Include="Rendering\RenderingSurface.fs" />
+    <Compile Include="Rendering\AvaloniaRenderBackend.fs" />
     <Compile Include="Controls\EditorControl.fs" />
     <Compile Include="ViewModels\ViewModelBase.fs" />
     <Compile Include="ViewModels\MainViewModel.fs" />
-    <Compile Include="Views\MainWindow.axaml.fs" />
+    <Compile Include="ViewModels\CommandPaletteViewModel.fs" />
+    <Compile Include="ViewModels\SettingsViewModel.fs" />
+    <Compile Include="ViewModels\ShellViewModel.fs" />
+    <Compile Include="Views\CommandPaletteView.axaml.fs" />
+    <Compile Include="Views\SettingsView.axaml.fs" />
+    <Compile Include="Views\SettingsWindow.axaml.fs" />
     <Compile Include="Views\MainView.axaml.fs" />
+    <Compile Include="Views\MainWindow.axaml.fs" />
     <Compile Include="AvaloniaApp.axaml.fs" />
   </ItemGroup>
 
@@ -34,6 +43,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Functor.Application\Functor.Application.fsproj" />
     <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
+    <ProjectReference Include="..\Functor.Platform\Functor.Platform.fsproj" />
     <ProjectReference Include="..\Functor.Rendering\Functor.Rendering.fsproj" />
   </ItemGroup>
 </Project>

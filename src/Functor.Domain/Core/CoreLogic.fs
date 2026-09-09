@@ -86,6 +86,14 @@ module CoreLogic =
         match evt with
 
         // Document Lifecycle
+        | NewDocument name ->
+            let doc = DocumentModel.createUntitled name
+
+            { model with
+                ActiveDocument = Some doc
+                OpenDocuments = doc :: model.OpenDocuments
+                Editing = EditingModel.create () }
+
         | OpenDocument path ->
             let doc = DocumentModel.createFromFile path ""
 
@@ -93,8 +101,19 @@ module CoreLogic =
                 ActiveDocument = Some doc
                 OpenDocuments = doc :: model.OpenDocuments }
 
+        | LoadDocument(path, text) ->
+            let doc = DocumentModel.createFromFile path text
+
+            { model with
+                ActiveDocument = Some doc
+                OpenDocuments = doc :: model.OpenDocuments
+                Editing = EditingModel.createFromText text model.Editing }
+
         | CloseDocument id ->
             let remaining = model.OpenDocuments |> List.filter (fun d -> d.Id <> id)
+
+            let closesActiveDocument =
+                model.ActiveDocument |> Option.exists (fun document -> document.Id = id)
 
             let newActive =
                 match model.ActiveDocument with
@@ -103,7 +122,17 @@ module CoreLogic =
 
             { model with
                 ActiveDocument = newActive
-                OpenDocuments = remaining }
+                OpenDocuments = remaining
+                Editing =
+                    if closesActiveDocument then
+                        EditingModel.create ()
+                    else
+                        model.Editing
+                View =
+                    if closesActiveDocument then
+                        { model.View with VerticalOffset = 0 }
+                    else
+                        model.View }
 
         | SwitchDocument id ->
             let newActive = model.OpenDocuments |> List.tryFind (fun d -> d.Id = id)
@@ -111,7 +140,18 @@ module CoreLogic =
             { model with
                 ActiveDocument = newActive }
 
-        | ApplyDocumentEvent evt -> applyDocumentEvent model evt
+        | ApplyDocumentEvent evt ->
+            let updated = applyDocumentEvent model evt
+
+            match evt with
+            | MarkDocumentClean ->
+                { updated with
+                    Editing =
+                        { updated.Editing with
+                            SavedBuffer = updated.Editing.Buffer
+                            IsDirty = false } }
+            | _ ->
+                updated
 
         // Editing
         | ApplyEditingEvent evt -> applyEditingEvent model evt
@@ -131,16 +171,34 @@ module CoreLogic =
         // Viewport
         | ResizeViewport(width, height) ->
             { model with
-                Viewport = { Width = width; Height = height } }
+                View =
+                    { model.View with
+                        Viewport = { Width = width; Height = height } } }
 
         // Vertical Scrolling
-        | ScrollTo offset ->
+        | ScrollVerticalTo offset ->
             { model with
-                VerticalOffset = max 0 offset }
+                View =
+                    { model.View with
+                        VerticalOffset = max 0 offset } }
 
-        | ScrollBy delta ->
+        | ScrollVerticalBy delta ->
             { model with
-                VerticalOffset = max 0 (model.VerticalOffset + delta) }
+                View =
+                    { model.View with
+                        VerticalOffset = max 0 (model.View.VerticalOffset + delta) } }
+
+        | ScrollHorizontalTo offset ->
+            { model with
+                View =
+                    { model.View with
+                        HorizontalOffset = max 0 offset } }
+
+        | ScrollHorizontalBy delta ->
+            { model with
+                View =
+                    { model.View with
+                        HorizontalOffset = max 0 (model.View.HorizontalOffset + delta) } }
 
         | WorkspaceEvent _
         | AgentEvent _

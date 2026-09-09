@@ -16,7 +16,7 @@ type AvaloniaApp() =
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with
         | :? IClassicDesktopStyleApplicationLifetime as desktopLifetime ->
-            desktopLifetime.MainWindow <- MainWindow(DataContext = MainViewModel())
+            desktopLifetime.MainWindow <- MainWindow()
         | :? IActivityApplicationLifetime as singleViewFactoryApplicationLifetime ->
             singleViewFactoryApplicationLifetime.MainViewFactory <- fun () -> MainView(DataContext = MainViewModel())
         | :? ISingleViewApplicationLifetime as singleViewLifetime ->

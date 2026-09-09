@@ -11,6 +11,7 @@
     <Compile Include="Filesystem.fs" />
     <Compile Include="Clipboard.fs" />
     <Compile Include="Settings.fs" />
+    <ProjectReference Include="..\Functor.Application\Functor.Application.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

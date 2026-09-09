@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="using:Functor.Avalonia.Views"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="560"
+        x:Class="Functor.Avalonia.Views.SettingsWindow"
+        Title="Settings"
+        Width="460"
+        Height="560"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="*,Auto">
+    <views:SettingsView x:Name="SettingsView" Grid.Row="0" />
+    <Border Grid.Row="1" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="12">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button x:Name="ApplyButton" Content="Apply" />
+        <Button x:Name="SaveButton" Content="Save" />
+        <Button x:Name="CancelButton" Content="Cancel" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

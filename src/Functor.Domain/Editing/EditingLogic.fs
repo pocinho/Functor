@@ -359,7 +359,7 @@ module EditingLogic =
     // Main Update Function
     // ────────────────────────────────────────────────
 
-    let update (evt: EditingEvent) (model: EditingModel) : EditingModel =
+    let private updateRaw (evt: EditingEvent) (model: EditingModel) : EditingModel =
         match evt with
         | InsertChar ch -> insertChar model ch
         | InsertString str -> insertString model str
@@ -411,3 +411,7 @@ module EditingLogic =
                 OverwriteMode = not model.OverwriteMode }
 
         | SetOverwriteMode enabled -> { model with OverwriteMode = enabled }
+
+    let update (evt: EditingEvent) (model: EditingModel) : EditingModel =
+        let updated = updateRaw evt model
+        { updated with IsDirty = updated.Buffer <> updated.SavedBuffer }

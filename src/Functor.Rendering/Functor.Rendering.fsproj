@@ -12,6 +12,7 @@
     <Compile Include="SlicingEngine.fs" />
     <Compile Include="LayoutEngine.fs" />
     <Compile Include="RenderingPipeline.fs" />
+    <Compile Include="RenderBackend.fs" />
     <Compile Include="Surface.fs" />
     <Compile Include="Layout.fs" />
     <Compile Include="Theme.fs" />

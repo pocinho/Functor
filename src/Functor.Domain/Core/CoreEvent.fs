@@ -12,7 +12,9 @@ type CoreEvent =
     // ────────────────────────────────────────────────
     // Document Lifecycle
     // ────────────────────────────────────────────────
+    | NewDocument of name: string
     | OpenDocument of path: string
+    | LoadDocument of path: string * text: string
     | CloseDocument of id: DocumentId
     | SwitchDocument of id: DocumentId
     | ApplyDocumentEvent of DocumentEvent
@@ -46,8 +48,10 @@ type CoreEvent =
     // Rendering + Layout
     // ────────────────────────────────────────────────
     | ResizeViewport of width: int * height: int
-    | ScrollTo of offset: int
-    | ScrollBy of delta: int
+    | ScrollVerticalTo of offset: int
+    | ScrollVerticalBy of delta: int
+    | ScrollHorizontalTo of offset: int
+    | ScrollHorizontalBy of delta: int
 
     // ────────────────────────────────────────────────
     // Workspace-level events (future extension)

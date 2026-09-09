@@ -15,6 +15,12 @@ type EditorMode =
 /// Represents the visible area of the editor.
 type Viewport = { Width: int; Height: int }
 
+/// Represents the scrollable viewport state for the editor.
+type ViewState =
+    { Viewport: Viewport
+      VerticalOffset: int
+      HorizontalOffset: int }
+
 /// Represents the complete state of the editor.
 type CoreModel =
     { ActiveDocument: DocumentModel option
@@ -26,11 +32,7 @@ type CoreModel =
       Diagnostics: DiagnosticsModel
 
       Mode: EditorMode
-
-      Viewport: Viewport
-
-      VerticalOffset: int
-      HorizontalOffset: int }
+      View: ViewState }
 
 module CoreModel =
 
@@ -44,10 +46,9 @@ module CoreModel =
           Diagnostics = DiagnosticsModel.create ()
 
           Mode = EditorMode.Normal
-
-          Viewport = { Width = 0; Height = 0 }
-
-          VerticalOffset = 0
-          HorizontalOffset = 0 }
+          View =
+              { Viewport = { Width = 0; Height = 0 }
+                VerticalOffset = 0
+                HorizontalOffset = 0 } }
 
     let empty = create ()

@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Functor.Avalonia.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="340"
+             x:Class="Functor.Avalonia.Views.CommandPaletteView"
+             x:DataType="vm:CommandPaletteViewModel">
+  <Border Background="#F8F8F8"
+          BorderBrush="#7A7A7A"
+          BorderThickness="1"
+          CornerRadius="6"
+          BoxShadow="0 12 32 0 #66000000"
+          Padding="10">
+    <Grid RowDefinitions="Auto,*">
+      <TextBox x:Name="SearchBox"
+               Grid.Row="0"
+               PlaceholderText="Type a command"
+               Text="{Binding SearchText, Mode=TwoWay}"
+               FontSize="14"
+               Padding="10,8"
+               Margin="0,0,0,8" />
+      <ListBox x:Name="CommandList"
+               Grid.Row="1"
+               ItemsSource="{Binding Items}"
+               SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+               MaxHeight="260">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:CommandPaletteItem">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
+              <TextBlock Grid.Column="0" Text="{Binding Category}" Foreground="#666666" Width="92" />
+              <TextBlock Grid.Column="1" Text="{Binding Title}" />
+              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Foreground="#666666" Margin="16,0,0,0" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+  </Border>
+</UserControl>

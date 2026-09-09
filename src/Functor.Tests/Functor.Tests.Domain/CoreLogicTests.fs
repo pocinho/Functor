@@ -20,12 +20,21 @@ type CoreLogicTests() =
             CoreModel.empty
             |> CoreLogic.update (ChangeMode EditorMode.Insert)
             |> CoreLogic.update (ResizeViewport(800, 600))
-            |> CoreLogic.update (ScrollTo -10)
-            |> CoreLogic.update (ScrollBy 25)
+            |> CoreLogic.update (ScrollVerticalTo -10)
+            |> CoreLogic.update (ScrollVerticalBy 25)
 
         Assert.Equal(EditorMode.Insert, model.Mode)
-        Assert.Equal({ Width = 800; Height = 600 }, model.Viewport)
-        Assert.Equal(25, model.VerticalOffset)
+        Assert.Equal({ Width = 800; Height = 600 }, model.View.Viewport)
+        Assert.Equal(25, model.View.VerticalOffset)
+
+    [<Fact>]
+    member _.``core routes horizontal scrolling events``() =
+        let model =
+            CoreModel.empty
+            |> CoreLogic.update (ScrollHorizontalTo -10)
+            |> CoreLogic.update (ScrollHorizontalBy 12)
+
+        Assert.Equal(12, model.View.HorizontalOffset)
 
     [<Fact>]
     member _.``core opens and closes documents``() =
@@ -36,6 +45,8 @@ type CoreLogicTests() =
         Assert.Equal(Some document.Id, opened.OpenDocuments |> List.tryHead |> Option.map (fun item -> item.Id))
         Assert.True(closed.OpenDocuments.IsEmpty)
         Assert.True(closed.ActiveDocument.IsNone)
+        Assert.True([ "" ] = closed.Editing.Buffer)
+        Assert.Equal(0, closed.View.VerticalOffset)
 
     [<Fact>]
     member _.``editing marks the active document dirty``() =

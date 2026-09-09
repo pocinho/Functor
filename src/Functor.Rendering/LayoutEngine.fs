@@ -42,12 +42,7 @@ type DiagnosticLayout =
 
 /// Aggregated layout result, ready to be turned into a RenderingModel.
 type LayoutResult =
-    { Lines: list<LineLayout>
-      Tokens: list<TokenLayout>
-      Selections: list<SelectionLayout>
-      Cursors: list<CursorLayout>
-      Diagnostics: list<DiagnosticLayout>
-      LineNumbers: list<LineNumber> }
+    { Lines: list<LineLayout>; Tokens: list<TokenLayout>; Selections: list<SelectionLayout>; Cursors: list<CursorLayout>; Diagnostics: list<DiagnosticLayout>; LineNumbers: list<LineNumber> }
 
 /// The LayoutEngine is responsible for converting sliced spans
 /// (still in Position/Range space) into pixel geometry using font metrics
@@ -56,8 +51,29 @@ type LayoutResult =
 /// It does NOT draw anything; it only computes geometry.
 module LayoutEngine =
 
+    let gutterWidth (measurer: TextMeasurer) (lineCount: int) =
+        let numberText = string (max 1 lineCount)
+        measurer.MeasureRange numberText 0 numberText.Length + 16.0f
+
     let maxVerticalOffset (visibleLineCount: int) (buffer: string list) =
         max 0 (buffer.Length - max 1 visibleLineCount)
+
+    let maxHorizontalOffset
+        (measurer: TextMeasurer)
+        (viewportWidth: float32)
+        (gutterWidth: float32)
+        (buffer: string list)
+        =
+        let availableWidth = max 0.0f (viewportWidth - gutterWidth)
+        let maxOffsetForLine text =
+            let targetWidth = max 0.0f (measurer.MeasureText text - availableWidth)
+
+            [ 0 .. text.Length ]
+            |> List.filter (fun offset -> measurer.MeasureRange text 0 offset <= targetWidth)
+            |> List.tryLast
+            |> Option.defaultValue 0
+
+        buffer |> List.map maxOffsetForLine |> List.fold max 0
 
     let positionAtPoint
         (measurer: TextMeasurer)
@@ -83,15 +99,34 @@ module LayoutEngine =
             { Line = line
               Column = max 0 (min text.Length column) }
 
+    let positionAtPointWithGutter
+        (measurer: TextMeasurer)
+        (gutterWidth: float32)
+        (horizontalOffset: int)
+        (verticalOffset: int)
+        (buffer: string list)
+        (x: float32)
+        (y: float32)
+        : Position =
+        positionAtPoint measurer horizontalOffset verticalOffset buffer (x - gutterWidth) y
+
     /// Layout visible lines into pixel space.
-    let layoutLines (measurer: TextMeasurer) (horizontalOffset: int) (lines: list<int * string>) : list<LineLayout> =
+    let layoutLinesWithGutter
+        (measurer: TextMeasurer)
+        (gutterWidth: float32)
+        (horizontalOffset: int)
+        (lines: list<int * string>)
+        : list<LineLayout> =
         lines
         |> List.mapi (fun visibleIndex (lineIndex, text) ->
             { LineIndex = lineIndex
               Text = text
-              X = -measurer.MeasureRange text 0 horizontalOffset
+              X = gutterWidth - measurer.MeasureRange text 0 horizontalOffset
               Y = float32 visibleIndex * measurer.Metrics.LineHeight
               Height = measurer.Metrics.LineHeight })
+
+    let layoutLines (measurer: TextMeasurer) (horizontalOffset: int) (lines: list<int * string>) : list<LineLayout> =
+        layoutLinesWithGutter measurer 0.0f horizontalOffset lines
 
     /// Layout visible tokens into pixel space.
     let layoutTokens (measurer: TextMeasurer) (lines: list<LineLayout>) (tokens: list<Token>) : list<TokenLayout> =
@@ -241,27 +276,37 @@ module LayoutEngine =
               Underline = underline })
 
     /// Layout line numbers into gutter geometry.
-    let layoutLineNumbers (measurer: TextMeasurer) (lines: list<LineLayout>) : list<LineNumber> =
+    let layoutLineNumbersWithGutter
+        (measurer: TextMeasurer)
+        (gutterWidth: float32)
+        (lines: list<LineLayout>)
+        : list<LineNumber> =
         lines
         |> List.map (fun line ->
+            let text = string (line.LineIndex + 1)
+
             { LineIndex = line.LineIndex
-              Text = string (line.LineIndex + 1)
-              X = 0.0f
+              Text = text
+              X = gutterWidth - measurer.MeasureRange text 0 text.Length - 4.0f
               Y = line.Y })
+
+    let layoutLineNumbers (measurer: TextMeasurer) (lines: list<LineLayout>) : list<LineNumber> =
+        layoutLineNumbersWithGutter measurer 0.0f lines
 
     /// Run the full layout pipeline.
     let layoutAll
         (measurer: TextMeasurer)
         (viewport: Viewport)
+        (gutterWidth: float32)
         (horizontalOffset: int)
         (sliced: SlicingEngine.SlicedSpans)
         : LayoutResult =
-        let lines = layoutLines measurer horizontalOffset sliced.Lines
+        let lines = layoutLinesWithGutter measurer gutterWidth horizontalOffset sliced.Lines
         let tokens = layoutTokens measurer lines sliced.Tokens
         let selections = layoutSelections measurer horizontalOffset lines sliced.Selections
         let cursors = layoutCursors measurer horizontalOffset lines sliced.Cursors
         let diagnostics = layoutDiagnostics measurer lines sliced.Diagnostics
-        let lineNumbers = layoutLineNumbers measurer lines
+        let lineNumbers = layoutLineNumbersWithGutter measurer gutterWidth lines
 
         { Lines = lines
           Tokens = tokens

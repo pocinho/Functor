@@ -5,7 +5,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="SessionStatus.fs" />
+    <Compile Include="FileType.fs" />
+    <Compile Include="IClipboardService.fs" />
+    <Compile Include="IFileService.fs" />
+    <Compile Include="IDialogService.fs" />
+    <Compile Include="AppCommand.fs" />
+    <Compile Include="AppEffect.fs" />
+    <Compile Include="AppEffectInterpreter.fs" />
+    <Compile Include="AppSessionState.fs" />
+    <Compile Include="AppCommandCatalog.fs" />
+    <Compile Include="EditorStatus.fs" />
     <Compile Include="EditorSession.fs" />
+    <Compile Include="ThemeSettings.fs" />
+    <Compile Include="ThemeSettingsLoader.fs" />
+    <Compile Include="AppSettings.fs" />
+    <Compile Include="AppSettingsLoader.fs" />
     <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
+    <ProjectReference Include="..\Functor.Rendering\Functor.Rendering.fsproj" />
   </ItemGroup>
 </Project>

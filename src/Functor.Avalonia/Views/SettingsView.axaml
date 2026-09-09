@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Functor.Avalonia.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="520"
+             x:Class="Functor.Avalonia.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="4">
+      <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,8" />
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Background" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding Background, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Foreground" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding Foreground, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Selection" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding Selection, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Cursor" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding Cursor, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Line number" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding LineNumber, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Gutter background" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding GutterBackground, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Diagnostic error" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding DiagnosticError, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Diagnostic warning" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding DiagnosticWarning, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Diagnostic info" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding DiagnosticInfo, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor border" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding EditorBorder, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Border width" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding EditorBorderWidth, Mode=TwoWay}" />
+      </Grid>
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
