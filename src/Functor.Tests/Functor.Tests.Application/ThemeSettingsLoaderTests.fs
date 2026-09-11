@@ -7,6 +7,17 @@ open Xunit
 
 type ThemeSettingsLoaderTests() =
     [<Fact>]
+    member _.``loads the graphite light preset``() =
+        let result = ThemeSettingsLoader.loadText "{ \"theme\": { \"preset\": \"Graphite Light\" } }"
+        let settings =
+            match result with
+            | Ok value -> value
+            | Error error -> failwith error
+
+        Assert.Equal("Graphite Light", settings.Preset)
+        Assert.Equal(Theme.graphiteLight.Background, settings.ThemeSource.Resolve().Background)
+
+    [<Fact>]
     member _.``loads nested theme colors and border settings``() =
         let json =
             """

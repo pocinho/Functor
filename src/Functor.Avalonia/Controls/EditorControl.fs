@@ -9,6 +9,7 @@ open Avalonia.Media
 open Avalonia.Skia
 
 open Functor.Domain.Editing
+open Functor.Domain.Document
 open Functor.Application
 open Functor.Domain.Core
 open Functor.Avalonia.Rendering
@@ -29,8 +30,15 @@ type EditorControl() as this =
     let fileService: IFileService = FileService()
     let dialogService: IDialogService =
         AvaloniaDialogService(fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
+    let tokenizerService: ITokenizerService = DefaultTokenizerService()
     let effectInterpreter =
-        AppEffectInterpreter(clipboardService, fileService, dialogService, session.DispatchCommand)
+        AppEffectInterpreter(
+            clipboardService,
+            fileService,
+            dialogService,
+            session.DispatchCommand,
+            tokenizerService = tokenizerService
+        )
 
     do
         session.EffectsRequested.Add(fun effects ->
@@ -50,9 +58,11 @@ type EditorControl() as this =
     let renderingConfig =
         { RenderingPipeline.Measurer =
             TextMeasurer.create
-                { LineHeight = lineHeight
-                  DefaultAdvance = RenderingSurface.measureDefaultAdvance lineHeight
-                  TabWidth = 4 } }
+                (TextMetrics.createWithGraphemeAdvance
+                    lineHeight
+                    (RenderingSurface.measureDefaultAdvance lineHeight)
+                    4
+                    (RenderingSurface.measureGraphemeAdvance lineHeight)) }
 
     let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> = AvaloniaRenderBackend()
     let mutable themeSettings = ThemeSettings.defaultTheme
@@ -65,7 +75,7 @@ type EditorControl() as this =
 
     member this.ThemeSource
         with get () = themeSettings.ThemeSource
-        and set (value: ThemeSource) = themeSettings <- { ThemeSource = value }
+        and set (value: ThemeSource) = themeSettings <- { themeSettings with ThemeSource = value }
 
     member private this.BorderInset =
         let theme = themeSettings.ThemeSource.Resolve()
@@ -135,6 +145,8 @@ type EditorControl() as this =
 
     member this.StatusChanged = session.StatusChanged
 
+    member this.StateChanged = session.StateChanged
+
     member this.SessionState = session.State
 
     member this.EditorStatus = session.EditorStatus
@@ -155,6 +167,12 @@ type EditorControl() as this =
 
     member this.CloseDocument() =
         session.DispatchCommand(AppCommand.closeDocument)
+
+    member this.ReopenClosedTab() =
+        session.DispatchCommand(AppCommand.reopenClosedTab)
+
+    member this.ActivateDocument(documentId: DocumentId) =
+        session.Dispatch(CoreEvent.SwitchDocument documentId)
 
     member this.DispatchApplicationCommand(command: AppCommand) =
         session.DispatchCommand(command)
@@ -190,6 +208,8 @@ type EditorControl() as this =
 
         max 1.0 (Math.Floor(float availableWidth / float renderingConfig.Measurer.Metrics.DefaultAdvance))
 
+    member this.DocumentPositionAtPoint(point: Point) = this.PositionAtPoint(point)
+
     member this.ScrollVerticalTo(offset: int) =
         let clamped = max 0 (min this.VerticalScrollMaximum offset)
         session.Dispatch(CoreEvent.ScrollVerticalTo clamped)
@@ -220,9 +240,18 @@ type EditorControl() as this =
             this.UpdateViewport()
             this.InvalidateVisual()
             this.NotifyScrollStateChanged()
+        elif e.Property = Visual.IsVisibleProperty && this.IsVisible then
+            // A hidden control is never laid out, so Bounds can still be stale/zero here.
+            this.UpdateViewport()
+            this.InvalidateVisual()
+            this.NotifyScrollStateChanged()
 
     override this.OnAttachedToVisualTree(e: VisualTreeAttachmentEventArgs) =
         base.OnAttachedToVisualTree(e)
+
+        if session.Model.ActiveDocument.IsNone then
+            this.NewDocument()
+
         this.Focus() |> ignore
 
     override this.OnTextInput(e: TextInputEventArgs) =
@@ -261,6 +290,12 @@ type EditorControl() as this =
                 e.Handled <- true
             | Key.N ->
                 this.NewDocument()
+                e.Handled <- true
+            | Key.W when not (e.KeyModifiers.HasFlag(KeyModifiers.Shift)) ->
+                this.CloseDocument()
+                e.Handled <- true
+            | Key.T when e.KeyModifiers.HasFlag(KeyModifiers.Shift) ->
+                this.ReopenClosedTab()
                 e.Handled <- true
             | _ -> ()
 

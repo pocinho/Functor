@@ -5,6 +5,4 @@ open Functor.Rendering
 module TestFixtures =
     let createMeasurer () =
         TextMeasurer.create
-            { LineHeight = 16.0f
-              DefaultAdvance = 8.0f
-              TabWidth = 4 }
+            (TextMetrics.create 16.0f 8.0f 4)

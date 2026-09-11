@@ -1,6 +1,6 @@
 namespace Functor.Domain.Syntax
 
-open System
+open Functor.Domain.Document
 
 /// Events related to syntax processing:
 /// - language changes
@@ -25,13 +25,10 @@ type SyntaxEvent =
     // Syntax Invalidation
     // ────────────────────────────────────────────────
     | MarkSyntaxDirty                    // editing occurred → syntax outdated
-
-    // ────────────────────────────────────────────────
-    // Metadata
-    // ────────────────────────────────────────────────
-    | UpdateTokenizationTimestamp of timestamp:DateTime
+    | MarkSyntaxCleanFrom of line:int
 
     // ────────────────────────────────────────────────
     // Token Cache Updates
     // ────────────────────────────────────────────────
-    | SetTokens of tokens:LineTokens list
+    | SetTokens of documentId:DocumentId * revision:int64 * tokens:LineTokens list
+    | SetTokenRange of documentId:DocumentId * revision:int64 * startLine:int * endLine:int * tokens:LineTokens list

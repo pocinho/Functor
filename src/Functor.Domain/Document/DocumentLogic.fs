@@ -31,13 +31,15 @@ module DocumentLogic =
     let private setPath (doc: DocumentModel) (path: string option) =
         let newName =
             match path with
-            | Some p -> System.IO.Path.GetFileName(p)
+            | Some p -> System.IO.Path.GetFileName(DocumentModel.canonicalizePath p)
             | None -> doc.Metadata.Name
+
+        let canonicalPath = path |> Option.map DocumentModel.canonicalizePath
 
         { doc with
             Metadata =
                 { doc.Metadata with
-                    Path = path
+                    Path = canonicalPath
                     Name = newName
                     ModifiedAt = Some DateTime.UtcNow } }
 

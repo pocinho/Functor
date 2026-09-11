@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Functor.Avalonia.ViewModels"
              xmlns:controls="using:Functor.Avalonia.Controls"
+             xmlns:views="using:Functor.Avalonia.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Functor.Avalonia.Views.MainView"
              x:DataType="vm:MainViewModel">
@@ -13,15 +14,33 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-  <Grid RowDefinitions="*,Auto,Auto" ColumnDefinitions="*,Auto">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*,Auto">
+    <Border x:Name="TabBar"
+            Grid.Row="0"
+            Grid.ColumnSpan="2"
+            BorderThickness="0,0,0,1"
+            Padding="4,3">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Hidden">
+        <StackPanel x:Name="TabsPanel"
+                    Orientation="Horizontal"
+                    Spacing="2" />
+      </ScrollViewer>
+    </Border>
     <controls:EditorControl x:Name="EditorControl"
-                            Grid.Row="0"
+                            Grid.Row="1"
                             Grid.Column="0"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             Focusable="True" />
+    <views:WelcomeView x:Name="WelcomeView"
+                        Grid.Row="1"
+                        Grid.Column="0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        IsVisible="False" />
     <ScrollBar x:Name="VerticalScrollBar"
-               Grid.Row="0"
+               Grid.Row="1"
                Grid.Column="1"
                Orientation="Vertical"
                Minimum="0"
@@ -29,16 +48,15 @@
                ViewportSize="1"
                IsEnabled="False" />
           <ScrollBar x:Name="HorizontalScrollBar"
-               Grid.Row="1"
+            Grid.Row="2"
                  Grid.Column="0"
                  Orientation="Horizontal"
                  Minimum="0"
                  Maximum="0"
                  ViewportSize="1"
                  IsEnabled="False" />
-    <Border Grid.Row="2"
+    <Border x:Name="StatusBar" Grid.Row="3"
             Grid.ColumnSpan="2"
-            BorderBrush="#333333"
             BorderThickness="0,1,0,0"
             Padding="8,4">
       <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">

@@ -22,6 +22,7 @@
     <Compile Include="Views\CommandPaletteView.axaml.fs" />
     <Compile Include="Views\SettingsView.axaml.fs" />
     <Compile Include="Views\SettingsWindow.axaml.fs" />
+    <Compile Include="Views\WelcomeView.axaml.fs" />
     <Compile Include="Views\MainView.axaml.fs" />
     <Compile Include="Views\MainWindow.axaml.fs" />
     <Compile Include="AvaloniaApp.axaml.fs" />

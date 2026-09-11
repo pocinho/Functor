@@ -38,6 +38,20 @@ type DocumentModel =
 
 module DocumentModel =
 
+    let canonicalizePath (path: string) =
+        if String.IsNullOrWhiteSpace path then
+            invalidArg (nameof path) "Document path cannot be empty."
+
+        let fullPath = IO.Path.GetFullPath path
+        let root = IO.Path.GetPathRoot fullPath
+        let trimmedPath =
+            if String.IsNullOrEmpty root || String.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase) then
+                fullPath
+            else
+                fullPath.TrimEnd(IO.Path.DirectorySeparatorChar, IO.Path.AltDirectorySeparatorChar)
+
+        trimmedPath
+
     /// Creates a new unsaved document with a given name.
     let createUntitled (name: string) =
         {
@@ -55,12 +69,14 @@ module DocumentModel =
 
     /// Creates a new document from a file path and initial text.
     let createFromFile (path: string) (text: string) =
+        let canonicalPath = canonicalizePath path
+
         {
             Id = Guid.NewGuid()
             Metadata =
                 {
-                    Path = Some path
-                    Name = System.IO.Path.GetFileName(path)
+                    Path = Some canonicalPath
+                    Name = System.IO.Path.GetFileName(canonicalPath)
                     IsDirty = false
                     CreatedAt = DateTime.UtcNow
                     ModifiedAt = None

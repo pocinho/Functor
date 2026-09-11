@@ -5,26 +5,6 @@ open Functor.Domain.Core
 open Functor.Domain.Editing
 open Xunit
 
-type private TestFileService(readResult, writeResult) =
-    let writes = ResizeArray<string * string>()
-
-    member _.Writes = writes
-
-    interface IFileService with
-        member _.ReadText _ = async { return readResult }
-
-        member _.WriteText(path, contents) =
-            async {
-                writes.Add(path, contents)
-                return writeResult
-            }
-
-type private TestDialogService(openPath, savePath) =
-    interface IDialogService with
-        member _.OpenFile() = async { return openPath }
-
-        member _.SaveFile _ = async { return savePath }
-
 
 type EditorSessionTests() =
     [<Fact>]
@@ -104,17 +84,64 @@ type EditorSessionTests() =
         Assert.False(session.State.Model.Editing.IsDirty)
 
     [<Fact>]
+    member _.``reopen closed tab requests the newest closed file``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.closeDocument)
+        requestedEffects.Clear()
+
+        session.DispatchCommand(AppCommand.reopenClosedTab)
+
+        Assert.True([ AppEffect.readFile "C:\\work\\file.fs" ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``reopening a closed tab consumes its history entry``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "old")
+        session.DispatchCommand(AppCommand.closeDocument)
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "restored")
+
+        Assert.Empty(session.State.Workspace.RecentlyClosedDocuments)
+        Assert.True([ "restored" ] = session.State.Model.Editing.Buffer)
+
+    [<Fact>]
+    member _.``clear recent documents removes closed file history``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.closeDocument)
+
+        session.DispatchCommand(AppCommand.clearRecentDocuments)
+
+        Assert.Empty(session.State.Workspace.RecentlyClosedDocuments)
+
+    [<Fact>]
     member _.``save command writes active document contents``() =
         let session = EditorSession()
         let requestedEffects = ResizeArray<AppEffect list>()
         session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        requestedEffects.Clear()
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
 
         session.DispatchCommand(AppCommand.saveFile)
 
         Assert.Single(requestedEffects) |> ignore
-        Assert.True([ AppEffect.writeFile "C:\\work\\file.fs" " updatedtext" ] = requestedEffects[0])
+        let document = session.Model.ActiveDocument.Value
+        Assert.True([ AppEffect.writeFileForDocument document.Id session.Model.Editing.Revision "C:\\work\\file.fs" " updatedtext" ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``stale save completion does not clear newer edits``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " first")))
+        session.DispatchCommand(AppCommand.saveFile)
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " second")))
+
+        session.DispatchCommand(AppCommand.fileSaved "C:\\work\\file.fs")
+
+        Assert.True(session.State.Model.Editing.IsDirty)
 
     [<Fact>]
     member _.``file-saved command marks the active document clean``() =
@@ -156,6 +183,7 @@ type EditorSessionTests() =
         let requestedEffects = ResizeArray<AppEffect list>()
         session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        requestedEffects.Clear()
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
 
         session.DispatchCommand(AppCommand.openFile)
@@ -169,6 +197,7 @@ type EditorSessionTests() =
         let requestedEffects = ResizeArray<AppEffect list>()
         session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        requestedEffects.Clear()
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
         session.DispatchCommand(AppCommand.openFile)
 
@@ -177,6 +206,30 @@ type EditorSessionTests() =
         Assert.Equal(None, session.State.Status.PendingAction)
         Assert.Single(requestedEffects) |> ignore
         Assert.True([ AppEffect.openFile ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``opening a folder replaces a clean session workspace``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\\work\\folder")
+
+        Assert.Equal(Some "C:\\work\\folder", session.State.Workspace.RootPath)
+        Assert.True(session.State.Workspace.Documents.IsEmpty)
+        Assert.True(session.State.Model.ActiveDocument.IsNone)
+
+    [<Fact>]
+    member _.``opening a folder with dirty edits requires confirmation``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\\work\\folder")
+
+        Assert.Equal(Some(PendingAction.OpenWorkspace "C:\\work\\folder"), session.State.Status.PendingAction)
+        session.DispatchCommand(AppCommand.confirmDiscardChanges)
+        Assert.Equal(Some "C:\\work\\folder", session.State.Workspace.RootPath)
+        Assert.True(session.State.Model.ActiveDocument.IsNone)
 
     [<Fact>]
     member _.``canceling a pending new document leaves the current document unchanged``() =
@@ -192,56 +245,37 @@ type EditorSessionTests() =
         Assert.Equal(None, session.State.Status.PendingAction)
 
     [<Fact>]
-    member _.``effect interpreter reads selected file and dispatches completion``() =
-        let commands = ResizeArray<AppCommand>()
-        let fileService = TestFileService(Ok "contents", Ok())
-        let dialogService = TestDialogService(Some "C:\\work\\file.fs", None)
-        let interpreter =
-            AppEffectInterpreter(
-                Unchecked.defaultof<IClipboardService>,
-                fileService,
-                dialogService,
-                commands.Add
-            )
+    member _.``switching tabs restores each document editing state``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\first.fs" "first")
+        let first = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\second.fs" "second")
+        let second = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
 
-        interpreter.Execute(AppEffect.openFile) |> Async.RunSynchronously
+        session.DispatchCommand(AppCommand.toCoreEvent (SwitchDocument first.Id))
+        Assert.True([ " updatedfirst" ] = session.Model.Editing.Buffer)
+        Assert.True(session.Model.Editing.IsDirty)
 
-        Assert.Single(commands) |> ignore
-        Assert.True(AppCommand.fileOpened "C:\\work\\file.fs" "contents" = commands[0])
-
-    [<Fact>]
-    member _.``effect interpreter writes selected save file and dispatches completion``() =
-        let commands = ResizeArray<AppCommand>()
-        let fileService = TestFileService(Ok "", Ok())
-        let dialogService = TestDialogService(None, Some "C:\\work\\file.fs")
-        let interpreter =
-            AppEffectInterpreter(
-                Unchecked.defaultof<IClipboardService>,
-                fileService,
-                dialogService,
-                commands.Add
-            )
-
-        interpreter.Execute(AppEffect.saveFile (Some "file.fs") "contents") |> Async.RunSynchronously
-
-        Assert.Single(commands) |> ignore
-        Assert.True(AppCommand.fileSaved "C:\\work\\file.fs" = commands[0])
-        Assert.True([ ("C:\\work\\file.fs", "contents") ] = List.ofSeq fileService.Writes)
+        session.DispatchCommand(AppCommand.toCoreEvent (SwitchDocument second.Id))
+        Assert.True([ " changedsecond" ] = session.Model.Editing.Buffer)
+        Assert.True(session.Model.Editing.IsDirty)
 
     [<Fact>]
-    member _.``effect interpreter reports file failures as application commands``() =
-        let commands = ResizeArray<AppCommand>()
-        let fileService = TestFileService(Error "read failed", Ok())
-        let dialogService = TestDialogService(Some "C:\\work\\file.fs", None)
-        let interpreter =
-            AppEffectInterpreter(
-                Unchecked.defaultof<IClipboardService>,
-                fileService,
-                dialogService,
-                commands.Add
-            )
+    member _.``document save completion updates an inactive tab``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\first.fs" "first")
+        let first = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        session.DispatchCommand(AppCommand.saveFile)
+        let revision = session.Model.Editing.Revision
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\second.fs" "second")
 
-        interpreter.Execute(AppEffect.openFile) |> Async.RunSynchronously
+        session.DispatchCommand(AppCommand.fileSavedForDocument first.Id revision "C:\\work\\first.fs")
 
-        Assert.Single(commands) |> ignore
-        Assert.True(AppCommand.fileOperationFailed "read failed" = commands[0])
+        let savedFirst = session.State.Workspace.Documents[first.Id]
+        Assert.False(savedFirst.Editing.IsDirty)
+        Assert.False(savedFirst.Document.Metadata.IsDirty)

@@ -14,6 +14,9 @@ module AppCommandCatalog =
     let private hasActiveDocument state =
         state.Model.ActiveDocument.IsSome
 
+    let private hasRecentlyClosedDocument state =
+      not state.Workspace.RecentlyClosedDocuments.IsEmpty
+
     let all =
         [ { Id = "file.new"
             Title = "New File"
@@ -26,6 +29,12 @@ module AppCommandCatalog =
             Category = "File"
             GestureText = Some "Ctrl+O"
             Command = AppCommand.openFile
+            IsEnabled = alwaysEnabled }
+          { Id = "workspace.openFolder"
+            Title = "Open Folder"
+            Category = "Workspace"
+            GestureText = None
+            Command = AppCommand.openFolder
             IsEnabled = alwaysEnabled }
           { Id = "file.save"
             Title = "Save File"
@@ -45,6 +54,18 @@ module AppCommandCatalog =
             GestureText = None
             Command = AppCommand.closeDocument
             IsEnabled = hasActiveDocument }
+          { Id = "file.reopenClosedTab"
+            Title = "Reopen Closed Tab"
+            Category = "File"
+            GestureText = None
+            Command = AppCommand.reopenClosedTab
+            IsEnabled = hasRecentlyClosedDocument }
+          { Id = "file.clearRecentDocuments"
+            Title = "Clear Recent Documents"
+            Category = "File"
+            GestureText = None
+            Command = AppCommand.clearRecentDocuments
+            IsEnabled = hasRecentlyClosedDocument }
           { Id = "workbench.commandPalette"
             Title = "Open Command Palette"
             Category = "Workbench"

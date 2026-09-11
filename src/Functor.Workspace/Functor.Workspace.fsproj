@@ -6,9 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="WorkspaceSettings.fs" />
     <Compile Include="WorkspaceModel.fs" />
+    <Compile Include="WorkspaceProjection.fs" />
     <Compile Include="WorkspaceEvent.fs" />
+    <Compile Include="WorkspaceQuery.fs" />
     <Compile Include="WorkspaceLogic.fs" />
+    <Compile Include="WorkspaceLifecycle.fs" />
+    <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
   </ItemGroup>
 
 </Project>

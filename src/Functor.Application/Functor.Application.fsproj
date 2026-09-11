@@ -10,7 +10,16 @@
     <Compile Include="IClipboardService.fs" />
     <Compile Include="IFileService.fs" />
     <Compile Include="IDialogService.fs" />
+    <Compile Include="ITokenizerService.fs" />
+    <Compile Include="IncrementalTokenizationState.fs" />
+    <Compile Include="Tokenizers\TokenizerCommon.fs" />
+    <Compile Include="Tokenizers\FSharpTokenizer.fs" />
+    <Compile Include="Tokenizers\CSharpTokenizer.fs" />
+    <Compile Include="Tokenizers\JsonTokenizer.fs" />
+    <Compile Include="Tokenizers\MarkdownTokenizer.fs" />
+    <Compile Include="DefaultTokenizerService.fs" />
     <Compile Include="AppCommand.fs" />
+    <Compile Include="TokenizationCoordinator.fs" />
     <Compile Include="AppEffect.fs" />
     <Compile Include="AppEffectInterpreter.fs" />
     <Compile Include="AppSessionState.fs" />
@@ -23,5 +32,6 @@
     <Compile Include="AppSettingsLoader.fs" />
     <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
     <ProjectReference Include="..\Functor.Rendering\Functor.Rendering.fsproj" />
+    <ProjectReference Include="..\Functor.Workspace\Functor.Workspace.fsproj" />
   </ItemGroup>
 </Project>

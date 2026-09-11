@@ -25,6 +25,23 @@ type AvaloniaDialogService(getTopLevel: unit -> TopLevel option) =
                     return None
             }
 
+        member _.OpenFolder() =
+            async {
+                match getTopLevel() with
+                | Some topLevel ->
+                    let options = FolderPickerOpenOptions()
+                    options.Title <- "Open folder"
+
+                    let! folders = topLevel.StorageProvider.OpenFolderPickerAsync(options) |> Async.AwaitTask
+
+                    return
+                        folders
+                        |> Seq.tryHead
+                        |> Option.map (fun folder -> folder.Path.LocalPath)
+                | None ->
+                    return None
+            }
+
         member _.SaveFile(suggestedName: string option) =
             async {
                 match getTopLevel() with

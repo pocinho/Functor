@@ -10,6 +10,10 @@
     <StackPanel Margin="16" Spacing="4">
       <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,8" />
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Preset" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding ThemePresets}" SelectedItem="{Binding ThemePreset, Mode=TwoWay}" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Background" VerticalAlignment="Center" />
         <TextBox Grid.Column="1" Text="{Binding Background, Mode=TwoWay}" />
       </Grid>
@@ -53,7 +57,7 @@
         <TextBlock Text="Border width" VerticalAlignment="Center" />
         <TextBox Grid.Column="1" Text="{Binding EditorBorderWidth, Mode=TwoWay}" />
       </Grid>
-      <TextBlock Text="{Binding ErrorMessage}" Foreground="Firebrick" TextWrapping="Wrap" />
+      <TextBlock x:Name="ErrorText" Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

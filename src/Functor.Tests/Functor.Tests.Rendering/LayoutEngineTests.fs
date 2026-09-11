@@ -1,6 +1,7 @@
 namespace Functor.Tests.Rendering
 
 open Functor.Domain.Diagnostics
+open Functor.Domain.Core
 open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Rendering
@@ -51,11 +52,106 @@ type LayoutEngineTests() =
         let layout = LayoutEngine.layoutTokens measurer lines [ token ] |> List.exactlyOne
 
         Assert.Equal(2, layout.LineIndex)
-        Assert.Equal("keyword", layout.Style.Kind)
+        Assert.Equal(SyntaxForeground "keyword", layout.Style.Foreground)
+        Assert.Equal(TextWeight.Bold, layout.Style.Weight)
         Assert.Equal(0, layout.Range.Start.Column)
         Assert.Equal(3, layout.Range.End.Column)
         Assert.Equal(-8.0f, layout.XStart)
         Assert.Equal(16.0f, layout.XEnd)
+
+    [<Fact>]
+    member _.``styled runs cover tokenized and unstyled text``() =
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "let value" ]
+        let token =
+            { Kind = "keyword"
+              Line = 0
+              Column = 0
+              Length = 3 }
+        let tokens = LayoutEngine.layoutTokens measurer lines [ token ]
+        let runs = LayoutEngine.layoutTextRuns measurer lines tokens
+
+        Assert.Equal(2, runs.Length)
+        Assert.Equal("let", runs.[0].Text)
+        Assert.Equal(SyntaxForeground "keyword", runs.[0].Style.Foreground)
+        Assert.Equal(" value", runs.[1].Text)
+        Assert.Equal(EditorForeground, runs.[1].Style.Foreground)
+
+    [<Fact>]
+    member _.``token ranges use utf16 offsets and tab visual columns``() =
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "😀\tlet" ]
+        let token =
+            { Kind = "keyword"
+              Line = 0
+              Column = 3
+              Length = 3 }
+        let tokens = LayoutEngine.layoutTokens measurer lines [ token ]
+        let run = LayoutEngine.layoutTextRuns measurer lines tokens |> List.find (fun item -> item.Text = "let")
+
+        Assert.Equal(3, run.Range.Start.Column)
+        Assert.Equal(6, run.Range.End.Column)
+        Assert.Equal(4, run.StartVisualColumn)
+        Assert.Equal(32.0f, run.X)
+
+    [<Fact>]
+    member _.``cursor and selection geometry use backend grapheme advances``() =
+        let measurer =
+            TextMeasurer.create
+                (TextMetrics.createWithGraphemeAdvance
+                    16.0f
+                    8.0f
+                    4
+                    (fun _ grapheme ->
+                        if grapheme = "🚧" then 16.0f else 8.0f))
+
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "a🚧b" ]
+        let cursor = LayoutEngine.layoutCursors measurer 0 lines [ { Line = 0; Column = 3 } ] |> List.exactlyOne
+        let selection =
+            LayoutEngine.layoutSelections
+                measurer
+                0
+                lines
+                [ { Start = { Line = 0; Column = 1 }
+                    End = { Line = 0; Column = 3 } } ]
+            |> List.exactlyOne
+            |> fun layout -> layout.Rects |> List.exactlyOne
+
+        Assert.Equal(24.0f, cursor.X)
+        Assert.Equal(8.0f, selection.X)
+        Assert.Equal(16.0f, selection.Width)
+
+    [<Fact>]
+    member _.``overlapping and malformed tokens produce non-overlapping clamped runs``() =
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "abcdef" ]
+        let tokens =
+            [ { Kind = "keyword"; Line = 0; Column = -2; Length = 5 }
+              { Kind = "string"; Line = 0; Column = 2; Length = 20 } ]
+            |> LayoutEngine.layoutTokens measurer lines
+        let runs = LayoutEngine.layoutTextRuns measurer lines tokens
+
+        Assert.Equal("abcdef", runs |> List.map (fun run -> run.Text) |> String.concat "")
+        Assert.True(runs |> List.pairwise |> List.forall (fun (left, right) -> left.Range.End.Column = right.Range.Start.Column))
+
+    [<Fact>]
+    member _.``token slicing returns only lines inside the viewport``() =
+        let syntax =
+            { SyntaxModel.empty with
+                Tokens =
+                    [ { Line = 0; Tokens = [ { Kind = "first"; Line = 0; Column = 0; Length = 1 } ] }
+                      { Line = 2; Tokens = [ { Kind = "third"; Line = 2; Column = 0; Length = 1 } ] } ] }
+        let input =
+            { Buffer = [ "a"; "b"; "c" ]
+              View = { Viewport = { Width = 80; Height = 16 }; VerticalOffset = 2; HorizontalOffset = 0 }
+              Editing = EditingModel.create ()
+              Syntax = syntax
+              Diagnostics = DiagnosticsModel.create () }
+
+        let tokens = SlicingEngine.sliceTokens 1 input
+
+        Assert.Single(tokens) |> ignore
+        Assert.Equal("third", tokens.Head.Kind)
 
     [<Fact>]
     member _.``diagnostics produce glyphs and multiline underlines``() =

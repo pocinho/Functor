@@ -12,7 +12,7 @@
         WindowStartupLocation="CenterOwner">
   <Grid RowDefinitions="*,Auto">
     <views:SettingsView x:Name="SettingsView" Grid.Row="0" />
-    <Border Grid.Row="1" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="12">
+    <Border x:Name="SettingsFooter" Grid.Row="1" BorderThickness="0,1,0,0" Padding="12">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
         <Button x:Name="ApplyButton" Content="Apply" />
         <Button x:Name="SaveButton" Content="Save" />

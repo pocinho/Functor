@@ -6,8 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="340"
              x:Class="Functor.Avalonia.Views.CommandPaletteView"
              x:DataType="vm:CommandPaletteViewModel">
-  <Border Background="#F8F8F8"
-          BorderBrush="#7A7A7A"
+  <Border x:Name="PaletteBorder"
           BorderThickness="1"
           CornerRadius="6"
           BoxShadow="0 12 32 0 #66000000"
@@ -28,9 +27,9 @@
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:CommandPaletteItem">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
-              <TextBlock Grid.Column="0" Text="{Binding Category}" Foreground="#666666" Width="92" />
+              <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="0.68" Width="92" />
               <TextBlock Grid.Column="1" Text="{Binding Title}" />
-              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Foreground="#666666" Margin="16,0,0,0" />
+              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Opacity="0.68" Margin="16,0,0,0" />
             </Grid>
           </DataTemplate>
         </ListBox.ItemTemplate>

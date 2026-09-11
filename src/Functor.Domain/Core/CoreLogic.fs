@@ -36,6 +36,7 @@ module CoreLogic =
 
     let private applyEditingEvent (model: CoreModel) (evt: Functor.Domain.Editing.EditingEvent) =
         let editing = EditingLogic.update evt model.Editing
+        let bufferChanged = editing.Revision <> model.Editing.Revision
 
         let activeDocument =
             if editing.IsDirty then
@@ -45,6 +46,11 @@ module CoreLogic =
 
         { model with
             Editing = editing
+            Syntax =
+                match bufferChanged, editing.LastChange with
+                | true, Some change ->
+                    SyntaxModel.markDirtyRange editing.Revision change.StartLine System.Int32.MaxValue model.Syntax
+                | _ -> model.Syntax
             ActiveDocument = activeDocument
             OpenDocuments =
                 model.OpenDocuments
@@ -88,26 +94,36 @@ module CoreLogic =
         // Document Lifecycle
         | NewDocument name ->
             let doc = DocumentModel.createUntitled name
+            let editing = EditingModel.create ()
 
             { model with
                 ActiveDocument = Some doc
                 OpenDocuments = doc :: model.OpenDocuments
-                Editing = EditingModel.create () }
+                Editing = editing
+                Syntax = SyntaxModel.createForDocument doc.Id editing.Revision
+                Diagnostics = DiagnosticsModel.create () }
 
         | OpenDocument path ->
             let doc = DocumentModel.createFromFile path ""
-
-            { model with
-                ActiveDocument = Some doc
-                OpenDocuments = doc :: model.OpenDocuments }
-
-        | LoadDocument(path, text) ->
-            let doc = DocumentModel.createFromFile path text
+            let editing = EditingModel.create ()
 
             { model with
                 ActiveDocument = Some doc
                 OpenDocuments = doc :: model.OpenDocuments
-                Editing = EditingModel.createFromText text model.Editing }
+                Editing = editing
+                Syntax = SyntaxModel.createForDocument doc.Id editing.Revision
+                Diagnostics = DiagnosticsModel.create () }
+
+        | LoadDocument(path, text) ->
+            let doc = DocumentModel.createFromFile path text
+            let editing = EditingModel.createFromText text model.Editing
+
+            { model with
+                ActiveDocument = Some doc
+                OpenDocuments = doc :: model.OpenDocuments
+                Editing = editing
+                Syntax = SyntaxModel.createForDocument doc.Id editing.Revision
+                Diagnostics = DiagnosticsModel.create () }
 
         | CloseDocument id ->
             let remaining = model.OpenDocuments |> List.filter (fun d -> d.Id <> id)
@@ -128,6 +144,18 @@ module CoreLogic =
                         EditingModel.create ()
                     else
                         model.Editing
+                Syntax =
+                    if closesActiveDocument then
+                        match newActive with
+                        | Some document -> SyntaxModel.createForDocument document.Id 0L
+                        | None -> SyntaxModel.create ()
+                    else
+                        model.Syntax
+                Diagnostics =
+                    if closesActiveDocument then
+                        DiagnosticsModel.create ()
+                    else
+                        model.Diagnostics
                 View =
                     if closesActiveDocument then
                         { model.View with VerticalOffset = 0 }
@@ -137,8 +165,19 @@ module CoreLogic =
         | SwitchDocument id ->
             let newActive = model.OpenDocuments |> List.tryFind (fun d -> d.Id = id)
 
-            { model with
-                ActiveDocument = newActive }
+            match newActive with
+            | Some document when model.ActiveDocument |> Option.exists (fun active -> active.Id = document.Id) ->
+                model
+            | Some document ->
+                let editing = EditingModel.createFromText document.InitialText model.Editing
+
+                { model with
+                    ActiveDocument = Some document
+                    Editing = editing
+                    Syntax = SyntaxModel.createForDocument document.Id editing.Revision
+                    Diagnostics = DiagnosticsModel.create () }
+            | None ->
+                model
 
         | ApplyDocumentEvent evt ->
             let updated = applyDocumentEvent model evt

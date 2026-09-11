@@ -15,12 +15,7 @@ type LineLayout =
 
 /// Represents a laid-out token in pixel space.
 type TokenLayout =
-    { LineIndex: int
-      Range: Range
-      Style: SyntaxStyle
-      XStart: float32
-      XEnd: float32
-      Y: float32 }
+    { LineIndex: int; Range: Range; Style: TextStyle; XStart: float32; XEnd: float32; Y: float32 }
 
 /// Represents laid-out selection geometry (rectangles in pixel space).
 type SelectionLayout = { Range: Range; Rects: list<Rect> }
@@ -51,6 +46,13 @@ type LayoutResult =
 /// It does NOT draw anything; it only computes geometry.
 module LayoutEngine =
 
+    let private normalizePosition (measurer: TextMeasurer) (lines: list<LineLayout>) (position: Position) =
+        lines
+        |> List.tryFind (fun line -> line.LineIndex = position.Line)
+        |> Option.map (fun line ->
+            { position with Column = TextMeasurer.normalizeColumn line.Text position.Column })
+        |> Option.defaultValue position
+
     let gutterWidth (measurer: TextMeasurer) (lineCount: int) =
         let numberText = string (max 1 lineCount)
         measurer.MeasureRange numberText 0 numberText.Length + 16.0f
@@ -66,12 +68,20 @@ module LayoutEngine =
         =
         let availableWidth = max 0.0f (viewportWidth - gutterWidth)
         let maxOffsetForLine text =
-            let targetWidth = max 0.0f (measurer.MeasureText text - availableWidth)
+            let widths = measurer.MeasurePrefix text
+            let targetWidth = max 0.0f (widths.[text.Length] - availableWidth)
+            let mutable low = 0
+            let mutable high = widths.Length
 
-            [ 0 .. text.Length ]
-            |> List.filter (fun offset -> measurer.MeasureRange text 0 offset <= targetWidth)
-            |> List.tryLast
-            |> Option.defaultValue 0
+            while low < high do
+                let middle = low + ((high - low) / 2)
+
+                if widths.[middle] <= targetWidth then
+                    low <- middle + 1
+                else
+                    high <- middle
+
+            TextMeasurer.normalizeColumn text (low - 1)
 
         buffer |> List.map maxOffsetForLine |> List.fold max 0
 
@@ -135,10 +145,7 @@ module LayoutEngine =
             lines
             |> List.tryFind (fun line -> line.LineIndex = token.Line)
             |> Option.map (fun line ->
-                let startColumn = max 0 (min line.Text.Length token.Column)
-
-                let endColumn =
-                    max startColumn (min line.Text.Length (token.Column + max 0 token.Length))
+                let startColumn, endColumn = TextMeasurer.normalizeRange line.Text token.Column token.Length
 
                 let tokenRange: Range =
                     { Start =
@@ -150,10 +157,66 @@ module LayoutEngine =
 
                 { LineIndex = token.Line
                   Range = tokenRange
-                  Style = { Kind = token.Kind }
+                  Style = TextStyle.forTokenKind token.Kind
                   XStart = line.X + measurer.MeasureRange line.Text 0 startColumn
                   XEnd = line.X + measurer.MeasureRange line.Text 0 endColumn
                   Y = line.Y }))
+
+    let layoutTextRuns
+        (measurer: TextMeasurer)
+        (lines: list<LineLayout>)
+        (tokens: list<TokenLayout>)
+        : list<VisibleTextRun> =
+        let visualColumn text column =
+            if measurer.Metrics.DefaultAdvance <= 0.0f then
+                0
+            else
+                int (measurer.MeasureRange text 0 column / measurer.Metrics.DefaultAdvance)
+
+        let createRun (line: LineLayout) startColumn endColumn (style: TextStyle) : VisibleTextRun =
+            { LineIndex = line.LineIndex
+              Text = line.Text.Substring(startColumn, endColumn - startColumn)
+              Range =
+                { Start = { Line = line.LineIndex; Column = startColumn }
+                  End = { Line = line.LineIndex; Column = endColumn } }
+              X = line.X + measurer.MeasureRange line.Text 0 startColumn
+              Y = line.Y
+              Height = line.Height
+              StartVisualColumn = visualColumn line.Text startColumn
+              Style = style }
+
+        lines
+        |> List.collect (fun (line: LineLayout) ->
+            let lineTokens =
+                tokens
+                |> List.filter (fun token -> token.LineIndex = line.LineIndex)
+                |> List.sortBy (fun token -> token.Range.Start.Column, token.Range.End.Column)
+
+            let runs, column =
+                lineTokens
+                |> List.fold (fun (runs, column) token ->
+                    let startColumn = max column token.Range.Start.Column
+                    let endColumn = max startColumn token.Range.End.Column
+                    let runs =
+                        if column < startColumn then
+                            createRun line column startColumn TextStyle.defaultStyle :: runs
+                        else
+                            runs
+
+                    if startColumn < endColumn then
+                        createRun line startColumn endColumn token.Style :: runs, endColumn
+                    else
+                        runs, column) ([], 0)
+
+            let runs =
+                if column < line.Text.Length then
+                    createRun line column line.Text.Length TextStyle.defaultStyle :: runs
+                elif line.Text.Length = 0 then
+                    createRun line 0 0 TextStyle.defaultStyle :: runs
+                else
+                    runs
+
+            List.rev runs)
 
     /// Layout selections into pixel rectangles.
     let layoutSelections
@@ -164,7 +227,11 @@ module LayoutEngine =
         : list<SelectionLayout> =
         selections
         |> List.map (fun selection ->
-            let selection = Range.normalize selection
+            let selection: Range =
+                Range.normalize selection
+                |> fun range ->
+                    { Start = normalizePosition measurer lines range.Start
+                      End = normalizePosition measurer lines range.End }
 
             let rects =
                 lines
@@ -181,6 +248,18 @@ module LayoutEngine =
                         let endColumn =
                             if line.LineIndex = selection.End.Line then
                                 selection.End.Column
+                            else
+                                line.Text.Length
+
+                        let startColumn =
+                            if line.LineIndex = selection.Start.Line then
+                                TextMeasurer.normalizeColumn line.Text startColumn
+                            else
+                                0
+
+                        let endColumn =
+                            if line.LineIndex = selection.End.Line then
+                                snd (TextMeasurer.normalizeRange line.Text 0 endColumn)
                             else
                                 line.Text.Length
 
@@ -210,8 +289,10 @@ module LayoutEngine =
             lines
             |> List.tryFind (fun line -> line.LineIndex = position.Line)
             |> Option.map (fun line ->
-                { Position = position
-                  X = line.X + measurer.MeasureRange line.Text 0 position.Column
+                let column = TextMeasurer.normalizeColumn line.Text position.Column
+
+                { Position = { position with Column = column }
+                  X = line.X + measurer.MeasureRange line.Text 0 column
                   Y = line.Y
                   Height = line.Height
                   Width = max 1.0f (measurer.Metrics.DefaultAdvance * 0.1f) }))
@@ -247,6 +328,18 @@ module LayoutEngine =
                             else
                                 line.Text.Length
 
+                        let startColumn =
+                            if line.LineIndex = range.Start.Line then
+                                TextMeasurer.normalizeColumn line.Text startColumn
+                            else
+                                0
+
+                        let endColumn =
+                            if line.LineIndex = range.End.Line then
+                                snd (TextMeasurer.normalizeRange line.Text 0 endColumn)
+                            else
+                                line.Text.Length
+
                         let startColumn = max 0 (min line.Text.Length startColumn)
                         let endColumn = max startColumn (min line.Text.Length endColumn)
 
@@ -263,7 +356,7 @@ module LayoutEngine =
                 lines
                 |> List.tryFind (fun line -> line.LineIndex = range.Start.Line)
                 |> Option.map (fun line ->
-                    let column = max 0 (min line.Text.Length range.Start.Column)
+                    let column = TextMeasurer.normalizeColumn line.Text range.Start.Column
 
                     { X = line.X + measurer.MeasureRange line.Text 0 column
                       Y = line.Y + line.Height * 0.15f

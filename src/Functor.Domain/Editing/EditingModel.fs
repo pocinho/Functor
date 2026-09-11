@@ -6,6 +6,9 @@ type Position = { Line: int; Column: int }
 /// Represents a text selection (start and end cursor).
 type Selection = { Start: Position; End: Position }
 
+/// Describes the line span affected by the latest buffer mutation.
+type EditingChange = { StartLine: int; EndLine: int; OldEndLine: int; LineDelta: int }
+
 /// Represents the complete editing state:
 /// - cursor
 /// - selection
@@ -23,6 +26,12 @@ type EditingModel =
 
         /// The buffer as it existed at the last successful load or save.
         SavedBuffer: string list
+
+        /// Monotonically increasing version of the in-memory buffer.
+        Revision: int64
+
+        /// Metadata for the latest buffer mutation, if the last event changed text.
+        LastChange: EditingChange option
 
         /// Undo stack: each entry is a snapshot of the buffer.
         UndoStack: string list list
@@ -46,6 +55,8 @@ module EditingModel =
           Selection = None
           Buffer = [ "" ]
           SavedBuffer = [ "" ]
+          Revision = 0L
+          LastChange = None
           UndoStack = []
           RedoStack = []
           IsDirty = false
@@ -61,6 +72,8 @@ module EditingModel =
             Selection = None
             Buffer = buffer
             SavedBuffer = buffer
+            Revision = 0L
+            LastChange = None
             UndoStack = []
             RedoStack = []
             IsDirty = false }

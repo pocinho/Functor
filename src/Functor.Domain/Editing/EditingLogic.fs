@@ -1,5 +1,8 @@
 namespace Functor.Domain.Editing
 
+open System
+open System.Globalization
+
 /// Pure editing logic.
 /// Applies an EditingEvent to an EditingModel and returns a new EditingModel.
 module EditingLogic =
@@ -59,10 +62,50 @@ module EditingLogic =
     // Helpers
     // ────────────────────────────────────────────────
 
+    let private graphemeBoundaries (text: string) =
+        let starts =
+            if String.IsNullOrEmpty text then
+                [| 0 |]
+            else
+                StringInfo.ParseCombiningCharacters text
+
+        Array.append starts [| text.Length |]
+        |> Array.distinct
+        |> Array.filter (fun boundary ->
+            boundary = 0
+            || boundary = text.Length
+            || not (Char.IsLowSurrogate text.[boundary] && Char.IsHighSurrogate text.[boundary - 1]))
+
+    let private normalizeColumn (text: string) column =
+        let column = max 0 (min text.Length column)
+
+        graphemeBoundaries text
+        |> Array.rev
+        |> Array.tryFind (fun start -> start <= column)
+        |> Option.defaultValue 0
+
+    let private previousGraphemeBoundary (text: string) column =
+        let column = normalizeColumn text column
+
+        graphemeBoundaries text
+        |> Array.rev
+        |> Array.tryFind (fun start -> start < column)
+        |> Option.defaultValue 0
+
+    let private nextGraphemeBoundary (text: string) column =
+        let column = normalizeColumn text column
+
+        graphemeBoundaries text
+        |> Array.tryFind (fun start -> start > column)
+        |> Option.defaultValue text.Length
+
+    let private graphemeCount (text: string) =
+        max 0 ((graphemeBoundaries text).Length - 1)
+
     let private clampCursor (model: EditingModel) (cursor: Position) =
         let line = cursor.Line |> max 0 |> min (model.Buffer.Length - 1)
 
-        let column = cursor.Column |> max 0 |> min (model.Buffer.[line].Length)
+        let column = normalizeColumn model.Buffer.[line] cursor.Column
 
         { Line = line; Column = column }
 
@@ -70,6 +113,30 @@ module EditingLogic =
         { model with
             UndoStack = model.Buffer :: model.UndoStack
             RedoStack = [] }
+
+    let private changeMetadata (before: string list) (after: string list) =
+        let firstChanged =
+            [ 0 .. max before.Length after.Length - 1 ]
+            |> List.tryFind (fun line ->
+                (before |> List.tryItem line) <> (after |> List.tryItem line))
+
+        firstChanged
+        |> Option.map (fun startLine ->
+            let lineDelta = after.Length - before.Length
+            let lastChangedNewLine =
+                [ startLine .. after.Length - 1 ]
+                |> List.rev
+                |> List.tryFind (fun newLine ->
+                    let oldLine = newLine - lineDelta
+                    oldLine < 0
+                    || oldLine >= before.Length
+                    || before.[oldLine] <> after.[newLine])
+                |> Option.defaultValue startLine
+
+            { StartLine = startLine
+              EndLine = lastChangedNewLine
+              OldEndLine = lastChangedNewLine - lineDelta
+              LineDelta = lineDelta })
 
     // ────────────────────────────────────────────────
     // Text Input
@@ -144,7 +211,12 @@ module EditingLogic =
                 && model.Cursor.Column < model.Buffer.[model.Cursor.Line].Length
             then
                 let line = model.Buffer.[model.Cursor.Line]
-                let count = min text.Length (line.Length - model.Cursor.Column)
+                let mutable endColumn = model.Cursor.Column
+
+                for _ in 1 .. graphemeCount text do
+                    endColumn <- nextGraphemeBoundary line endColumn
+
+                let count = endColumn - model.Cursor.Column
 
                 let updated =
                     line.Remove(model.Cursor.Column, count).Insert(model.Cursor.Column, text)
@@ -171,15 +243,16 @@ module EditingLogic =
         if col > 0 then
             let model = pushUndo model
             let current = model.Buffer.[line]
+            let previousBoundary = previousGraphemeBoundary current col
 
-            let updatedLine = current.Remove(col - 1, 1)
+            let updatedLine = current.Remove(previousBoundary, col - previousBoundary)
 
             let updatedBuffer =
                 model.Buffer |> List.mapi (fun i l -> if i = line then updatedLine else l)
 
             { model with
                 Buffer = updatedBuffer
-                Cursor = { model.Cursor with Column = col - 1 }
+                Cursor = { model.Cursor with Column = previousBoundary }
                 PreferredColumn = None
                 IsDirty = true }
         elif line = 0 then
@@ -213,7 +286,8 @@ module EditingLogic =
             model
         else
             let model = pushUndo model
-            let updatedLine = current.Remove(col, 1)
+            let next = nextGraphemeBoundary current col
+            let updatedLine = current.Remove(col, next - col)
 
             let updatedBuffer =
                 model.Buffer |> List.mapi (fun i l -> if i = line then updatedLine else l)
@@ -235,11 +309,12 @@ module EditingLogic =
     let private moveVertically (model: EditingModel) delta =
         let preferred = model.PreferredColumn |> Option.defaultValue model.Cursor.Column
         let line = max 0 (min (model.Buffer.Length - 1) (model.Cursor.Line + delta))
+        let column = min preferred model.Buffer.[line].Length |> normalizeColumn model.Buffer.[line]
 
         { model with
             Cursor =
                 { Line = line
-                  Column = min preferred model.Buffer.[line].Length }
+                  Column = column }
             PreferredColumn = Some preferred }
 
     // ────────────────────────────────────────────────
@@ -262,7 +337,14 @@ module EditingLogic =
 
     let private clearSelection (model: EditingModel) = { model with Selection = None }
 
-    let private setSelection (model: EditingModel) selection = { model with Selection = selection }
+    let private setSelection (model: EditingModel) selection =
+        let normalized =
+            selection
+            |> Option.map (fun selection ->
+                { Start = clampCursor model selection.Start
+                  End = clampCursor model selection.End })
+
+        { model with Selection = normalized }
 
     // ────────────────────────────────────────────────
     // Line Operations
@@ -276,13 +358,6 @@ module EditingLogic =
 
         let before = current.Substring(0, col)
         let after = current.Substring(col)
-
-        let updatedBuffer =
-            model.Buffer
-            |> List.mapi (fun i l ->
-                if i = line then before
-                elif i = line + 1 then after
-                else l)
 
         let updatedBuffer =
             (model.Buffer |> List.take line)
@@ -331,7 +406,6 @@ module EditingLogic =
             PreferredColumn = None
             IsDirty = true }
 
-    // ────────────────────────────────────────────────
     // Undo / Redo
     // ────────────────────────────────────────────────
 
@@ -371,15 +445,11 @@ module EditingLogic =
         | DeleteSelection -> deleteSelection model
 
         | MoveLeft ->
-            moveCursor
-                model
-                { model.Cursor with
-                    Column = model.Cursor.Column - 1 }
+            let text = model.Buffer.[model.Cursor.Line]
+            moveCursor model { model.Cursor with Column = previousGraphemeBoundary text model.Cursor.Column }
         | MoveRight ->
-            moveCursor
-                model
-                { model.Cursor with
-                    Column = model.Cursor.Column + 1 }
+            let text = model.Buffer.[model.Cursor.Line]
+            moveCursor model { model.Cursor with Column = nextGraphemeBoundary text model.Cursor.Column }
         | MoveUp -> moveVertically model -1
         | MoveDown -> moveVertically model 1
         | MoveToLineStart -> moveCursor model { model.Cursor with Column = 0 }
@@ -414,4 +484,14 @@ module EditingLogic =
 
     let update (evt: EditingEvent) (model: EditingModel) : EditingModel =
         let updated = updateRaw evt model
-        { updated with IsDirty = updated.Buffer <> updated.SavedBuffer }
+        let bufferChanged = updated.Buffer <> model.Buffer
+        let lastChange =
+            if bufferChanged then
+                changeMetadata model.Buffer updated.Buffer
+            else
+                None
+
+        { updated with
+            Revision = if bufferChanged then model.Revision + 1L else model.Revision
+            IsDirty = updated.Buffer <> updated.SavedBuffer
+            LastChange = lastChange }

@@ -5,22 +5,37 @@ open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Primitives
 open Avalonia.Layout
+open Avalonia.Media
 open Avalonia.Markup.Xaml
 open Functor.Application
 open Functor.Avalonia.Controls
+open Functor.Domain.Document
+open Functor.Workspace
 
 type MainView() as this =
     inherit UserControl()
 
     let editor = lazy (this.FindControl<EditorControl>("EditorControl"))
+    let welcomeView = lazy (this.FindControl<WelcomeView>("WelcomeView"))
     let verticalScrollBar = lazy (this.FindControl<ScrollBar>("VerticalScrollBar"))
     let horizontalScrollBar = lazy (this.FindControl<ScrollBar>("HorizontalScrollBar"))
+    let statusBar = lazy (this.FindControl<Border>("StatusBar"))
     let positionText = lazy (this.FindControl<TextBlock>("PositionText"))
     let fileTypeText = lazy (this.FindControl<TextBlock>("FileTypeText"))
     let messageText = lazy (this.FindControl<TextBlock>("MessageText"))
     let fileNameText = lazy (this.FindControl<TextBlock>("FileNameText"))
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
+    let tabBar = lazy (this.FindControl<Border>("TabBar"))
+    let tabsPanel = lazy (this.FindControl<StackPanel>("TabsPanel"))
     let mutable confirmationOpen = false
+
+    let colorFromArgb (argb: uint32) =
+        Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
+
+    let updateEmptyState (state: AppSessionState) =
+        let hasActiveDocument = state.Model.ActiveDocument.IsSome
+        editor.Value.IsVisible <- hasActiveDocument
+        welcomeView.Value.IsVisible <- not hasActiveDocument
 
     let updateScrollBar () =
         let editor = editor.Value
@@ -45,6 +60,43 @@ type MainView() as this =
         messageText.Value.Text <- status.Error |> Option.orElse status.Message |> Option.defaultValue ""
         fileNameText.Value.Text <- status.FileName
         dirtyText.Value.Text <- if status.IsDirty then "Modified" else ""
+
+    let updateTabs (state: AppSessionState) =
+        let panel = tabsPanel.Value
+        panel.Children.Clear()
+
+        let palette = editor.Value.ThemeSettings.ThemeSource.Resolve()
+        let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
+        let border = SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+        let selected = SolidColorBrush(colorFromArgb palette.Selection)
+        let background = SolidColorBrush(colorFromArgb palette.GutterBackground)
+
+        WorkspaceProjection.tabs state.Workspace
+        |> List.iter (fun tab ->
+            let tabButton =
+                Button(
+                    Padding = Thickness(10, 4),
+                    MinHeight = 28.0,
+                    BorderThickness = Thickness(1),
+                    BorderBrush = border,
+                    Background = (if tab.IsActive then selected else background),
+                    Foreground = foreground,
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch
+                )
+
+            let label = TextBlock(Text = (if tab.IsDirty then tab.Name + " *" else tab.Name))
+            let closeButton = Button(Content = "x", Width = 22.0, Height = 22.0, Padding = Thickness(0))
+            let content = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
+            content.Children.Add(label) |> ignore
+            content.Children.Add(closeButton) |> ignore
+            tabButton.Content <- content
+
+            tabButton.Click.Add(fun _ -> editor.Value.ActivateDocument(tab.DocumentId))
+            closeButton.Click.Add(fun args ->
+                args.Handled <- true
+                editor.Value.ActivateDocument(tab.DocumentId)
+                editor.Value.CloseDocument())
+            panel.Children.Add(tabButton) |> ignore)
 
     let showDiscardDialog () =
         match TopLevel.GetTopLevel(this) with
@@ -96,6 +148,8 @@ type MainView() as this =
             if status.PendingAction.IsSome && not confirmationOpen then
                 showDiscardDialog ())
         editor.EditorStatusChanged.Add(updateEditorStatus)
+        editor.StateChanged.Add(updateTabs)
+        editor.StateChanged.Add(updateEmptyState)
 
         editor.ScrollStateChanged.Add(fun () -> updateScrollBar ())
 
@@ -111,8 +165,14 @@ type MainView() as this =
             if offset <> editor.HorizontalOffset then
                 editor.ScrollHorizontalTo(offset))
 
+        welcomeView.Value.NewFileRequested.Add(fun _ -> editor.NewDocument())
+        welcomeView.Value.OpenFileRequested.Add(fun _ -> editor.OpenFile())
+        welcomeView.Value.OpenFolderRequested.Add(fun _ -> editor.DispatchApplicationCommand(AppCommand.openFolder))
+
         updateScrollBar ()
         updateEditorStatus editor.EditorStatus
+        updateTabs editor.SessionState
+        updateEmptyState editor.SessionState
 
     member _.Editor = editor.Value
 
@@ -120,5 +180,17 @@ type MainView() as this =
 
     member _.ApplySettings(settings: AppSettings) =
         editor.Value.ThemeSettings <- settings.Theme
+
+        let palette = settings.Theme.ThemeSource.Resolve()
+        let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
+        let background = SolidColorBrush(colorFromArgb palette.Background)
+        let borderColor = palette.GutterSeparator |> Option.defaultValue palette.Foreground
+
+        this.Background <- background
+        this.Foreground <- foreground
+        statusBar.Value.Background <- SolidColorBrush(colorFromArgb palette.GutterBackground)
+        statusBar.Value.BorderBrush <- SolidColorBrush(colorFromArgb borderColor)
+        tabBar.Value.Background <- SolidColorBrush(colorFromArgb palette.GutterBackground)
+        updateTabs editor.Value.SessionState
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)

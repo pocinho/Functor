@@ -4,6 +4,7 @@ open Avalonia
 open Avalonia.Controls
 open Avalonia.Media
 open System.Globalization
+open System.Runtime.InteropServices
 open System.Text
 open Functor.Rendering
 
@@ -17,38 +18,78 @@ open Functor.Rendering
 /// - It ONLY draws what RenderingModel provides.
 module RenderingSurface =
 
-    let private expandTabs (tabWidth: int) (text: string) =
+    let private expandTabs (tabWidth: int) (startColumn: int) (text: string) =
         let builder = StringBuilder()
-        let mutable column = 0
+        let mutable column = startColumn
+        let elements = StringInfo.GetTextElementEnumerator(text)
 
-        for character in text do
-            if character = '\t' then
+        while elements.MoveNext() do
+            let element = elements.GetTextElement()
+
+            if element = "\t" then
                 let spaces = tabWidth - (column % tabWidth)
                 builder.Append(' ', spaces) |> ignore
                 column <- column + spaces
             else
-                builder.Append(character) |> ignore
+                builder.Append(element) |> ignore
                 column <- column + 1
 
         builder.ToString()
 
-    let private editorTypeface = Typeface("Consolas")
+    let private editorFontFamily =
+        if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+            "Consolas, Segoe UI Emoji"
+        else
+            "Consolas"
+
+    let private editorTypeface = Typeface(editorFontFamily)
 
     let private editorFontSize (lineHeight: float32) =
         max 1.0 (float lineHeight * (5.0 / 6.0))
 
-    let measureDefaultAdvance (lineHeight: float32) =
-        let text =
-            FormattedText(
-                "M",
-                CultureInfo.InvariantCulture,
-                FlowDirection.LeftToRight,
-                editorTypeface,
-                editorFontSize lineHeight,
-                Brushes.White
-            )
+    let private defaultAdvanceCache = System.Collections.Concurrent.ConcurrentDictionary<float32, float32>()
 
-        float32 text.Width
+    let measureDefaultAdvance (lineHeight: float32) =
+        defaultAdvanceCache.GetOrAdd(
+            lineHeight,
+            fun lineHeight ->
+                let text =
+                    FormattedText(
+                        "M",
+                        CultureInfo.InvariantCulture,
+                        FlowDirection.LeftToRight,
+                        editorTypeface,
+                        editorFontSize lineHeight,
+                        Brushes.White
+                    )
+
+                float32 text.Width
+        )
+
+    let private graphemeAdvanceCache =
+        System.Collections.Concurrent.ConcurrentDictionary<struct (float32 * string), float32>()
+
+    let measureGraphemeAdvance (lineHeight: float32) (column: int) (grapheme: string) =
+        if grapheme = "\t" then
+            float32 (4 - (column % 4)) * measureDefaultAdvance lineHeight
+        else
+            graphemeAdvanceCache.GetOrAdd(
+                struct (lineHeight, grapheme),
+                fun struct (lineHeight, grapheme) ->
+                    // Anchor the grapheme between non-whitespace characters: Avalonia trims the
+                    // advance of a standalone whitespace-only FormattedText string to zero.
+                    let formatted (value: string) =
+                        FormattedText(
+                            value,
+                            CultureInfo.InvariantCulture,
+                            FlowDirection.LeftToRight,
+                            editorTypeface,
+                            editorFontSize lineHeight,
+                            Brushes.White
+                        ).Width
+
+                    float32 (formatted ("x" + grapheme + "x") - formatted "xx")
+            )
 
     let private colorFromArgb (argb: uint32) =
         let a = byte ((argb >>> 24) &&& 0xFFu)
@@ -150,24 +191,35 @@ module RenderingSurface =
                     Rect(float rect.X, float rect.Y, float rect.Width, float rect.Height)
                 )
 
-        let drawText (line: VisibleLine) =
-            let fontSize = editorFontSize line.Height
-            let foreground = SolidColorBrush(colorFromArgb theme.Foreground)
+        let drawTextRun (run: VisibleTextRun) =
+            let fontSize = editorFontSize run.Height
+            let foreground = SolidColorBrush(colorFromArgb (Theme.resolveTextColor theme run.Style.Foreground))
+            let fontWeight =
+                match run.Style.Weight with
+                | TextWeight.Normal -> FontWeight.Normal
+                | TextWeight.Bold -> FontWeight.Bold
+            let fontStyle =
+                match run.Style.Slant with
+                | TextSlant.Upright -> FontStyle.Normal
+                | TextSlant.Italic -> FontStyle.Italic
+            let typeface = Typeface(editorTypeface.FontFamily, fontStyle, fontWeight)
+
+            let renderedText = expandTabs 4 run.StartVisualColumn run.Text
 
             let text =
                 FormattedText(
-                    expandTabs 4 line.Text,
+                    renderedText,
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
-                    editorTypeface,
+                    typeface,
                     fontSize,
                     foreground
                 )
 
-            context.DrawText(text, Point(float line.X, float line.Y))
+            context.DrawText(text, Point(float run.X, float run.Y))
 
-        for line in model.VisibleLines do
-            drawText line
+        for run in model.TextRuns do
+            drawTextRun run
 
         // ------------------------------------------------------------
         // 3. Cursor(s)

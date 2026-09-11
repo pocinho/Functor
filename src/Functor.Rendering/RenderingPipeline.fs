@@ -44,8 +44,11 @@ module RenderingPipeline =
             renderInput.View.HorizontalOffset
             sliced
 
+        let textRuns = LayoutEngine.layoutTextRuns config.Measurer layout.Lines layout.Tokens
+
         // 3. Convert layout result into a RenderingModel
-        { VisibleLines =
+        { TextRuns = textRuns
+          VisibleLines =
             layout.Lines
             |> List.map (fun l ->
                 { LineIndex = l.LineIndex
@@ -57,12 +60,7 @@ module RenderingPipeline =
           VisibleTokens =
             layout.Tokens
             |> List.map (fun t ->
-                { LineIndex = t.LineIndex
-                  Range = t.Range
-                  Style = t.Style
-                  XStart = t.XStart
-                  XEnd = t.XEnd
-                  Y = t.Y })
+                { LineIndex = t.LineIndex; Range = t.Range; Style = t.Style; XStart = t.XStart; XEnd = t.XEnd; Y = t.Y })
 
           Selections = layout.Selections |> List.map (fun s -> { Range = s.Range; Rects = s.Rects })
 

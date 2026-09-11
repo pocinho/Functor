@@ -10,16 +10,21 @@
                                 Title="Functor"
                                 WindowDecorations="BorderOnly"
                                 ExtendClientAreaToDecorationsHint="True">
-        <Grid RowDefinitions="32,*" Background="#1E1E1E">
-                <Border x:Name="TitleBar" Grid.Row="0" Background="#2D2D30">
+        <Grid x:Name="ApplicationRoot" RowDefinitions="32,*">
+                <Border x:Name="TitleBar" Grid.Row="0">
                         <Grid ColumnDefinitions="Auto,*,Auto" Height="32">
                                 <Menu Grid.Column="0" Background="Transparent" VerticalAlignment="Center">
                                         <MenuItem Header="_File">
                                                 <MenuItem x:Name="NewMenuItem" Header="_New" InputGesture="Ctrl+N" />
                                                 <MenuItem x:Name="OpenMenuItem" Header="_Open..." InputGesture="Ctrl+O" />
+                                                <MenuItem x:Name="OpenFolderMenuItem" Header="Open _Folder..." />
                                                 <Separator />
                                                 <MenuItem x:Name="SaveMenuItem" Header="_Save" InputGesture="Ctrl+S" />
                                                 <MenuItem x:Name="SaveAsMenuItem" Header="Save _As..." InputGesture="Ctrl+Shift+S" />
+                                                <Separator />
+                                                <MenuItem x:Name="RecentDocumentsMenuItem" Header="Recent _Documents" />
+                                                <MenuItem x:Name="ReopenClosedTabMenuItem" Header="Reopen Closed _Tab" InputGesture="Ctrl+Shift+T" />
+                                                <MenuItem x:Name="ClearRecentDocumentsMenuItem" Header="_Clear Recent Documents" />
                                                 <Separator />
                                                 <MenuItem x:Name="CloseMenuItem" Header="_Close" />
                                         </MenuItem>
@@ -39,14 +44,11 @@
                                                                 VerticalAlignment="Center"
                                                                 HorizontalContentAlignment="Center"
                                                                 Content="Functor - Ctrl+Shift+P"
-                                                                Background="#3C3C3C"
-                                                                BorderBrush="#5A5A5A"
-                                                                Foreground="#F0F0F0"
                                                                 Padding="12,0" />
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button x:Name="MinimizeButton" Width="46" Height="32" Content="_" />
-                                          <Button x:Name="MaximizeButton" Width="46" Height="32" Content="[]" />
-                                        <Button x:Name="CloseButton" Width="46" Height="32" Content="X" />
+                                        <Button x:Name="MinimizeButton" Width="46" Height="32" FontFamily="Segoe MDL2 Assets" Content="&#xE921;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
+                                        <Button x:Name="MaximizeButton" Width="46" Height="32" FontFamily="Segoe MDL2 Assets" Content="&#xE922;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
+                                        <Button x:Name="CloseButton" Width="46" Height="32" FontFamily="Segoe MDL2 Assets" Content="&#xE8BB;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
                                 </StackPanel>
                         </Grid>
                 </Border>

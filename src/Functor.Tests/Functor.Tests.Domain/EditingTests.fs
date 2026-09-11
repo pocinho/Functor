@@ -22,6 +22,16 @@ type EditingTests() =
         Assert.Equal({ Line = 0; Column = 5 }, model.Cursor)
         Assert.True(model.IsDirty)
         Assert.Equal(5, model.UndoStack.Length)
+        Assert.Equal(Some { StartLine = 0; EndLine = 0; OldEndLine = 0; LineDelta = 0 }, model.LastChange)
+
+    [<Fact>]
+    member _.``cursor movement clears editing change metadata``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "hello")
+            |> applyEditing EditingEvent.MoveLeft
+
+        Assert.True(model.LastChange.IsNone)
 
     [<Fact>]
     member _.``backspace removes character and moves cursor left``() =
@@ -75,6 +85,58 @@ type EditingTests() =
             |> applyEditing EditingEvent.MoveLeft
             |> applyEditing EditingEvent.MoveLeft
 
+        Assert.Equal({ Line = 0; Column = 0 }, model.Cursor)
+
+    [<Fact>]
+    member _.``cursor movement skips emoji surrogate pairs``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "a🚧b")
+            |> applyEditing EditingEvent.MoveToDocumentStart
+            |> applyEditing EditingEvent.MoveRight
+            |> applyEditing EditingEvent.MoveRight
+
+        Assert.Equal({ Line = 0; Column = 3 }, model.Cursor)
+
+    [<Fact>]
+    member _.``backspace removes one complete emoji grapheme``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "a🚧b")
+            |> applyEditing EditingEvent.MoveToDocumentEnd
+            |> applyEditing EditingEvent.MoveLeft
+
+        Assert.Equal({ Line = 0; Column = 3 }, model.Cursor)
+        let model =
+            model
+            |> applyEditing EditingEvent.Backspace
+
+        Assert.Equal<string list>([ "ab" ], model.Buffer)
+        Assert.Equal({ Line = 0; Column = 1 }, model.Cursor)
+
+    [<Fact>]
+    member _.``cursor positions inside an emoji normalize to its start``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "a🚧b")
+            |> applyEditing (EditingEvent.SetCursor { Line = 0; Column = 2 })
+
+        Assert.Equal({ Line = 0; Column = 1 }, model.Cursor)
+
+    [<Fact>]
+    member _.``backspace removes a combining grapheme as one unit``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "e\u0301x")
+            |> applyEditing EditingEvent.MoveToDocumentEnd
+            |> applyEditing EditingEvent.MoveLeft
+
+        Assert.Equal({ Line = 0; Column = 2 }, model.Cursor)
+        let model =
+            model
+            |> applyEditing EditingEvent.Backspace
+
+        Assert.Equal<string list>([ "x" ], model.Buffer)
         Assert.Equal({ Line = 0; Column = 0 }, model.Cursor)
 
     [<Fact>]
@@ -166,6 +228,36 @@ type EditingTests() =
             |> applyEditing (EditingEvent.InsertString "Z")
 
         Assert.True([ "aZc" ] = model.Buffer)
+
+    [<Fact>]
+    member _.``overwrite mode replaces a complete emoji grapheme``() =
+        let model =
+            { EditingModel.create () with
+                Buffer = [ "a🚧b" ]
+                Cursor = { Line = 0; Column = 1 }
+                OverwriteMode = true }
+            |> applyEditing (EditingEvent.InsertString "Z")
+
+        Assert.True([ "aZb" ] = model.Buffer)
+        Assert.Equal({ Line = 0; Column = 2 }, model.Cursor)
+
+    [<Fact>]
+    member _.``externally supplied selection endpoints normalize to grapheme boundaries``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "a🚧b")
+            |> applyEditing (
+                EditingEvent.SetSelection
+                    (Some
+                        { Start = { Line = 0; Column = 2 }
+                          End = { Line = 0; Column = 4 } }))
+
+        let expected =
+            Some
+                { Start = { Line = 0; Column = 1 }
+                  End = { Line = 0; Column = 4 } }
+
+        Assert.Equal(expected, model.Selection)
 
     [<Fact>]
     member _.``inserted newlines are normalized``() =

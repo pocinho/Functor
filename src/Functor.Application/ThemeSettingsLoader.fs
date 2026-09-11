@@ -53,8 +53,11 @@ module ThemeSettingsLoader =
                 else
                     root
 
+            let preset = tryString theme "preset" |> Option.defaultValue "Graphite Dark"
+            let basePalette = if preset = "Graphite Light" then Theme.graphiteLight else Theme.defaultPalette
+
             let result =
-                Theme.defaultPalette
+                basePalette
                 |> applyColor theme "background" (fun value palette -> { palette with Background = value })
                 |> Result.bind (applyColor theme "foreground" (fun value palette -> { palette with Foreground = value }))
                 |> Result.bind (applyColor theme "selection" (fun value palette -> { palette with Selection = value }))
@@ -69,12 +72,12 @@ module ThemeSettingsLoader =
             |> Result.map (fun palette ->
                 let border =
                     match tryString theme "editorBorder" with
-                    | None -> Theme.defaultPalette.EditorBorder
+                    | None -> basePalette.EditorBorder
                     | Some value -> parseColor value |> Result.toOption
 
-                let width = tryFloat32 theme "editorBorderWidth" |> Option.defaultValue Theme.defaultPalette.EditorBorderWidth
+                let width = tryFloat32 theme "editorBorderWidth" |> Option.defaultValue basePalette.EditorBorderWidth
 
-                ThemeSettings.fromPalette
+                ThemeSettings.fromPaletteWithPreset preset
                     { palette with
                         EditorBorder = border
                         EditorBorderWidth = width })

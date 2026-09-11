@@ -19,6 +19,7 @@ module AppSettingsLoader =
         let options = JsonSerializerOptions(WriteIndented = true)
 
         let theme = Dictionary<string, obj>()
+        theme["preset"] <- settings.Theme.Preset
         theme["background"] <- colorToHex palette.Background
         theme["foreground"] <- colorToHex palette.Foreground
         theme["selection"] <- colorToHex palette.Selection

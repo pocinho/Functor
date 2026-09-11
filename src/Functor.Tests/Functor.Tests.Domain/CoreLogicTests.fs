@@ -2,6 +2,7 @@ namespace Functor.Tests.Domain
 
 open Functor.Domain.Core
 open Functor.Domain.Editing
+open Functor.Domain.Syntax
 open Xunit
 
 
@@ -55,3 +56,27 @@ type CoreLogicTests() =
 
         Assert.True(edited.ActiveDocument.Value.Metadata.IsDirty)
         Assert.True(edited.OpenDocuments.Head.Metadata.IsDirty)
+
+    [<Fact>]
+    member _.``buffer edits advance revision and invalidate syntax``() =
+        let opened = CoreLogic.update (OpenDocument "C:\\work\\file.fs") CoreModel.empty
+        let moved = CoreLogic.update (ApplyEditingEvent MoveRight) opened
+        let edited = CoreLogic.update (ApplyEditingEvent(InsertString "text")) moved
+
+        Assert.Equal(0L, moved.Editing.Revision)
+        Assert.False(moved.Syntax.IsDirty)
+        Assert.Equal(1L, edited.Editing.Revision)
+        Assert.True(edited.Syntax.IsDirty)
+        Assert.Equal(1L, edited.Syntax.DocumentRevision)
+        Assert.Equal(Some { StartLine = 0; EndLine = 0; OldEndLine = 0; LineDelta = 0 }, edited.Editing.LastChange)
+
+    [<Fact>]
+    member _.``loading a document resets syntax ownership``() =
+        let first = CoreLogic.update (OpenDocument "C:\\work\\first.fs") CoreModel.empty
+        let dirtySyntax = first |> CoreLogic.update (ApplySyntaxEvent(SetLanguage "fsharp"))
+        let loaded = dirtySyntax |> CoreLogic.update (LoadDocument("C:\\work\\second.json", "{}"))
+
+        Assert.Equal(loaded.ActiveDocument |> Option.map (fun document -> document.Id), loaded.Syntax.DocumentId)
+        Assert.NotEqual(first.Syntax.DocumentId, loaded.Syntax.DocumentId)
+        Assert.True(loaded.Syntax.Language.IsNone)
+        Assert.False(loaded.Syntax.IsDirty)

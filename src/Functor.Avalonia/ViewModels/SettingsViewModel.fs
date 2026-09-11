@@ -9,6 +9,7 @@ type SettingsViewModel(initialSettings: AppSettings) =
     inherit ViewModelBase()
 
     let palette = initialSettings.Theme.ThemeSource.Resolve()
+    let mutable themePreset = initialSettings.Theme.Preset
     let colorText color = sprintf "#%08X" color
     let mutable background = colorText palette.Background
     let mutable foreground = colorText palette.Foreground
@@ -41,9 +42,34 @@ type SettingsViewModel(initialSettings: AppSettings) =
 
     let bind next result = Result.bind next result
 
+    let presetPalette preset =
+        if preset = "Graphite Light" then Theme.graphiteLight else Theme.defaultPalette
+
+    member private this.ApplyPresetPalette(palette: ThemePalette) =
+        this.Background <- colorText palette.Background
+        this.Foreground <- colorText palette.Foreground
+        this.Selection <- colorText palette.Selection
+        this.Cursor <- colorText palette.Cursor
+        this.LineNumber <- colorText palette.LineNumber
+        this.GutterBackground <- colorText palette.GutterBackground
+        this.DiagnosticError <- colorText palette.DiagnosticError
+        this.DiagnosticWarning <- colorText palette.DiagnosticWarning
+        this.DiagnosticInfo <- colorText palette.DiagnosticInfo
+        this.EditorBorder <- palette.EditorBorder |> Option.map colorText |> Option.defaultValue ""
+        this.EditorBorderWidth <- palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture)
+
     member this.Background
         with get () = background
         and set value = this.SetProperty(&background, value) |> ignore
+
+    member this.ThemePreset
+        with get () = themePreset
+        and set value =
+            if this.SetProperty(&themePreset, value) then
+                if value <> "Custom" then
+                    this.ApplyPresetPalette(presetPalette value)
+
+    member _.ThemePresets = [ "Graphite Dark"; "Graphite Light"; "Custom" ]
 
     member this.Foreground
         with get () = foreground
@@ -90,7 +116,9 @@ type SettingsViewModel(initialSettings: AppSettings) =
         and set value = this.SetProperty(&errorMessage, value) |> ignore
 
     member _.TryCreateSettings() =
-        Ok Theme.defaultPalette
+        let basePalette = presetPalette themePreset
+
+        Ok basePalette
         |> bind (fun palette -> parseColor "Background" background |> Result.map (fun value -> { palette with Background = value }))
         |> bind (fun palette -> parseColor "Foreground" foreground |> Result.map (fun value -> { palette with Foreground = value }))
         |> bind (fun palette -> parseColor "Selection" selection |> Result.map (fun value -> { palette with Selection = value }))
@@ -108,4 +136,4 @@ type SettingsViewModel(initialSettings: AppSettings) =
                 Ok { palette with EditorBorderWidth = width }
             else
                 Error "Editor border width must be a non-negative number.")
-        |> Result.map (ThemeSettings.fromPalette >> AppSettings.fromTheme)
+        |> Result.map (ThemeSettings.fromPaletteWithPreset themePreset >> AppSettings.fromTheme)

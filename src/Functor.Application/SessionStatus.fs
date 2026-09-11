@@ -5,6 +5,7 @@ open Functor.Domain.Document
 type PendingAction =
     | NewDocument
     | OpenFile
+    | OpenWorkspace of path: string
     | CloseDocument of DocumentId
 
 /// Minimal session status used to report application-level feedback.

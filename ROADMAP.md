@@ -77,14 +77,102 @@ Phase 5 is complete for the desktop-hosted essential editor. Cross-target hostin
 
 ---
 
-## 🚧 Phase 6 — Syntax & Language Services
-- Tokenizer service
-- SyntaxModel integration
-- Incremental tokenization
-- Basic language definitions (F#, C#, JSON, Markdown)
-- Highlighting pipeline
+## ✅ Phase 5.5 — Syntax & Rendering Contract Hardening (Completed)
+- Buffer revisions advance only when document text changes
+- Syntax state is invalidated by buffer revisions rather than cursor or selection movement
+- Syntax and diagnostics reset across active-document lifecycle transitions
+- Token caches are bound to document identity and buffer revision
+- Stale asynchronous tokenization results are rejected
+- Platform-neutral asynchronous tokenizer service and cancellation boundary
+- Backend-neutral styled text runs with semantic color roles, weight, and slant
+- Avalonia rendering consumes styled runs without interpreting token kinds
+- UTF-16 token offsets and tab-aligned run geometry are covered by focused tests
+- Syntax state transitions remain deterministic without domain-generated timestamps
+
+This phase establishes the contracts required for incremental tokenization and highlighting without coupling language services to Avalonia or a future Skia backend.
 
 ---
+
+## ✅ Phase 6 — Syntax & Language Services
+- ✅ Platform-neutral basic tokenizer service boundary
+- ✅ F# lexical tokenizer baseline targeting the repository's F# 10 / .NET 10 environment
+- ✅ F# token classification for keywords, identifiers, type-like names, numbers, strings, characters, comments, directives, operators, and punctuation
+- ✅ UTF-16 token offsets, cancellation, unsupported-language errors, and nested block-comment handling
+- ✅ Revision-bound tokenizer request/completion flow integrated with `SyntaxModel`
+- ✅ Hybrid scheduling: immediate tokenization on F# document load/switch and cancellable 150 ms debounce after edits
+- ✅ Basic F# highlighting flowing through the existing backend-neutral rendering pipeline
+- ✅ Application and tokenizer tests for lexical spans, Unicode offsets, cancellation, stale results, and debounced requests
+- ✅ Language definitions and lexical tokenizers for C#, JSON, and Markdown
+- ✅ Language selection and automatic tokenization for those additional file types
+- ✅ Tokenization request scopes for full-document, line, and line-range tokenization
+- ✅ Partial token-cache updates that replace only tokenized line ranges
+- ✅ Dirty-range tracking in `SyntaxModel` instead of dirty/clean state only
+- ✅ Editing change metadata so syntax invalidation can identify affected lines
+- ✅ Stateful lexer snapshots for multiline constructs such as block comments, verbatim strings, fenced code blocks, and HTML comments
+- ✅ Edit-time incremental tokenization that retokenizes from the changed range until lexer state stabilizes
+- ✅ Provider abstraction for local lexical tokens versus future semantic/LSP tokens
+
+Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic tokens remain future work. The current tokenizer is intentionally lexical and does not validate or compile F# source.
+
+---
+
+## ✅ Phase 6.5 — Tokenization Architecture Cleanup
+- ✅ Incremental snapshot and range bookkeeping extracted from `EditorSession`
+- ✅ Lexer snapshots scoped by document identity and buffer revision
+- ✅ Line insertion/deletion snapshot remapping covered by focused tests
+- ✅ Provider-neutral token envelopes separated from local lexer state
+- ✅ Lexical and semantic token layers defined before LSP integration
+
+## ✅ Phase 6.6 — Multi-Document Workspace and Tabs (Completed)
+### 6.6.1 — Workspace and Document Model
+- ✅ Workspace model with identity, canonical root path, and active document
+- ✅ Workspace-scoped document collection and tab membership
+- ✅ Per-document session state for editing, syntax, diagnostics, navigation, and view
+- ✅ Independent cursor, selection, undo/redo, and dirty state per tab
+
+### 6.6.2 — Document Routing
+- ✅ Document ID routing for editing, syntax, diagnostics, navigation, and language-service events
+- ✅ Document and buffer revision validation for asynchronous results
+- ✅ Document-scoped tokenization, lexer snapshots, and stale-result rejection
+
+### 6.6.3 — Workspace Lifecycle
+- ✅ Open-folder workflow with unsaved-change handling when replacing the active workspace
+- ✅ Workspace switching and active-document fallback behavior
+- ✅ Untitled and unsaved documents associated with the active workspace
+- ✅ Workspace-scoped settings and persistence boundary
+
+### 6.6.4 — Tab State and Behavior
+- ✅ Canonical file-path identity, duplicate-open prevention, and explicit out-of-root file policy
+- ✅ Tab activation and deterministic close behavior
+- ✅ Workspace/document-aware save, close, reopening of already-open files, and revision-safe save-completion handling
+- ✅ Recent-closed-tab history and an explicit reopen-closed-tab command
+
+### 6.6.5 — File and Language-Service Integration
+- ✅ Document-aware save requests and revision-safe save completion
+- ✅ Workspace-aware language-service context
+- ✅ Preservation of per-document syntax and lexer state across tab switches
+
+### 6.6.6 — Workspace Projections
+- ✅ Backend-neutral tab and workspace projections
+- ✅ Workspace file-tree projection with stable document identity
+- ✅ Active-document projection for frontend hosts
+
+### 6.6.7 — Host UI (Completed)
+- ✅ Avalonia tab bar and active-document projection
+- ✅ Host-specific tab-bar rendering without coupling workspace behavior to Avalonia or Skia
+- ✅ Multi-document, workspace, and persistence tests
+- ✅ Automated Avalonia UI tests
+
+## ✅ Phase 6.7 — Unicode and Emoji Text Integrity
+- ✅ Preserve UTF-16 document offsets as the editor and tokenizer coordinate contract
+- ✅ Keep cursor movement on grapheme boundaries, including surrogate-pair emoji such as `🚧`
+- ✅ Make backspace and delete remove complete grapheme clusters
+- ✅ Normalize externally supplied and vertically projected cursor positions to grapheme boundaries
+- ✅ Add domain coverage for emoji surrogate pairs and combining-mark graphemes
+- ✅ Add backend-neutral grapheme advance measurement instead of assuming every grapheme has one fixed advance
+- ✅ Configure Avalonia to use Segoe UI Emoji as the Windows emoji fallback family
+- ✅ Keep token, selection, diagnostic, cursor, and rendered text boundaries aligned to complete grapheme clusters
+- ✅ Add rendering and Avalonia UI coverage for cursor spacing and hit testing after emoji
 
 ## 🚧 Phase 7 — Navigation
 - Search engine
@@ -110,6 +198,9 @@ Phase 5 is complete for the desktop-hosted essential editor. Cross-target hostin
 - Document tabs after per-document session state is stable
 - External file change detection
 - Search/replace editing
+- Crash-recovery snapshots for dirty documents
+- Startup detection and recovery-session prompt
+- Recovery snapshot cleanup after save, discard, or explicit rejection
 
 ---
 

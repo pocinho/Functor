@@ -5,30 +5,53 @@ open System.Globalization
 open System.Text
 
 type TextMeasurer =
-    { Metrics: TextMetrics
-      MeasureText: string -> float32
-      MeasureRange: string -> int -> int -> float32
-      HitTestColumn: string -> float32 -> int }
+    { Metrics: TextMetrics; MeasureText: (string -> float32); MeasureRange: (string -> int -> int -> float32); MeasurePrefix: (string -> float32 array); HitTestColumn: (string -> float32 -> int) }
 
 module TextMeasurer =
     let private graphemeStarts (text: string) =
         if String.IsNullOrEmpty(text) then
-            [||]
+            [| 0 |]
         else
             StringInfo.ParseCombiningCharacters(text)
+            |> Array.append [| 0; text.Length |]
+            |> Array.distinct
+            |> Array.sort
+            |> Array.filter (fun boundary ->
+                boundary = 0
+                || boundary = text.Length
+                || not (Char.IsLowSurrogate text.[boundary] && Char.IsHighSurrogate text.[boundary - 1]))
 
     let private graphemeRanges (text: string) =
         let starts = graphemeStarts text
 
-        starts
-        |> Array.mapi (fun index start ->
-            let finish =
-                if index + 1 < starts.Length then
-                    starts.[index + 1]
-                else
-                    text.Length
+        if starts.Length <= 1 then
+            [| 0, text.Length |]
+        else
+            starts.[.. starts.Length - 2]
+            |> Array.mapi (fun index start -> start, starts.[index + 1])
 
-            start, finish)
+    let normalizeColumn (text: string) column =
+        let column = max 0 (min text.Length column)
+
+        graphemeStarts text
+        |> Array.rev
+        |> Array.tryFind (fun boundary -> boundary <= column)
+        |> Option.defaultValue 0
+
+    let normalizeRange (text: string) start length =
+        let start = max 0 (min text.Length start)
+        let finish = max start (min text.Length (start + max 0 length))
+        let normalizedStart = normalizeColumn text start
+
+        let normalizedFinish =
+            if length <= 0 then
+                normalizedStart
+            else
+                graphemeStarts text
+                |> Array.tryFind (fun boundary -> boundary >= finish)
+                |> Option.defaultValue text.Length
+
+        normalizedStart, max normalizedStart normalizedFinish
 
     let private isZeroWidthRune (rune: Rune) =
         match Rune.GetUnicodeCategory(rune) with
@@ -49,12 +72,11 @@ module TextMeasurer =
             1
 
     let private graphemeAdvance (metrics: TextMetrics) (column: int) (grapheme: string) =
-        float32 (graphemeColumnWidth metrics column grapheme) * metrics.DefaultAdvance
+        metrics.GraphemeAdvance column grapheme
 
     let create (metrics: TextMetrics) =
         let measureRange (text: string) start length =
-            let start = max 0 (min text.Length start)
-            let finish = max start (min text.Length (start + max 0 length))
+            let start, finish = normalizeRange text start length
             let mutable column = 0
             let mutable width = 0.0f
 
@@ -70,6 +92,24 @@ module TextMeasurer =
             width
 
         let measureText text = measureRange text 0 text.Length
+
+        let measurePrefix (text: string) =
+            let widths = Array.zeroCreate<float32> (text.Length + 1)
+            let mutable column = 0
+            let mutable width = 0.0f
+
+            for rangeStart, rangeEnd in graphemeRanges text do
+                let grapheme = text.Substring(rangeStart, rangeEnd - rangeStart)
+                let advance = graphemeAdvance metrics column grapheme
+
+                for offset in rangeStart .. rangeEnd do
+                    widths.[offset] <- width
+
+                width <- width + advance
+                widths.[rangeEnd] <- width
+                column <- column + graphemeColumnWidth metrics column grapheme
+
+            widths
 
         let hitTestColumn (text: string) (x: float32) =
             if x <= 0.0f then
@@ -93,5 +133,6 @@ module TextMeasurer =
 
         { Metrics = metrics
           MeasureText = measureText
-          MeasureRange = measureRange
+          MeasureRange = measureRange;
+                    MeasurePrefix = measurePrefix
           HitTestColumn = hitTestColumn }

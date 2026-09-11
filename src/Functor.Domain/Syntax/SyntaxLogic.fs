@@ -1,7 +1,5 @@
 namespace Functor.Domain.Syntax
 
-open System
-
 /// Pure syntax logic:
 /// Applies a SyntaxEvent to a SyntaxModel and returns a new SyntaxModel.
 module SyntaxLogic =
@@ -11,9 +9,7 @@ module SyntaxLogic =
     // ────────────────────────────────────────────────
 
     let private setLanguage (model: SyntaxModel) (lang: string) =
-        { model with
-            Language = Some lang
-            IsDirty = true }
+        SyntaxModel.setLanguage model lang
 
     // ────────────────────────────────────────────────
     // Tokenization Requests
@@ -21,42 +17,36 @@ module SyntaxLogic =
 
     /// Mark entire syntax model as needing re-tokenization.
     let private tokenizeFull (model: SyntaxModel) =
-        { model with IsDirty = true }
+        SyntaxModel.markDirty model.DocumentRevision model
 
     /// Mark a single line as needing re-tokenization.
     /// (Actual tokenization will be done by the tokenizer module.)
     let private tokenizeLine (model: SyntaxModel) (line: int) =
-        { model with IsDirty = true }
+        SyntaxModel.markDirtyRange model.DocumentRevision line line model
 
     /// Mark a range of lines as needing re-tokenization.
     let private tokenizeRange (model: SyntaxModel) (startLine: int) (endLine: int) =
-        { model with IsDirty = true }
+        SyntaxModel.markDirtyRange model.DocumentRevision startLine endLine model
 
     // ────────────────────────────────────────────────
     // Syntax Invalidation
     // ────────────────────────────────────────────────
 
     let private markSyntaxDirty (model: SyntaxModel) =
-        { model with IsDirty = true }
+        SyntaxModel.markDirty model.DocumentRevision model
 
-    // ────────────────────────────────────────────────
-    // Metadata
-    // ────────────────────────────────────────────────
-
-    let private updateTokenizationTimestamp (model: SyntaxModel) (ts: DateTime) =
-        { model with LastTokenized = Some ts }
+    let private markSyntaxCleanFrom (model: SyntaxModel) line =
+        SyntaxModel.markCleanFrom line model
 
     // ────────────────────────────────────────────────
     // Token Cache Updates
     // ────────────────────────────────────────────────
 
-    let private setTokens (model: SyntaxModel) (tokens: LineTokens list) =
-        {
-            model with
-                Tokens = tokens
-                LastTokenized = Some DateTime.UtcNow
-                IsDirty = false
-        }
+    let private setTokens documentId revision tokens (model: SyntaxModel) =
+        SyntaxModel.setTokens documentId revision tokens model
+
+    let private setTokenRange documentId revision startLine endLine tokens (model: SyntaxModel) =
+        SyntaxModel.setTokenRange documentId revision startLine endLine tokens model
 
     // ────────────────────────────────────────────────
     // Main update function
@@ -79,8 +69,11 @@ module SyntaxLogic =
         | MarkSyntaxDirty ->
             markSyntaxDirty model
 
-        | UpdateTokenizationTimestamp ts ->
-            updateTokenizationTimestamp model ts
+        | MarkSyntaxCleanFrom line ->
+            markSyntaxCleanFrom model line
 
-        | SetTokens tokens ->
-            setTokens model tokens
+        | SetTokens(documentId, revision, tokens) ->
+            setTokens documentId revision tokens model
+
+        | SetTokenRange(documentId, revision, startLine, endLine, tokens) ->
+            setTokenRange documentId revision startLine endLine tokens model
