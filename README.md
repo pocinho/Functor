@@ -68,8 +68,8 @@ Functor/
 |   ├── Functor.Tests/           # Domain and rendering tests
 |   └── Functor.WIP/             # Future or transitional modules as needed
 └── build/
-    ├── build.fsx                        # FAKE build script
-    └── packaging/                       # installers, icons, manifests
+    ├── build.fsx                # build script
+    └── packaging/               # installers, icons, manifests
 
 ```
 
