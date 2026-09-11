@@ -1,4 +1,4 @@
-# Functor
+# ![Functor](./doc/functor_line.png)
 
 *A functional editor for creative minds.*
 
@@ -19,12 +19,6 @@ This keeps the editor core portable while leaving room for a future Skia-specifi
 ---
 
 ## Screenshots
-
-Where it all started:
-
-![initial project](./doc/Screenshot-2026-09-08.png)
-
-Where it is at:
 
 ![initial project](./doc/Screenshot-2026-09-09.png)
 
