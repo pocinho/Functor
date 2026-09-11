@@ -10,7 +10,7 @@
     <Project Path="Functor.Agent/Functor.Agent.fsproj" Id="284fa60d-5b1e-487a-8f95-509f007f55a9" />
     <Project Path="Functor.Application/Functor.Application.fsproj" />
     <!-- <Project Path="Functor.Avalonia.Android/Functor.Avalonia.Android.fsproj" /> -->
-    <!-- <Project Path="Functor.Avalonia.Browser/Functor.Avalonia.Browser.fsproj" /> -->
+    <Project Path="Functor.Avalonia.Browser/Functor.Avalonia.Browser.fsproj" />
     <Project Path="Functor.Avalonia.Desktop/Functor.Avalonia.Desktop.fsproj" />
     <!-- <Project Path="Functor.Avalonia.iOS/Functor.Avalonia.iOS.fsproj" /> -->
     <Project Path="Functor.Avalonia/Functor.Avalonia.fsproj" />
