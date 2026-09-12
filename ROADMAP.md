@@ -175,11 +175,28 @@ Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic 
 - ✅ Add rendering and Avalonia UI coverage for cursor spacing and hit testing after emoji
 
 ## 🚧 Phase 7 — Navigation
-- Search engine
-- Jump list
-- Symbol navigation
-- Go-to-definition (LSP)
-- Document outline
+
+### Phase 7.0 — Host UI Foundation (Pending)
+- Create Avalonia side panel widget abstraction (`SidePanelView`)
+- Build document list widget (open tabs, file icons, close controls)
+- Implement tab bar host component (active indicator, minimize/close)
+- Wire into `Functor.Avalonia.Desktop` host
+
+### Phase 7.1 — Search Implementation
+- Basic regex-free text search engine (linear scan, defer indexing optimization)
+- Case-insensitive by default, toggleable
+- Highlight all matches in editor (`StyledText` runs)
+- Preview snippet generation (context around match positions)
+- Floating search widget UI (Avalonia control)
+- Search in files across workspace (requires phase 7.0 side panel)
+- Replace functionality
+- Search history
+
+### Phase 7.2 — Advanced Navigation
+- Jump list implementation
+- Symbol navigation index
+- Go-to-definition (LSP bridge - future)
+- Document outline tree
 
 ---
 
