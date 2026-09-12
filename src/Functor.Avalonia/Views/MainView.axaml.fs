@@ -67,7 +67,10 @@ type MainView() as this =
 
         let palette = editor.Value.ThemeSettings.ThemeSource.Resolve()
         let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
-        let border = SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+
+        let border =
+            SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+
         let selected = SolidColorBrush(colorFromArgb palette.Selection)
         let background = SolidColorBrush(colorFromArgb palette.GutterBackground)
 
@@ -85,17 +88,34 @@ type MainView() as this =
                 )
 
             let label = TextBlock(Text = (if tab.IsDirty then tab.Name + " *" else tab.Name))
-            let closeButton = Button(Content = "x", Width = 22.0, Height = 22.0, Padding = Thickness(0))
+
+            let closeButton =
+                Button(
+                    Content =
+                        TextBlock(
+                            Text = "\uE8BB",
+                            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                            FontSize = 9.0,
+                            VerticalAlignment = VerticalAlignment.Center,
+                            HorizontalAlignment = HorizontalAlignment.Center
+                        ),
+                    Width = 22.0,
+                    Height = 22.0,
+                    Padding = Thickness(0)
+                )
+
             let content = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
             content.Children.Add(label) |> ignore
             content.Children.Add(closeButton) |> ignore
             tabButton.Content <- content
 
             tabButton.Click.Add(fun _ -> editor.Value.ActivateDocument(tab.DocumentId))
+
             closeButton.Click.Add(fun args ->
                 args.Handled <- true
                 editor.Value.ActivateDocument(tab.DocumentId)
                 editor.Value.CloseDocument())
+
             panel.Children.Add(tabButton) |> ignore)
 
     let showDiscardDialog () =
@@ -134,8 +154,7 @@ type MainView() as this =
 
             dialog.Closed.Add(fun _ -> confirmationOpen <- false)
             dialog.ShowDialog(owner) |> ignore
-        | _ ->
-            editor.Value.CancelPendingOperation()
+        | _ -> editor.Value.CancelPendingOperation()
 
     do
         this.InitializeComponent()
@@ -147,6 +166,7 @@ type MainView() as this =
         editor.StatusChanged.Add(fun status ->
             if status.PendingAction.IsSome && not confirmationOpen then
                 showDiscardDialog ())
+
         editor.EditorStatusChanged.Add(updateEditorStatus)
         editor.StateChanged.Add(updateTabs)
         editor.StateChanged.Add(updateEmptyState)
