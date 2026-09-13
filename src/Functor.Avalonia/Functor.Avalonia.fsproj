@@ -38,6 +38,9 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
+    <PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.6" />
+    <PackageReference Include="Dock.Serializer.Newtonsoft" Version="12.1.0.6" />
   </ItemGroup>
 
   <ItemGroup>

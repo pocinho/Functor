@@ -1,4 +1,4 @@
-# ![Functor](./doc/functor_line.png)
+# ![Functor](./doc/img/functor_line.png)
 
 *A functional editor for creative minds.*
 
@@ -20,7 +20,7 @@ This keeps the editor core portable while leaving room for a future Skia-specifi
 
 ## Screenshots
 
-![initial project](./doc/Screenshot-2026-09-09.png)
+![initial project](./doc/img/Screenshot-2026-09-09.png)
 
 ---
 
@@ -60,38 +60,5 @@ Or you can run **build-release-win-x64.fsx**, which invokes the reusable script 
 ```
 dotnet fsi .\build\build-release-win-x64.fsx
 ```
-
----
-
-## Desktop Theme Configuration
-
-The desktop application optionally loads its theme from:
-
-```text
-%APPDATA%\Functor\settings.json
-```
-
-The built-in theme is used when the file is missing or invalid. Theme colors accept `#RRGGBB`, `#AARRGGBB`, or the same hexadecimal values without the leading `#`.
-
-```json
-{
-    "theme": {
-        "background": "#202020",
-        "foreground": "#F0F0F0",
-        "selection": "#405A82D9",
-        "cursor": "#FFFFFF",
-        "lineNumber": "#888888",
-        "gutterBackground": "#181818",
-        "editorBorder": "#555555",
-        "editorBorderWidth": 2.0,
-        "diagnosticError": "#FF5C5C",
-        "diagnosticWarning": "#FFC857",
-        "diagnosticInfo": "#5CC8FF"
-    }
-}
-```
-
-Only the values you need to change are required; unspecified palette values retain their defaults.
-The `gutterBackground` value controls the fixed vertical line-number gutter, which remains stationary while the editor content scrolls horizontally.
 
 ---
