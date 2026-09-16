@@ -8,6 +8,10 @@
   <ItemGroup>
     <Compile Include="ThemeSettingsLoaderTests.fs" />
     <Compile Include="AppCommandCatalogTests.fs" />
+    <Compile Include="CommandPaletteStateTests.fs" />
+    <Compile Include="SettingsDraftTests.fs" />
+    <Compile Include="ShellStateTests.fs" />
+    <Compile Include="ShellMvuTests.fs" />
     <Compile Include="EditorStatusTests.fs" />
     <Compile Include="FSharpTokenizerTests.fs" />
     <Compile Include="CSharpTokenizerTests.fs" />

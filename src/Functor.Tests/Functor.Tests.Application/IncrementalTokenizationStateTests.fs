@@ -10,11 +10,13 @@ type IncrementalTokenizationStateTests() =
     [<Fact>]
     member _.``remaps snapshots to the new revision and line positions``() =
         let documentId = Guid.NewGuid()
+
         let state =
             { IncrementalTokenizationState.empty with
                 Snapshots =
                     Map.ofList
                         [ (documentId, 3L, 1), FSharpState 1
+                          (documentId, 3L, 3), FSharpState 1
                           (documentId, 3L, 4), FSharpState 0 ] }
 
         let updated =
@@ -29,6 +31,7 @@ type IncrementalTokenizationStateTests() =
                 state
 
         Assert.Equal(Some(FSharpState 1), IncrementalTokenizationState.snapshotAt documentId 4L 1 updated)
+        Assert.True((IncrementalTokenizationState.snapshotAt documentId 4L 3 updated).IsNone)
         Assert.Equal(Some(FSharpState 0), IncrementalTokenizationState.snapshotAt documentId 4L 5 updated)
         Assert.Equal(Some(2, 3), IncrementalTokenizationState.requestRange updated)
 
@@ -36,6 +39,7 @@ type IncrementalTokenizationStateTests() =
     member _.``does not reuse snapshots from another document or revision``() =
         let documentId = Guid.NewGuid()
         let otherDocumentId = Guid.NewGuid()
+
         let state =
             { IncrementalTokenizationState.empty with
                 Snapshots = Map.ofList [ (documentId, 2L, 1), FSharpState 1 ] }
@@ -44,8 +48,28 @@ type IncrementalTokenizationStateTests() =
         Assert.True((IncrementalTokenizationState.snapshotAt documentId 3L 1 state).IsNone)
 
     [<Fact>]
+    member _.``removing a document discards its snapshots and pending range``() =
+        let documentId = Guid.NewGuid()
+        let otherDocumentId = Guid.NewGuid()
+
+        let state =
+            { IncrementalTokenizationState.empty with
+                Snapshots =
+                    Map.ofList
+                        [ (documentId, 2L, 1), FSharpState 1
+                          (otherDocumentId, 3L, 1), FSharpState 0 ]
+                Range = Some(1, 2) }
+
+        let updated = IncrementalTokenizationState.removeDocument documentId state
+
+        Assert.True((IncrementalTokenizationState.snapshotAt documentId 2L 1 updated).IsNone)
+        Assert.Equal(Some(FSharpState 0), IncrementalTokenizationState.snapshotAt otherDocumentId 3L 1 updated)
+        Assert.True((IncrementalTokenizationState.requestRange updated).IsNone)
+
+    [<Fact>]
     member _.``stabilizes when the next cached state matches the final state``() =
         let documentId = Guid.NewGuid()
+
         let state =
             { IncrementalTokenizationState.empty with
                 Snapshots = Map.ofList [ (documentId, 4L, 2), FSharpState 0 ] }

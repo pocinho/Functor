@@ -9,6 +9,7 @@ open Xunit
 module private JsonTokenizerTest =
     let tokenizeWithScope scope language lines =
         let service = DefaultTokenizerService() :> ITokenizerService
+
         let request =
             { DocumentId = Guid.NewGuid()
               Revision = 1L
@@ -35,17 +36,56 @@ type JsonTokenizerTests() =
             |> JsonTokenizerTest.allTokens
 
         Assert.Equal<string list>(
-            [ "punctuation"; "property"; "punctuation"; "string"; "punctuation"; "property"; "punctuation"; "number"; "punctuation"; "property"; "punctuation"; "keyword"; "punctuation"; "property"; "punctuation"; "keyword"; "punctuation" ],
+            [ "punctuation"
+              "property"
+              "punctuation"
+              "string"
+              "punctuation"
+              "property"
+              "punctuation"
+              "number"
+              "punctuation"
+              "property"
+              "punctuation"
+              "keyword"
+              "punctuation"
+              "property"
+              "punctuation"
+              "keyword"
+              "punctuation" ],
             tokens |> List.map (fun token -> token.Kind)
         )
 
         let spans = tokens |> List.map (fun token -> token.Column, token.Length)
-        Assert.True([ 0, 1; 2, 6; 8, 1; 10, 5; 15, 1; 17, 5; 22, 1; 24, 2; 26, 1; 28, 4; 32, 1; 34, 4; 38, 1; 40, 9; 49, 1; 51, 4; 56, 1 ] = spans)
+
+        Assert.True(
+            [ 0, 1
+              2, 6
+              8, 1
+              10, 5
+              15, 1
+              17, 5
+              22, 1
+              24, 2
+              26, 1
+              28, 4
+              32, 1
+              34, 4
+              38, 1
+              40, 9
+              49, 1
+              51, 4
+              56, 1 ] =
+                spans
+        )
 
     [<Fact>]
     member _.``tokenizes only requested line ranges with absolute line numbers``() =
         let result =
-            JsonTokenizerTest.tokenizeWithScope (LineRange(1, 2)) "json" [ "{"; "\"name\": \"Ada\","; "\"age\": 42"; "}" ]
+            JsonTokenizerTest.tokenizeWithScope
+                (LineRange(1, 2))
+                "json"
+                [ "{"; "\"name\": \"Ada\","; "\"age\": 42"; "}" ]
 
         let lines =
             match result with
@@ -53,4 +93,18 @@ type JsonTokenizerTests() =
             | Error message -> failwith message
 
         Assert.Equal<int list>([ 1; 2 ], lines |> List.map (fun line -> line.Line))
-        Assert.True(lines |> List.forall (fun line -> line.Tokens |> List.forall (fun token -> token.Line = line.Line)))
+
+        Assert.True(
+            lines
+            |> List.forall (fun line -> line.Tokens |> List.forall (fun token -> token.Line = line.Line))
+        )
+
+    [<Fact>]
+    member _.``malformed quoted values are tokenized without throwing``() =
+        let result = JsonTokenizerTest.tokenize "json" [ "{ \"name\": \"Ada }" ]
+
+        let tokens = JsonTokenizerTest.allTokens result
+        let value = tokens |> List.find (fun token -> token.Kind = "string")
+
+        Assert.Equal(10, value.Column)
+        Assert.Equal(6, value.Length)

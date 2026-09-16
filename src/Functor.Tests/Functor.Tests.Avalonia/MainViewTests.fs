@@ -115,3 +115,37 @@ module MainViewTests =
         let label = content.Children[0] :?> TextBlock
 
         Assert.Equal("untitled *", label.Text)
+
+    [<AvaloniaFact>]
+    let ``status bar reflects messages and dirty state`` () =
+        let view = MainView()
+        view.Editor.NewDocument()
+        view.Editor.DispatchApplicationCommand(AppCommand.setStatus "Ready")
+        view.Editor.DispatchApplicationCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString "changed")))
+
+        let message = view.FindControl<TextBlock>("MessageText")
+        let dirty = view.FindControl<TextBlock>("DirtyText")
+
+        Assert.Equal("Ready", message.Text)
+        Assert.Equal("Modified", dirty.Text)
+
+    [<AvaloniaFact>]
+    let ``closing tabs repeatedly updates the tab projection and welcome state`` () =
+        let view = MainView()
+        view.Editor.NewDocument()
+        view.Editor.NewDocument()
+
+        let tabs = view.FindControl<StackPanel>("TabsPanel")
+        Assert.Equal(2, tabs.Children.Count)
+
+        view.Editor.CloseDocument()
+
+        Assert.Equal(1, tabs.Children.Count)
+        Assert.True(view.SessionState.Model.ActiveDocument.IsSome)
+
+        view.Editor.CloseDocument()
+
+        let welcome = view.FindControl<WelcomeView>("WelcomeView")
+        Assert.Empty(tabs.Children)
+        Assert.True(welcome.IsVisible)
+        Assert.True(view.SessionState.Model.ActiveDocument.IsNone)

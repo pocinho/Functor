@@ -2,18 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:Functor.Avalonia.ViewModels"
 			 xmlns:dmc="using:Dock.Model.Controls"
              xmlns:controls="using:Functor.Avalonia.Controls"
              xmlns:views="using:Functor.Avalonia.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="Functor.Avalonia.Views.MainView"
-             x:DataType="vm:MainViewModel">
-	<Design.DataContext>
-		<!-- This only sets the DataContext for the previewer in an IDE,
-         to set the actual DataContext for runtime, set the DataContext property in code (look at AvaloniaApp.axaml.fs) -->
-		<vm:MainViewModel />
-	</Design.DataContext>
+             x:Class="Functor.Avalonia.Views.MainView">
 
 	<Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*,Auto">
 		<Border x:Name="TabBar"

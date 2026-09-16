@@ -13,12 +13,8 @@
     <Compile Include="Services\AvaloniaDialogService.fs" />
     <Compile Include="Rendering\RenderingSurface.fs" />
     <Compile Include="Rendering\AvaloniaRenderBackend.fs" />
+    <Compile Include="InputAdapter.fs" />
     <Compile Include="Controls\EditorControl.fs" />
-    <Compile Include="ViewModels\ViewModelBase.fs" />
-    <Compile Include="ViewModels\MainViewModel.fs" />
-    <Compile Include="ViewModels\CommandPaletteViewModel.fs" />
-    <Compile Include="ViewModels\SettingsViewModel.fs" />
-    <Compile Include="ViewModels\ShellViewModel.fs" />
     <Compile Include="Views\CommandPaletteView.axaml.fs" />
     <Compile Include="Views\SettingsView.axaml.fs" />
     <Compile Include="Views\SettingsWindow.axaml.fs" />
@@ -37,7 +33,6 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Model.Avalonia" Version="12.1.0.6" />
     <PackageReference Include="Dock.Serializer.Newtonsoft" Version="12.1.0.6" />
@@ -46,6 +41,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Functor.Application\Functor.Application.fsproj" />
     <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
+    <ProjectReference Include="..\Functor.Input\Functor.Input.fsproj" />
     <ProjectReference Include="..\Functor.Platform\Functor.Platform.fsproj" />
     <ProjectReference Include="..\Functor.Rendering\Functor.Rendering.fsproj" />
   </ItemGroup>

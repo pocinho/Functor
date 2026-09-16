@@ -174,6 +174,17 @@ Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic 
 - ✅ Keep token, selection, diagnostic, cursor, and rendered text boundaries aligned to complete grapheme clusters
 - ✅ Add rendering and Avalonia UI coverage for cursor spacing and hit testing after emoji
 
+## ✅ Phase alpha 1 - Code Refactor
+- ✅ Make the necessary code changes to follow best practices and code guidelines.
+
+## ✅ Phase alpha 2 - Code verification
+- ✅ Audited application lifecycle, effects, tokenization, document/workspace state, rendering, input, and Avalonia projections for unintended behavior.
+- ✅ Fixed confirmed defects and added focused regression coverage, including strict shortcut modifiers, keyboard selection clearing, malformed tokenizer input, grapheme-safe editing, and scrolling.
+- ✅ Added application-boundary integration coverage and validated the full solution: 235 tests passing.
+- ✅ Targeted desktop smoke testing performed and recorded manually.
+
+## 🚧 Phase alpha 3 - Dock integration
+
 ## 🚧 Phase 7 — Navigation
 
 ### Phase 7.0 — Host UI Foundation (Pending)

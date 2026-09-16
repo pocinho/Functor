@@ -12,6 +12,7 @@ open Functor.Domain.Editing
 open Functor.Domain.Document
 open Functor.Application
 open Functor.Domain.Core
+open Functor.Avalonia
 open Functor.Avalonia.Rendering
 open Functor.Avalonia.Services
 open Functor.Platform
@@ -25,12 +26,17 @@ type EditorControl() as this =
     // ------------------------------------------------------------
 
     let session = EditorSession()
+
     let clipboardService: IClipboardService =
         AvaloniaClipboardService(fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
+
     let fileService: IFileService = FileService()
+
     let dialogService: IDialogService =
         AvaloniaDialogService(fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
+
     let tokenizerService: ITokenizerService = DefaultTokenizerService()
+
     let effectInterpreter =
         AppEffectInterpreter(
             clipboardService,
@@ -57,14 +63,17 @@ type EditorControl() as this =
 
     let renderingConfig =
         { RenderingPipeline.Measurer =
-            TextMeasurer.create
-                (TextMetrics.createWithGraphemeAdvance
+            TextMeasurer.create (
+                TextMetrics.createWithGraphemeAdvance
                     lineHeight
                     (RenderingSurface.measureDefaultAdvance lineHeight)
                     4
-                    (RenderingSurface.measureGraphemeAdvance lineHeight)) }
+                    (RenderingSurface.measureGraphemeAdvance lineHeight)
+            ) }
 
-    let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> = AvaloniaRenderBackend()
+    let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> =
+        AvaloniaRenderBackend()
+
     let mutable themeSettings = ThemeSettings.defaultTheme
 
     member this.ThemeSettings
@@ -75,7 +84,10 @@ type EditorControl() as this =
 
     member this.ThemeSource
         with get () = themeSettings.ThemeSource
-        and set (value: ThemeSource) = themeSettings <- { themeSettings with ThemeSource = value }
+        and set (value: ThemeSource) =
+            themeSettings <-
+                { themeSettings with
+                    ThemeSource = value }
 
     member private this.BorderInset =
         let theme = themeSettings.ThemeSource.Resolve()
@@ -105,8 +117,7 @@ type EditorControl() as this =
 
     member private this.NotifyScrollStateChanged() = scrollStateChanged.Trigger()
 
-    member private this.ClipboardService : IClipboardService =
-        clipboardService
+    member private this.ClipboardService: IClipboardService = clipboardService
 
     member private this.ApplyEditingEvent(event: EditingEvent) =
         session.Dispatch(CoreEvent.ApplyEditingEvent event)
@@ -115,8 +126,7 @@ type EditorControl() as this =
 
     member private this.CopySelection() =
         match EditingLogic.selectedText session.Model.Editing with
-        | Some text ->
-            Async.StartImmediate(async { do! this.ClipboardService.SetText text })
+        | Some text -> Async.StartImmediate(async { do! this.ClipboardService.SetText text })
         | _ -> ()
 
     member private this.CutSelection() =
@@ -174,8 +184,7 @@ type EditorControl() as this =
     member this.ActivateDocument(documentId: DocumentId) =
         session.Dispatch(CoreEvent.SwitchDocument documentId)
 
-    member this.DispatchApplicationCommand(command: AppCommand) =
-        session.DispatchCommand(command)
+    member this.DispatchApplicationCommand(command: AppCommand) = session.DispatchCommand(command)
 
     member this.ConfirmDiscardChanges() =
         session.DispatchCommand(AppCommand.confirmDiscardChanges)
@@ -201,10 +210,10 @@ type EditorControl() as this =
 
     member this.HorizontalScrollViewport =
         let availableWidth =
-            max 1.0f (
-                this.ContentWidth
-                - LayoutEngine.gutterWidth renderingConfig.Measurer session.Model.Editing.Buffer.Length
-            )
+            max
+                1.0f
+                (this.ContentWidth
+                 - LayoutEngine.gutterWidth renderingConfig.Measurer session.Model.Editing.Buffer.Length)
 
         max 1.0 (Math.Floor(float availableWidth / float renderingConfig.Measurer.Metrics.DefaultAdvance))
 
@@ -257,62 +266,63 @@ type EditorControl() as this =
     override this.OnTextInput(e: TextInputEventArgs) =
         base.OnTextInput(e)
 
-        if not (String.IsNullOrEmpty(e.Text)) then
-            this.ApplyEditingEvent(EditingEvent.InsertString e.Text)
+        match Functor.Avalonia.InputAdapter.textInput e.Text with
+        | Some input ->
+            this.ApplyEditingEvent(EditingEvent.InsertString input.Text)
             e.Handled <- true
+        | None -> ()
 
     override this.OnKeyDown(e: KeyEventArgs) =
         base.OnKeyDown(e)
 
-        let commandModifier =
-            e.KeyModifiers.HasFlag(KeyModifiers.Control)
-            || e.KeyModifiers.HasFlag(KeyModifiers.Meta)
+        match Functor.Avalonia.InputAdapter.editorAction e.Key e.KeyModifiers with
+        | Some Functor.Input.EditorAction.Copy ->
+            this.CopySelection()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.Cut ->
+            this.CutSelection()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.Paste ->
+            this.Paste()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.OpenFile ->
+            this.OpenFile()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.SaveFileAs ->
+            this.SaveFileAs()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.SaveFile ->
+            this.SaveFile()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.NewDocument ->
+            this.NewDocument()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.CloseDocument ->
+            this.CloseDocument()
+            e.Handled <- true
+        | Some Functor.Input.EditorAction.ReopenClosedTab ->
+            this.ReopenClosedTab()
+            e.Handled <- true
+        | None -> ()
 
-        if commandModifier then
-            match e.Key with
-            | Key.C ->
-                this.CopySelection()
-                e.Handled <- true
-            | Key.X ->
-                this.CutSelection()
-                e.Handled <- true
-            | Key.V ->
-                this.Paste()
-                e.Handled <- true
-            | Key.O ->
-                this.OpenFile()
-                e.Handled <- true
-            | Key.S when e.KeyModifiers.HasFlag(KeyModifiers.Shift) ->
-                this.SaveFileAs()
-                e.Handled <- true
-            | Key.S ->
-                this.SaveFile()
-                e.Handled <- true
-            | Key.N ->
-                this.NewDocument()
-                e.Handled <- true
-            | Key.W when not (e.KeyModifiers.HasFlag(KeyModifiers.Shift)) ->
-                this.CloseDocument()
-                e.Handled <- true
-            | Key.T when e.KeyModifiers.HasFlag(KeyModifiers.Shift) ->
-                this.ReopenClosedTab()
-                e.Handled <- true
-            | _ -> ()
-
-        let editingEvent =
-            match e.Key with
-            | Key.Left -> Some EditingEvent.MoveLeft
-            | Key.Right -> Some EditingEvent.MoveRight
-            | Key.Up -> Some EditingEvent.MoveUp
-            | Key.Down -> Some EditingEvent.MoveDown
-            | Key.Back -> Some EditingEvent.Backspace
-            | Key.Delete -> Some EditingEvent.Delete
-            | Key.Enter -> Some EditingEvent.InsertNewLine
-            | _ -> None
-
-        match editingEvent with
+        match Functor.Avalonia.InputAdapter.editingEvent e.Key e.KeyModifiers with
         | Some event ->
-            this.ApplyEditingEvent(event)
+            if e.KeyModifiers.HasFlag(KeyModifiers.Shift) then
+                if session.Model.Editing.Selection.IsNone then
+                    this.ApplyEditingEvent(EditingEvent.StartSelection)
+
+                this.ApplyEditingEvent(event)
+                this.ApplyEditingEvent(EditingEvent.UpdateSelection)
+            else
+                this.ApplyEditingEvent(event)
+
+                match event with
+                | EditingEvent.MoveLeft
+                | EditingEvent.MoveRight
+                | EditingEvent.MoveUp
+                | EditingEvent.MoveDown -> this.ApplyEditingEvent(EditingEvent.ClearSelection)
+                | _ -> ()
+
             e.Handled <- true
         | None -> ()
 
@@ -321,12 +331,21 @@ type EditorControl() as this =
 
         let point = e.GetCurrentPoint(this)
 
-        if point.Properties.IsLeftButtonPressed then
+        let input =
+            Functor.Avalonia.InputAdapter.pointerInput
+                point.Position
+                (Some Avalonia.Input.MouseButton.Left)
+                point.Properties.IsLeftButtonPressed
+                e.KeyModifiers
+
+        if input.Button = Some Functor.Input.PointerButton.Left && input.IsPressed then
             this.Focus() |> ignore
             isPointerSelecting <- true
             e.Pointer.Capture(this) |> ignore
 
-            let position = this.PositionAtPoint(point.Position)
+            let position =
+                this.PositionAtPoint(Avalonia.Point(input.Position.X, input.Position.Y))
+
             this.ApplyEditingEvent(EditingEvent.SetCursor position)
             this.ApplyEditingEvent(EditingEvent.StartSelection)
             e.Handled <- true
@@ -335,7 +354,18 @@ type EditorControl() as this =
         base.OnPointerMoved(e)
 
         if isPointerSelecting && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed then
-            let position = this.PositionAtPoint(e.GetPosition(this))
+            let point = e.GetCurrentPoint(this)
+
+            let input =
+                Functor.Avalonia.InputAdapter.pointerInput
+                    point.Position
+                    (Some Avalonia.Input.MouseButton.Left)
+                    point.Properties.IsLeftButtonPressed
+                    e.KeyModifiers
+
+            let position =
+                this.PositionAtPoint(Avalonia.Point(input.Position.X, input.Position.Y))
+
             this.ApplyEditingEvent(EditingEvent.SetCursor position)
             this.ApplyEditingEvent(EditingEvent.UpdateSelection)
             e.Handled <- true
@@ -344,7 +374,18 @@ type EditorControl() as this =
         base.OnPointerReleased(e)
 
         if isPointerSelecting then
-            let position = this.PositionAtPoint(e.GetPosition(this))
+            let point = e.GetCurrentPoint(this)
+
+            let input =
+                Functor.Avalonia.InputAdapter.pointerInput
+                    point.Position
+                    (Some Avalonia.Input.MouseButton.Left)
+                    false
+                    e.KeyModifiers
+
+            let position =
+                this.PositionAtPoint(Avalonia.Point(input.Position.X, input.Position.Y))
+
             this.ApplyEditingEvent(EditingEvent.SetCursor position)
             this.ApplyEditingEvent(EditingEvent.UpdateSelection)
             isPointerSelecting <- false
@@ -356,10 +397,12 @@ type EditorControl() as this =
 
         if e.Delta.Y <> 0.0 then
             let delta = -int(Math.Round(e.Delta.Y))
+
             if e.KeyModifiers.HasFlag(KeyModifiers.Shift) then
                 this.ScrollHorizontalTo(this.HorizontalOffset + delta)
             else
                 this.ScrollVerticalTo(this.VerticalOffset + delta)
+
             e.Handled <- true
 
     override this.Render(context: DrawingContext) =

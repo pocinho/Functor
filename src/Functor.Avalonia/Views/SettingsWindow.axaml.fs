@@ -5,16 +5,12 @@ open Avalonia.Markup.Xaml
 open Avalonia.Media
 open Avalonia.Styling
 open Functor.Application
-open Functor.Avalonia.ViewModels
 
-type SettingsWindow(
-    initialSettings: AppSettings,
-    applySettings: AppSettings -> unit,
-    saveSettings: AppSettings -> Result<unit, string>
-) as this =
+type SettingsWindow
+    (initialSettings: AppSettings, applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>) as this
+    =
     inherit Window()
 
-    let viewModel = SettingsViewModel(initialSettings)
     let settingsView = lazy (this.FindControl<SettingsView>("SettingsView"))
     let applyButton = lazy (this.FindControl<Button>("ApplyButton"))
     let saveButton = lazy (this.FindControl<Button>("SaveButton"))
@@ -23,33 +19,47 @@ type SettingsWindow(
 
     let applyTheme settings =
         let palette = settings.Theme.ThemeSource.Resolve()
+
         let colorFromArgb (argb: uint32) =
             Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
 
         this.RequestedThemeVariant <-
-            if settings.Theme.Preset = "Graphite Light" then ThemeVariant.Light else ThemeVariant.Dark
+            if settings.Theme.Preset = "Graphite Light" then
+                ThemeVariant.Light
+            else
+                ThemeVariant.Dark
 
         this.Background <- SolidColorBrush(colorFromArgb palette.Background)
         this.Foreground <- SolidColorBrush(colorFromArgb palette.Foreground)
         settingsView.Value.ApplyTheme settings.Theme
-        settingsFooter.Value.BorderBrush <- SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+
+        settingsFooter.Value.BorderBrush <-
+            SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
 
     let tryApply closeAfterApply save =
-        match viewModel.TryCreateSettings() with
-        | Error error -> viewModel.ErrorMessage <- error
-        | Ok settings ->
-            match if save then saveSettings settings else Ok(applySettings settings) with
-            | Ok () ->
-                applyTheme settings
-                viewModel.ErrorMessage <- ""
+        match settingsView.Value.Draft with
+        | None -> settingsView.Value.SetError("Settings draft is not initialized.")
+        | Some draft ->
+            match SettingsDraft.tryCreateSettings draft with
+            | Error error -> settingsView.Value.SetError(error)
+            | Ok settings ->
+                match
+                    if save then
+                        saveSettings settings
+                    else
+                        Ok(applySettings settings)
+                with
+                | Ok() ->
+                    applyTheme settings
+                    settingsView.Value.SetError("")
 
-                if closeAfterApply then
-                    this.Close()
-            | Error error -> viewModel.ErrorMessage <- error
+                    if closeAfterApply then
+                        this.Close()
+                | Error error -> settingsView.Value.SetError(error)
 
     do
         this.InitializeComponent()
-        settingsView.Value.DataContext <- viewModel
+        settingsView.Value.Configure(initialSettings)
         applyTheme initialSettings
         applyButton.Value.Click.Add(fun _ -> tryApply false false)
         saveButton.Value.Click.Add(fun _ -> tryApply true true)

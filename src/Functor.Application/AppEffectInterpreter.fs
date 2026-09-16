@@ -2,16 +2,18 @@ namespace Functor.Application
 
 open Functor.Domain.Core
 open Functor.Domain.Editing
+open System
 open System.Threading
 
 /// Executes application effects through injected platform-neutral services.
-type AppEffectInterpreter(
-    clipboardService: IClipboardService,
-    fileService: IFileService,
-    dialogService: IDialogService,
-    dispatch: AppCommand -> unit,
-    ?tokenizerService: ITokenizerService
-) =
+type AppEffectInterpreter
+    (
+        clipboardService: IClipboardService,
+        fileService: IFileService,
+        dialogService: IDialogService,
+        dispatch: AppCommand -> unit,
+        ?tokenizerService: ITokenizerService
+    ) =
     let reportFailure message =
         dispatch (AppCommand.fileOperationFailed message)
 
@@ -19,56 +21,41 @@ type AppEffectInterpreter(
         async {
             try
                 match effect with
-                | NoEffect ->
-                    ()
-                | NotifyStatus message ->
-                    dispatch (AppCommand.setStatus message)
-                | NotifyError error ->
-                    dispatch (AppCommand.reportError error)
-                | WriteClipboard text ->
-                    do! clipboardService.SetText text
+                | NoEffect -> ()
+                | NotifyStatus message -> dispatch (AppCommand.setStatus message)
+                | NotifyError error -> dispatch (AppCommand.reportError error)
+                | WriteClipboard text -> do! clipboardService.SetText text
                 | ReadClipboard ->
                     let! text = clipboardService.GetText()
 
                     match text with
-                    | Some value ->
-                        dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString value)))
-                    | None ->
-                        ()
-                | PasteText text ->
-                    dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString text)))
+                    | Some value -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString value)))
+                    | None -> ()
+                | PasteText text -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString text)))
                 | OpenFile ->
                     let! path = dialogService.OpenFile()
 
                     match path with
-                    | Some value ->
-                        do! this.Execute (AppEffect.readFile value)
-                    | None ->
-                        ()
+                    | Some value -> do! this.Execute(AppEffect.readFile value)
+                    | None -> ()
                 | OpenFolder ->
                     let! path = dialogService.OpenFolder()
 
                     match path with
-                    | Some value ->
-                        dispatch (AppCommand.folderOpened value)
-                    | None ->
-                        ()
+                    | Some value -> dispatch (AppCommand.folderOpened value)
+                    | None -> ()
                 | ReadFile path ->
                     let! result = fileService.ReadText path
 
                     match result with
-                    | Ok contents ->
-                        dispatch (AppCommand.fileOpened path contents)
-                    | Error message ->
-                        reportFailure message
+                    | Ok contents -> dispatch (AppCommand.fileOpened path contents)
+                    | Error message -> reportFailure message
                 | SaveFile(suggestedName, contents) ->
                     let! path = dialogService.SaveFile suggestedName
 
                     match path with
-                    | Some value ->
-                        do! this.Execute (AppEffect.writeFile value contents)
-                    | None ->
-                        ()
+                    | Some value -> do! this.Execute(AppEffect.writeFile value contents)
+                    | None -> ()
                 | SaveFileForDocument(documentId, revision, suggestedName, contents) ->
                     let! path = dialogService.SaveFile suggestedName
 
@@ -77,37 +64,32 @@ type AppEffectInterpreter(
                         let! result = fileService.WriteText(value, contents)
 
                         match result with
-                        | Ok () -> dispatch (AppCommand.fileSavedForDocument documentId revision value)
+                        | Ok() -> dispatch (AppCommand.fileSavedForDocument documentId revision value)
                         | Error message -> reportFailure message
-                    | None ->
-                        ()
+                    | None -> ()
                 | WriteFile(path, contents) ->
                     let! result = fileService.WriteText(path, contents)
 
                     match result with
-                    | Ok () ->
-                        dispatch (AppCommand.fileSaved path)
-                    | Error message ->
-                        reportFailure message
+                    | Ok() -> dispatch (AppCommand.fileSaved path)
+                    | Error message -> reportFailure message
                 | WriteFileForDocument(documentId, revision, path, contents) ->
                     let! result = fileService.WriteText(path, contents)
 
                     match result with
-                    | Ok () -> dispatch (AppCommand.fileSavedForDocument documentId revision path)
+                    | Ok() -> dispatch (AppCommand.fileSavedForDocument documentId revision path)
                     | Error message -> reportFailure message
-                | Tokenize request ->
+                | Tokenize(request, cancellationToken) ->
                     match tokenizerService with
                     | Some service ->
                         let coordinator = TokenizationCoordinator(service, dispatch)
-                        let! result = coordinator.Execute(request, CancellationToken.None)
+                        let! result = coordinator.Execute(request, cancellationToken)
 
                         match result with
-                        | Ok () ->
-                            ()
-                        | Error message ->
-                            dispatch (AppCommand.reportError message)
-                    | None ->
-                        dispatch (AppCommand.reportError "No tokenizer service is configured.")
-            with ex ->
-                reportFailure ex.Message
+                        | Ok() -> ()
+                        | Error message -> dispatch (AppCommand.reportError message)
+                    | None -> dispatch (AppCommand.reportError "No tokenizer service is configured.")
+            with
+            | :? OperationCanceledException -> ()
+            | ex -> reportFailure ex.Message
         }

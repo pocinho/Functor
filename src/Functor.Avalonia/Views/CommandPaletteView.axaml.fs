@@ -1,12 +1,19 @@
 namespace Functor.Avalonia.Views
 
+open Avalonia.Collections
 open Avalonia.Controls
 open Avalonia.Input
 open Avalonia.Media
 open Avalonia.Markup.Xaml
 open Functor.Application
 open Functor.Rendering
-open Functor.Avalonia.ViewModels
+
+[<AllowNullLiteral>]
+type CommandPaletteItem(descriptor: AppCommandDescriptor) =
+    member _.Descriptor = descriptor
+    member _.Title = descriptor.Title
+    member _.Category = descriptor.Category
+    member _.GestureText = descriptor.GestureText |> Option.defaultValue ""
 
 type CommandPaletteView() as this =
     inherit UserControl()
@@ -15,12 +22,35 @@ type CommandPaletteView() as this =
     let commandList = lazy (this.FindControl<ListBox>("CommandList"))
     let paletteBorder = lazy (this.FindControl<Border>("PaletteBorder"))
     let mutable executeSelected: unit -> unit = ignore
+    let mutable paletteState: CommandPaletteState option = None
+    let mutable commands: AppCommandDescriptor list = []
+    let mutable sessionState: AppSessionState option = None
     let closeRequested = Event<unit>()
+
+    let refreshItems query =
+        match sessionState with
+        | Some state ->
+            let updated = CommandPaletteState.setQuery query commands state
+            paletteState <- Some updated
+            commandList.Value.Items.Clear()
+
+            updated.Items
+            |> List.map CommandPaletteItem
+            |> List.iter (fun item -> commandList.Value.Items.Add(item) |> ignore)
+
+            commandList.Value.SelectedIndex <- updated.SelectedIndex |> Option.defaultValue -1
+        | None -> ()
 
     do
         this.InitializeComponent()
 
-        commandList.Value.DoubleTapped.Add(fun _ -> executeSelected())
+        commandList.Value.DoubleTapped.Add(fun _ -> executeSelected ())
+        searchBox.Value.TextChanged.Add(fun _ -> refreshItems searchBox.Value.Text)
+
+        commandList.Value.SelectionChanged.Add(fun _ ->
+            match paletteState, commandList.Value.SelectedIndex with
+            | Some state, index when index >= 0 -> paletteState <- Some(CommandPaletteState.select index state)
+            | _ -> ())
 
         this.KeyDown.Add(fun args ->
             match args.Key with
@@ -28,18 +58,23 @@ type CommandPaletteView() as this =
                 closeRequested.Trigger()
                 args.Handled <- true
             | Key.Enter ->
-                executeSelected()
+                executeSelected ()
                 args.Handled <- true
             | _ -> ())
 
     member _.CloseRequested = closeRequested.Publish
 
-    member _.Configure(viewModel: CommandPaletteViewModel, execute: unit -> unit) =
-        this.DataContext <- viewModel
+    member _.Configure(availableCommands, state: AppSessionState, execute: unit -> unit) =
+        commands <- availableCommands
+        sessionState <- Some state
+        paletteState <- Some(CommandPaletteState.create commands state)
+        searchBox.Value.Text <- ""
+        refreshItems ""
         executeSelected <- execute
 
-    member _.FocusSearch() =
-        searchBox.Value.Focus() |> ignore
+    member _.SelectedDescriptor = paletteState |> Option.bind CommandPaletteState.selected
+
+    member _.FocusSearch() = searchBox.Value.Focus() |> ignore
 
     member _.ApplyTheme(themeSettings: ThemeSettings) =
         let palette = themeSettings.ThemeSource.Resolve()

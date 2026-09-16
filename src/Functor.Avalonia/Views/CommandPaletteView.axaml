@@ -2,10 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:Functor.Avalonia.ViewModels"
+             xmlns:views="using:Functor.Avalonia.Views"
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="340"
-             x:Class="Functor.Avalonia.Views.CommandPaletteView"
-             x:DataType="vm:CommandPaletteViewModel">
+             x:Class="Functor.Avalonia.Views.CommandPaletteView">
   <Border x:Name="PaletteBorder"
           BorderThickness="1"
           CornerRadius="6"
@@ -15,17 +14,14 @@
       <TextBox x:Name="SearchBox"
                Grid.Row="0"
                PlaceholderText="Type a command"
-               Text="{Binding SearchText, Mode=TwoWay}"
                FontSize="14"
                Padding="10,8"
                Margin="0,0,0,8" />
       <ListBox x:Name="CommandList"
                Grid.Row="1"
-               ItemsSource="{Binding Items}"
-               SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                MaxHeight="260">
         <ListBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:CommandPaletteItem">
+          <DataTemplate x:DataType="views:CommandPaletteItem">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
               <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="0.68" Width="92" />
               <TextBlock Grid.Column="1" Text="{Binding Title}" />

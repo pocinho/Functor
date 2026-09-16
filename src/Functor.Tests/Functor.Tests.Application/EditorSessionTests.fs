@@ -129,7 +129,35 @@ type EditorSessionTests() =
 
         Assert.Single(requestedEffects) |> ignore
         let document = session.Model.ActiveDocument.Value
-        Assert.True([ AppEffect.writeFileForDocument document.Id session.Model.Editing.Revision "C:\\work\\file.fs" " updatedtext" ] = requestedEffects[0])
+
+        Assert.True(
+            [ AppEffect.writeFileForDocument
+                  document.Id
+                  session.Model.Editing.Revision
+                  "C:\\work\\file.fs"
+                  " updatedtext" ] =
+                requestedEffects[0]
+        )
+
+    [<Fact>]
+    member _.``save command does nothing when there is no active document``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.saveFile)
+
+        Assert.Empty(requestedEffects)
+
+    [<Fact>]
+    member _.``save as command does nothing when there is no active document``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.saveFileAs)
+
+        Assert.Empty(requestedEffects)
 
     [<Fact>]
     member _.``stale save completion does not clear newer edits``() =
@@ -144,10 +172,29 @@ type EditorSessionTests() =
         Assert.True(session.State.Model.Editing.IsDirty)
 
     [<Fact>]
+    member _.``completed earlier save preserves its saved snapshot while newer edits remain dirty``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString "1")))
+        let firstRevision = session.Model.Editing.Revision
+        session.DispatchCommand(AppCommand.saveFile)
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString "2")))
+        session.DispatchCommand(AppCommand.saveFile)
+        let documentId = session.Model.ActiveDocument.Value.Id
+
+        session.DispatchCommand(AppCommand.fileSavedForDocument documentId firstRevision "C:\\work\\file.fs")
+
+        Assert.True([ "1" + "text" ] = session.Model.Editing.SavedBuffer)
+        Assert.True(session.Model.Editing.IsDirty)
+
+    [<Fact>]
     member _.``file-saved command marks the active document clean``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        session.DispatchCommand(AppCommand.saveFile)
 
         session.DispatchCommand(AppCommand.fileSaved "C:\\work\\file.fs")
 
@@ -157,14 +204,25 @@ type EditorSessionTests() =
     [<Fact>]
     member _.``file-saved command assigns a path when saving an untitled document``() =
         let session = EditorSession()
-        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\untitled.fs" "text")
+        session.DispatchCommand(AppCommand.newDocument)
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        session.DispatchCommand(AppCommand.saveFile)
 
         session.DispatchCommand(AppCommand.fileSaved "C:\\work\\saved.fs")
 
         Assert.Equal(Some "C:\\work\\saved.fs", session.State.Model.ActiveDocument.Value.Metadata.Path)
         Assert.False(session.State.Model.ActiveDocument.Value.Metadata.IsDirty)
         Assert.False(session.State.Model.Editing.IsDirty)
+
+    [<Fact>]
+    member _.``unmatched file-saved completion does not clear dirty edits``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+
+        session.DispatchCommand(AppCommand.fileSaved "C:\\work\\other.fs")
+
+        Assert.True(session.State.Model.Editing.IsDirty)
 
     [<Fact>]
     member _.``editing becomes clean again when undo restores the saved snapshot``() =
@@ -245,6 +303,60 @@ type EditorSessionTests() =
         Assert.Equal(None, session.State.Status.PendingAction)
 
     [<Fact>]
+    member _.``confirming a pending close removes the dirty document``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        let document = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+
+        session.DispatchCommand(AppCommand.closeDocument)
+
+        Assert.Equal(Some(PendingAction.CloseDocument document.Id), session.State.Status.PendingAction)
+        session.DispatchCommand(AppCommand.confirmDiscardChanges)
+
+        Assert.True(session.State.Model.ActiveDocument.IsNone)
+
+        Assert.True(
+            session.State.Workspace.RecentlyClosedDocuments
+            |> List.exists (fun closed -> closed.Path = "C:\\work\\file.fs")
+        )
+
+        Assert.Equal(None, session.State.Status.PendingAction)
+
+    [<Fact>]
+    member _.``save completion from a closed document does not affect a reopened document``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        let closedDocument = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.saveFile)
+        session.DispatchCommand(AppCommand.closeDocument)
+
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "new text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+
+        session.DispatchCommand(AppCommand.fileSavedForDocument closedDocument.Id 0L "C:\\work\\file.fs")
+
+        Assert.True(session.State.Model.Editing.IsDirty)
+        Assert.Equal(Some "C:\\work\\file.fs", session.State.Model.ActiveDocument.Value.Metadata.Path)
+
+    [<Fact>]
+    member _.``confirming a pending new document preserves a new clean buffer``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+
+        session.DispatchCommand(AppCommand.newDocument)
+
+        Assert.Equal(Some PendingAction.NewDocument, session.State.Status.PendingAction)
+        session.DispatchCommand(AppCommand.confirmDiscardChanges)
+
+        Assert.Equal(None, session.State.Model.ActiveDocument.Value.Metadata.Path)
+        Assert.Equal("untitled", session.State.Model.ActiveDocument.Value.Metadata.Name)
+        Assert.True([ "" ] = session.State.Model.Editing.Buffer)
+        Assert.False(session.State.Model.Editing.IsDirty)
+        Assert.Equal(None, session.State.Status.PendingAction)
+
+    [<Fact>]
     member _.``switching tabs restores each document editing state``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\first.fs" "first")
@@ -279,3 +391,15 @@ type EditorSessionTests() =
         let savedFirst = session.State.Workspace.Documents[first.Id]
         Assert.False(savedFirst.Editing.IsDirty)
         Assert.False(savedFirst.Document.Metadata.IsDirty)
+
+    [<Fact>]
+    member _.``unrequested document save completion does not clear dirty edits``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        let document = session.Model.ActiveDocument.Value
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        let revision = session.Model.Editing.Revision
+
+        session.DispatchCommand(AppCommand.fileSavedForDocument document.Id revision "C:\\work\\file.fs")
+
+        Assert.True(session.State.Model.Editing.IsDirty)

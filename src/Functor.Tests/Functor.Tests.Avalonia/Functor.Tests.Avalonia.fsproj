@@ -7,9 +7,14 @@
 
   <ItemGroup>
     <Compile Include="MainViewTests.fs" />
+    <Compile Include="MainWindowTests.fs" />
     <Compile Include="EditorControlTests.fs" />
+    <Compile Include="InputAdapterTests.fs" />
+    <Compile Include="SettingsViewTests.fs" />
+    <Compile Include="CommandPaletteViewTests.fs" />
     <ProjectReference Include="..\..\Functor.Avalonia\Functor.Avalonia.fsproj" />
     <ProjectReference Include="..\..\Functor.Application\Functor.Application.fsproj" />
+    <ProjectReference Include="..\..\Functor.Input\Functor.Input.fsproj" />
     <ProjectReference Include="..\..\Functor.Workspace\Functor.Workspace.fsproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
     <PackageReference Include="xunit.v3" Version="3.2.2" />

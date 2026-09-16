@@ -3,6 +3,7 @@
     <Project Path="Functor.Tests/Functor.Tests.Application/Functor.Tests.Application.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Avalonia/Functor.Tests.Avalonia.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Domain/Functor.Tests.Domain.fsproj" />
+    <Project Path="Functor.Tests/Functor.Tests.Input/Functor.Tests.Input.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Rendering/Functor.Tests.Rendering.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Workspace/Functor.Tests.Workspace.fsproj" />
   </Folder>

@@ -22,7 +22,15 @@ type EditingTests() =
         Assert.Equal({ Line = 0; Column = 5 }, model.Cursor)
         Assert.True(model.IsDirty)
         Assert.Equal(5, model.UndoStack.Length)
-        Assert.Equal(Some { StartLine = 0; EndLine = 0; OldEndLine = 0; LineDelta = 0 }, model.LastChange)
+
+        Assert.Equal(
+            Some
+                { StartLine = 0
+                  EndLine = 0
+                  OldEndLine = 0
+                  LineDelta = 0 },
+            model.LastChange
+        )
 
     [<Fact>]
     member _.``cursor movement clears editing change metadata``() =
@@ -74,6 +82,71 @@ type EditingTests() =
         Assert.Equal({ Line = 0; Column = 0 }, model.Cursor)
 
     [<Fact>]
+    member _.``delete at end of line joins with the next line``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "hello")
+            |> applyEditing EditingEvent.InsertNewLine
+            |> applyEditing (EditingEvent.InsertString "world")
+            |> applyEditing EditingEvent.MoveUp
+            |> applyEditing EditingEvent.MoveToLineEnd
+            |> applyEditing EditingEvent.Delete
+
+        Assert.True([ "helloworld" ] = model.Buffer)
+        Assert.Equal({ Line = 0; Column = 5 }, model.Cursor)
+
+    [<Fact>]
+    member _.``delete at end of line joins without splitting the next grapheme``() =
+        let model =
+            EditingModel.create ()
+            |> applyEditing (EditingEvent.InsertString "hello")
+            |> applyEditing EditingEvent.InsertNewLine
+            |> applyEditing (EditingEvent.InsertString "🚧world")
+            |> applyEditing EditingEvent.MoveUp
+            |> applyEditing EditingEvent.MoveToLineEnd
+            |> applyEditing EditingEvent.Delete
+
+        Assert.True([ "hello🚧world" ] = model.Buffer)
+        Assert.Equal({ Line = 0; Column = 5 }, model.Cursor)
+
+    [<Fact>]
+    member _.``delete at end of final line is a no-op``() =
+        let model =
+            { EditingModel.create () with
+                Buffer = [ "hello" ]
+                Cursor = { Line = 0; Column = 5 } }
+
+        let updated = model |> applyEditing EditingEvent.Delete
+
+        Assert.True(model.Buffer = updated.Buffer)
+        Assert.Equal(model.Cursor, updated.Cursor)
+        Assert.Equal(model.Revision, updated.Revision)
+        Assert.Equal(model.LastChange, updated.LastChange)
+        Assert.True(model.UndoStack = updated.UndoStack)
+        Assert.True(model.RedoStack = updated.RedoStack)
+
+    [<Fact>]
+    member _.``delete line join reports the removed line and can be undone``() =
+        let model =
+            { EditingModel.create () with
+                Buffer = [ "hello"; "world" ]
+                Cursor = { Line = 0; Column = 5 } }
+
+        let joined = model |> applyEditing EditingEvent.Delete
+
+        Assert.Equal(
+            Some
+                { StartLine = 0
+                  EndLine = 0
+                  OldEndLine = 1
+                  LineDelta = -1 },
+            joined.LastChange
+        )
+
+        let restored = joined |> applyEditing EditingEvent.Undo
+        Assert.True(model.Buffer = restored.Buffer)
+
+    [<Fact>]
     member _.``cursor movement is clamped to document bounds``() =
         let model =
             EditingModel.create ()
@@ -107,9 +180,7 @@ type EditingTests() =
             |> applyEditing EditingEvent.MoveLeft
 
         Assert.Equal({ Line = 0; Column = 3 }, model.Cursor)
-        let model =
-            model
-            |> applyEditing EditingEvent.Backspace
+        let model = model |> applyEditing EditingEvent.Backspace
 
         Assert.Equal<string list>([ "ab" ], model.Buffer)
         Assert.Equal({ Line = 0; Column = 1 }, model.Cursor)
@@ -132,9 +203,7 @@ type EditingTests() =
             |> applyEditing EditingEvent.MoveLeft
 
         Assert.Equal({ Line = 0; Column = 2 }, model.Cursor)
-        let model =
-            model
-            |> applyEditing EditingEvent.Backspace
+        let model = model |> applyEditing EditingEvent.Backspace
 
         Assert.Equal<string list>([ "x" ], model.Buffer)
         Assert.Equal({ Line = 0; Column = 0 }, model.Cursor)
@@ -247,10 +316,12 @@ type EditingTests() =
             EditingModel.create ()
             |> applyEditing (EditingEvent.InsertString "a🚧b")
             |> applyEditing (
-                EditingEvent.SetSelection
-                    (Some
+                EditingEvent.SetSelection(
+                    Some
                         { Start = { Line = 0; Column = 2 }
-                          End = { Line = 0; Column = 4 } }))
+                          End = { Line = 0; Column = 4 } }
+                )
+            )
 
         let expected =
             Some

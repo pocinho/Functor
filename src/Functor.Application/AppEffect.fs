@@ -1,5 +1,6 @@
 namespace Functor.Application
 
+open System.Threading
 open Functor.Domain.Document
 
 /// Effects requested by the application layer and handled by frontend or platform adapters.
@@ -17,7 +18,7 @@ type AppEffect =
     | SaveFileForDocument of documentId: DocumentId * revision: int64 * suggestedName: string option * contents: string
     | WriteFile of path: string * contents: string
     | WriteFileForDocument of documentId: DocumentId * revision: int64 * path: string * contents: string
-    | Tokenize of TokenizationRequest
+    | Tokenize of request: TokenizationRequest * cancellationToken: CancellationToken
 
 module AppEffect =
     let noEffect = NoEffect
@@ -48,4 +49,7 @@ module AppEffect =
     let writeFileForDocument documentId revision path contents =
         WriteFileForDocument(documentId, revision, path, contents)
 
-    let tokenize request = Tokenize request
+    let tokenize request =
+        Tokenize(request, CancellationToken.None)
+
+    let tokenizeWithCancellation request cancellationToken = Tokenize(request, cancellationToken)

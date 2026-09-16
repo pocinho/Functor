@@ -12,6 +12,12 @@ module IncrementalTokenizationState =
 
     let reset = empty
 
+    let removeDocument documentId state =
+        { Snapshots =
+            state.Snapshots
+            |> Map.filter (fun (snapshotDocumentId, _, _) _ -> snapshotDocumentId <> documentId)
+          Range = None }
+
     let beginEdit documentId oldRevision newRevision (change: EditingChange) state =
         let snapshots =
             state.Snapshots
@@ -19,10 +25,12 @@ module IncrementalTokenizationState =
             |> List.choose (fun ((snapshotDocumentId, revision, line), snapshot) ->
                 if snapshotDocumentId <> documentId || revision <> oldRevision then
                     None
+                elif line <= change.StartLine then
+                    Some((documentId, newRevision, line), snapshot)
                 elif line > change.OldEndLine then
                     Some((documentId, newRevision, line + change.LineDelta), snapshot)
                 else
-                    Some((documentId, newRevision, line), snapshot))
+                    None)
             |> Map.ofList
 
         { Snapshots = snapshots
@@ -42,7 +50,10 @@ module IncrementalTokenizationState =
     let recordCompletion documentId revision scope snapshots finalState state =
         let updatedSnapshots =
             snapshots
-            |> List.fold (fun values (snapshot: LexerSnapshot) -> Map.add (documentId, revision, snapshot.Line) snapshot.State values) state.Snapshots
+            |> List.fold
+                (fun values (snapshot: LexerSnapshot) ->
+                    Map.add (documentId, revision, snapshot.Line) snapshot.State values)
+                state.Snapshots
 
         let finalLine =
             match scope with
@@ -55,7 +66,8 @@ module IncrementalTokenizationState =
             | Some line -> Map.add (documentId, revision, line) finalState updatedSnapshots
             | None -> updatedSnapshots
 
-        { state with Snapshots = updatedSnapshots }
+        { state with
+            Snapshots = updatedSnapshots }
 
     let isStable documentId revision bufferLength endLine finalState state =
         let nextLine = endLine + 1
@@ -64,6 +76,7 @@ module IncrementalTokenizationState =
         || snapshotAt documentId revision nextLine state = Some finalState
 
     let extend startLine endLine state =
-        { state with Range = Some(startLine, endLine + 1) }
+        { state with
+            Range = Some(startLine, endLine + 1) }
 
     let clearRange state = { state with Range = None }
