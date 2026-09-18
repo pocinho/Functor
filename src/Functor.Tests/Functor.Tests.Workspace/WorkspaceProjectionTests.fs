@@ -19,12 +19,22 @@ module WorkspaceProjectionTests =
     let ``tabs follow tab order and expose active and dirty state`` () =
         let firstDocument = DocumentModel.createFromFile "C:\\work\\first.fs" "content"
         let secondDocument = DocumentModel.createFromFile "C:\\work\\second.fs" "content"
-        let first = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument firstDocument)).Documents[firstDocument.Id]
-        let second = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument secondDocument)).Documents[secondDocument.Id]
+
+        let first =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument firstDocument)).Documents[firstDocument.Id]
+
+        let second =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument secondDocument)).Documents[secondDocument.Id]
+
         let firstId = firstDocument.Id
         let secondId = secondDocument.Id
-        let second = { second with Editing = EditingLogic.update (InsertString "!") second.Editing }
-        let model = workspace (Some "C:\\work") [ firstId, first; secondId, second ] [ secondId; firstId ] (Some secondId)
+
+        let second =
+            { second with
+                Editing = EditingLogic.update (InsertString "!") second.Editing }
+
+        let model =
+            workspace (Some "C:\\work") [ firstId, first; secondId, second ] [ secondId; firstId ] (Some secondId)
 
         let tabs = WorkspaceProjection.tabs model
 
@@ -41,9 +51,15 @@ module WorkspaceProjectionTests =
         let second = DocumentModel.createFromFile "C:\\work\\src\\a.fs" "content"
         let firstId = first.Id
         let secondId = second.Id
-        let firstState = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument first)).Documents[firstId]
-        let secondState = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument second)).Documents[secondId]
-        let model = workspace (Some "C:\\work") [ firstId, firstState; secondId, secondState ] [ firstId; secondId ] None
+
+        let firstState =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument first)).Documents[firstId]
+
+        let secondState =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument second)).Documents[secondId]
+
+        let model =
+            workspace (Some "C:\\work") [ firstId, firstState; secondId, secondState ] [ firstId; secondId ] None
 
         let tree = WorkspaceProjection.fileTree model
         let src = tree.Children |> List.exactlyOne
@@ -59,8 +75,14 @@ module WorkspaceProjectionTests =
     let ``active projection returns document session state`` () =
         let document = DocumentModel.createUntitled "untitled.fs"
         let documentId = document.Id
-        let state = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument document)).Documents[documentId]
-        let state = { state with Editing = EditingLogic.update (InsertString "!") state.Editing }
+
+        let state =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument document)).Documents[documentId]
+
+        let state =
+            { state with
+                Editing = EditingLogic.update (InsertString "!") state.Editing }
+
         let model = workspace None [ documentId, state ] [ documentId ] (Some documentId)
 
         let active = WorkspaceProjection.activeDocument model
@@ -77,7 +99,45 @@ module WorkspaceProjectionTests =
     let ``active projection is empty without an active document`` () =
         let document = DocumentModel.createUntitled "file.fs"
         let documentId = document.Id
-        let state = (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument document)).Documents[documentId]
+
+        let state =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument document)).Documents[documentId]
+
         let model = workspace None [ documentId, state ] [ documentId ] None
 
         Assert.True((WorkspaceProjection.activeDocument model).IsNone)
+
+    [<Fact>]
+    let ``tab projection exposes independent auxiliary state`` () =
+        let first = DocumentModel.createUntitled "first.fs"
+        let second = DocumentModel.createUntitled "second.fs"
+
+        let workspace =
+            WorkspaceModel.empty
+            |> WorkspaceLogic.update (AddDocument first)
+            |> WorkspaceLogic.update (AddDocument second)
+
+        let firstState = workspace.Documents[first.Id]
+        let workspace = WorkspaceLogic.update (SetNotebookOpen(first.Id, true)) workspace
+        let workspace = WorkspaceLogic.update (SetAgentOpen(second.Id, true)) workspace
+        let tabs = WorkspaceProjection.tabs workspace
+
+        Assert.True(
+            tabs
+            |> List.find (fun tab -> tab.DocumentId = first.Id)
+            |> fun tab -> tab.NotebookIsOpen
+        )
+
+        Assert.False(
+            tabs
+            |> List.find (fun tab -> tab.DocumentId = first.Id)
+            |> fun tab -> tab.AgentIsOpen
+        )
+
+        Assert.True(
+            tabs
+            |> List.find (fun tab -> tab.DocumentId = second.Id)
+            |> fun tab -> tab.AgentIsOpen
+        )
+
+        Assert.Equal(firstState.Auxiliary.Agent, workspace.Documents[first.Id].Auxiliary.Agent)

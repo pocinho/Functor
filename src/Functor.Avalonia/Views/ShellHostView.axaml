@@ -3,12 +3,8 @@
              xmlns:controls="using:Functor.Avalonia.Controls"
              xmlns:views="using:Functor.Avalonia.Views"
              x:Class="Functor.Avalonia.Views.ShellHostView">
-    <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel x:Name="PanelRail" Grid.Column="0" Spacing="4" Margin="4">
-            <Button x:Name="NotebookPanelButton" Content="Notebook" />
-            <Button x:Name="AgentPanelButton" Content="Agent" />
-        </StackPanel>
-        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*,Auto">
+    <Grid>
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*,Auto">
             <Border x:Name="TabBar"
                     Grid.Row="0"
                     Grid.ColumnSpan="2"
@@ -19,20 +15,34 @@
                     <controls:DocumentListView x:Name="TabsPanel" />
                 </ScrollViewer>
             </Border>
+            <Border x:Name="TabToolbar"
+                    Grid.Row="1"
+                    Grid.ColumnSpan="2"
+                    Padding="4,3">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Button x:Name="NotebookToggleButton" Content="Notebook" />
+                    <Button x:Name="AgentToggleButton" Content="Agent" />
+                </StackPanel>
+            </Border>
+            <controls:SidePanelView x:Name="SidePanelHost"
+                                    Grid.Row="2"
+                                    Grid.ColumnSpan="2"
+                                    PanelWidth="0"
+                                    IsOpen="False" />
             <controls:EditorControl x:Name="EditorControl"
-                                    Grid.Row="1"
+                                    Grid.Row="3"
                                     Grid.Column="0"
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Stretch"
                                     Focusable="True" />
             <views:WelcomeView x:Name="WelcomeView"
-                              Grid.Row="1"
+                              Grid.Row="3"
                               Grid.Column="0"
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"
                               IsVisible="False" />
             <ScrollBar x:Name="VerticalScrollBar"
-                       Grid.Row="1"
+                       Grid.Row="3"
                        Grid.Column="1"
                        Orientation="Vertical"
                        Minimum="0"
@@ -40,7 +50,7 @@
                        ViewportSize="1"
                        IsEnabled="False" />
             <ScrollBar x:Name="HorizontalScrollBar"
-                       Grid.Row="2"
+                       Grid.Row="4"
                        Grid.Column="0"
                        Orientation="Horizontal"
                        Minimum="0"
@@ -48,7 +58,7 @@
                        ViewportSize="1"
                        IsEnabled="False" />
             <Border x:Name="StatusBar"
-                    Grid.Row="3"
+                    Grid.Row="5"
                     Grid.ColumnSpan="2"
                     BorderThickness="0,1,0,0"
                     Padding="8,4">
@@ -61,9 +71,5 @@
                 </Grid>
             </Border>
         </Grid>
-        <controls:SidePanelView x:Name="SidePanelHost"
-                                Grid.Column="2"
-                                PanelWidth="0"
-                                IsOpen="False" />
     </Grid>
 </UserControl>

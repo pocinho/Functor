@@ -2,23 +2,14 @@ namespace Functor.Avalonia
 
 open Functor.Application
 
-type ShellPanel =
-    | Notebook
-    | Agent
-    | PluginPanel of string
-
 type ShellLayoutState =
-    { IsSidePanelOpen: bool
-      SidePanelWidth: double
-      ActivePanel: ShellPanel option
+    { SidePanelWidth: double
       IsPanelAnimating: bool }
 
 type ShellModel = { Layout: ShellLayoutState }
 
 type ShellMsg =
-    | SetSidePanelOpen of bool
     | SetSidePanelWidth of double
-    | SelectPanel of ShellPanel option
     | BeginPanelAnimation
     | EndPanelAnimation
     | OpenFileRequested
@@ -38,9 +29,7 @@ module ShellLayoutState =
     let DefaultSidePanelWidth = 320.0
 
     let initial =
-        { IsSidePanelOpen = false
-          SidePanelWidth = DefaultSidePanelWidth
-          ActivePanel = None
+        { SidePanelWidth = DefaultSidePanelWidth
           IsPanelAnimating = false }
 
     let clampSidePanelWidth width =
@@ -52,24 +41,11 @@ module ShellModel =
 module ShellUpdate =
     let update message model =
         match message with
-        | SetSidePanelOpen isOpen ->
-            { model with
-                Layout =
-                    { model.Layout with
-                        IsSidePanelOpen = isOpen } },
-            []
         | SetSidePanelWidth width ->
             { model with
                 Layout =
                     { model.Layout with
                         SidePanelWidth = ShellLayoutState.clampSidePanelWidth width } },
-            []
-        | SelectPanel panel ->
-            { model with
-                Layout =
-                    { model.Layout with
-                        ActivePanel = panel
-                        IsSidePanelOpen = panel.IsSome } },
             []
         | BeginPanelAnimation ->
             { model with

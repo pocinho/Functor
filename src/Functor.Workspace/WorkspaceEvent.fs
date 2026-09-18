@@ -5,6 +5,7 @@ open Functor.Domain.Document
 open Functor.Domain.Editing
 open Functor.Domain.Navigation
 open Functor.Domain.Syntax
+open Functor.Domain.Document
 
 type WorkspaceEvent =
     | AddDocument of DocumentModel
@@ -20,3 +21,5 @@ type WorkspaceEvent =
     | ApplySyntaxEvent of documentId: DocumentId * revision: int64 * event: SyntaxEvent
     | ApplyNavigationEvent of documentId: DocumentId * revision: int64 * event: NavigationEvent
     | ApplyDiagnosticsEvent of documentId: DocumentId * revision: int64 * event: DiagnosticsEvent
+    | SetNotebookOpen of documentId: DocumentId * isOpen: bool
+    | SetAgentOpen of documentId: DocumentId * isOpen: bool

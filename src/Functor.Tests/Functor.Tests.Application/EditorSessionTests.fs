@@ -17,6 +17,25 @@ type EditorSessionTests() =
         Assert.Equal(session.State.Status, session.Status)
 
     [<Fact>]
+    member _.``auxiliary state remains isolated when switching tabs``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.newDocument)
+        session.DispatchCommand(AppCommand.newDocument)
+        let firstId = session.State.Workspace.TabOrder.Head
+        let secondId = session.State.Workspace.TabOrder.Tail.Head
+
+        session.DispatchCommand(AppCommand.setNotebookOpen firstId true)
+        session.DispatchCommand(AppCommand.setAgentOpen secondId true)
+        session.Dispatch(CoreEvent.SwitchDocument firstId)
+
+        Assert.True(session.State.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
+        Assert.False(session.State.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen)
+        Assert.True(session.State.Workspace.Documents[secondId].Auxiliary.Agent.IsOpen)
+
+        session.Dispatch(CoreEvent.SwitchDocument secondId)
+        Assert.True(session.State.Workspace.Documents[secondId].Auxiliary.Agent.IsOpen)
+
+    [<Fact>]
     member _.``core command updates state and publishes the new state``() =
         let session = EditorSession()
         let publishedStates = ResizeArray<AppSessionState>()

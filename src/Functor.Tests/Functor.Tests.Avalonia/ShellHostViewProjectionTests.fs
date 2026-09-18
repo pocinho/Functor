@@ -4,6 +4,7 @@ open Avalonia.Controls
 open Avalonia.Headless.XUnit
 open Avalonia.Input
 open Avalonia.Interactivity
+open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia.Controls
 open Functor.Domain.Core
@@ -89,6 +90,7 @@ module ShellHostViewProjectionTests =
         withHostedView (fun view ->
             view.Editor.NewDocument()
             view.Editor.NewDocument()
+            Dispatcher.UIThread.RunJobs()
 
             let tabs = view.FindControl<DocumentListView>("TabsPanel")
 
@@ -136,6 +138,34 @@ module ShellHostViewProjectionTests =
             let label = content.Children[0] :?> TextBlock
 
             Assert.Equal("untitled *", label.Text))
+
+    [<AvaloniaFact>]
+    let ``toolbar panel choices are restored independently per tab`` () =
+        withHostedView (fun view ->
+            view.Editor.NewDocument()
+            view.Editor.NewDocument()
+            let firstId = view.SessionState.Workspace.TabOrder.Head
+            let secondId = view.SessionState.Workspace.TabOrder.Tail.Head
+            view.Editor.ActivateDocument(secondId)
+            Dispatcher.UIThread.RunJobs()
+            let notebookButton = view.FindControl<Button>("NotebookToggleButton")
+            let agentButton = view.FindControl<Button>("AgentToggleButton")
+
+            agentButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+            view.Editor.ActivateDocument(firstId)
+            Dispatcher.UIThread.RunJobs()
+            notebookButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+            agentButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
+            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen)
+
+            view.Editor.ActivateDocument(secondId)
+            Assert.False(view.SessionState.Workspace.Documents[secondId].Auxiliary.Notebook.IsOpen)
+            Assert.True(view.SessionState.Workspace.Documents[secondId].Auxiliary.Agent.IsOpen)
+
+            view.Editor.ActivateDocument(firstId)
+            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
+            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen))
 
     [<AvaloniaFact>]
     let ``status bar reflects messages and dirty state`` () =

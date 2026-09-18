@@ -6,10 +6,7 @@ open Functor.Workspace
 module WorkspaceLayoutTests =
     [<Fact>]
     let ``layout document round trips through versioned json`` () =
-        let layout =
-            { IsSidePanelOpen = true
-              SidePanelWidth = 480.0
-              ActivePanel = Some "agent" }
+        let layout = { SidePanelWidth = 480.0 }
 
         let result =
             layout
@@ -28,7 +25,6 @@ module WorkspaceLayoutTests =
     [<Fact>]
     let ``layout parser rejects non finite widths`` () =
         let result =
-            WorkspaceLayout.ofJson
-                "{\"version\":1,\"layout\":{\"isSidePanelOpen\":true,\"sidePanelWidth\":1e400,\"activePanel\":null}}"
+            WorkspaceLayout.ofJson "{\"version\":1,\"layout\":{\"sidePanelWidth\":1e400}}"
 
         Assert.Equal(Error "Layout sidePanelWidth must be finite.", result)

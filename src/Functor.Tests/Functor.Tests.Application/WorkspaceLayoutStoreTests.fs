@@ -26,10 +26,7 @@ module WorkspaceLayoutStoreTests =
     let ``store loads and saves workspace layout at workspace path`` () =
         let fileService = FakeFileService()
 
-        let layout =
-            { IsSidePanelOpen = true
-              SidePanelWidth = 420.0
-              ActivePanel = Some "notebook" }
+        let layout = { SidePanelWidth = 480.0 }
 
         fileService.ReadResult <- Ok(WorkspaceLayout.document layout |> WorkspaceLayout.toJson)
         let store = WorkspaceLayoutStore(fileService)

@@ -11,6 +11,19 @@ open Functor.Domain.Syntax
 
 type WorkspaceId = Guid
 
+type NotebookState = { IsOpen: bool }
+
+type AgentState = { IsOpen: bool }
+
+type DocumentAuxiliaryState =
+    { Notebook: NotebookState
+      Agent: AgentState }
+
+module DocumentAuxiliaryState =
+    let initial: DocumentAuxiliaryState =
+        { Notebook = { IsOpen = false }
+          Agent = { IsOpen = false } }
+
 /// State that belongs to one open document and survives tab switches.
 type PerDocumentSessionState =
     { Document: DocumentModel
@@ -19,13 +32,21 @@ type PerDocumentSessionState =
       Navigation: NavigationModel
       Diagnostics: DiagnosticsModel
       Mode: EditorMode
-      View: ViewState }
+      View: ViewState
+      Auxiliary: DocumentAuxiliaryState }
 
 /// The workspace owns document membership and the active tab. Document state is
 /// keyed by identity so switching tabs cannot reset editing or rendering state.
 type RecentlyClosedDocument = { Path: string; Name: string }
 
-type WorkspaceModel = { Id: WorkspaceId; RootPath: string option; Settings: WorkspaceSettings; ActiveDocumentId: DocumentId option; Documents: Map<DocumentId, PerDocumentSessionState>; TabOrder: DocumentId list; RecentlyClosedDocuments: RecentlyClosedDocument list }
+type WorkspaceModel =
+    { Id: WorkspaceId
+      RootPath: string option
+      Settings: WorkspaceSettings
+      ActiveDocumentId: DocumentId option
+      Documents: Map<DocumentId, PerDocumentSessionState>
+      TabOrder: DocumentId list
+      RecentlyClosedDocuments: RecentlyClosedDocument list }
 
 module WorkspaceModel =
 
@@ -44,7 +65,8 @@ module WorkspaceModel =
             fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
 
     let private sessionForDocument document =
-        let editing = EditingModel.createFromText document.InitialText (EditingModel.create ())
+        let editing =
+            EditingModel.createFromText document.InitialText (EditingModel.create ())
 
         { Document = document
           Editing = editing
@@ -53,12 +75,19 @@ module WorkspaceModel =
           Diagnostics = DiagnosticsModel.create ()
           Mode = EditorMode.Normal
           View =
-              { Viewport = { Width = 0; Height = 0 }
-                VerticalOffset = 0
-                HorizontalOffset = 0 } }
+            { Viewport = { Width = 0; Height = 0 }
+              VerticalOffset = 0
+              HorizontalOffset = 0 }
+          Auxiliary = DocumentAuxiliaryState.initial }
 
     let create (rootPath: string option) =
-        { Id = Guid.NewGuid(); RootPath = rootPath |> Option.map canonicalizeRootPath; Settings = WorkspaceSettings.defaults; ActiveDocumentId = None; Documents = Map.empty; TabOrder = []; RecentlyClosedDocuments = [] }
+        { Id = Guid.NewGuid()
+          RootPath = rootPath |> Option.map canonicalizeRootPath
+          Settings = WorkspaceSettings.defaults
+          ActiveDocumentId = None
+          Documents = Map.empty
+          TabOrder = []
+          RecentlyClosedDocuments = [] }
 
     let empty = create None
 
@@ -81,7 +110,8 @@ module WorkspaceModel =
             | Some document when
                 document.Document.Metadata.Path
                 |> Option.exists (fun documentPath ->
-                    String.Equals(documentPath, canonicalPath, StringComparison.OrdinalIgnoreCase)) ->
+                    String.Equals(documentPath, canonicalPath, StringComparison.OrdinalIgnoreCase))
+                ->
                 Some document
             | _ -> None)
 
@@ -90,8 +120,13 @@ module WorkspaceModel =
         | None -> true
         | Some root ->
             let canonicalPath = DocumentModel.canonicalizePath path
-            let rootWithSeparator = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + string Path.DirectorySeparatorChar
-            canonicalPath = root || canonicalPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase)
+
+            let rootWithSeparator =
+                root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + string Path.DirectorySeparatorChar
+
+            canonicalPath = root
+            || canonicalPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase)
 
     let consumeRecentlyClosed path workspace =
         let canonicalPath = DocumentModel.canonicalizePath path
@@ -99,7 +134,8 @@ module WorkspaceModel =
         { workspace with
             RecentlyClosedDocuments =
                 workspace.RecentlyClosedDocuments
-                |> List.filter (fun closed -> not (String.Equals(closed.Path, canonicalPath, StringComparison.OrdinalIgnoreCase))) }
+                |> List.filter (fun closed ->
+                    not (String.Equals(closed.Path, canonicalPath, StringComparison.OrdinalIgnoreCase))) }
 
     let addDocument (document: DocumentModel) (workspace: WorkspaceModel) =
         let existingDocument =
@@ -108,11 +144,12 @@ module WorkspaceModel =
 
         match existingDocument with
         | Some existing ->
-            { workspace with ActiveDocumentId = Some existing.Document.Id }
-        | None when containsDocument document.Id workspace ->
-            workspace
+            { workspace with
+                ActiveDocumentId = Some existing.Document.Id }
+        | None when containsDocument document.Id workspace -> workspace
         | None ->
-            let documents = workspace.Documents |> Map.add document.Id (sessionForDocument document)
+            let documents =
+                workspace.Documents |> Map.add document.Id (sessionForDocument document)
 
             { workspace with
                 ActiveDocumentId = Option.orElse (Some document.Id) workspace.ActiveDocumentId

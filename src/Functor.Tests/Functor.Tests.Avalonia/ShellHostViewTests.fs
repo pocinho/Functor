@@ -29,21 +29,17 @@ type ShellHostViewTests() =
 
         host.Dispatch(SetSidePanelWidth 500.0)
 
-        host.Dispatch(SelectPanel(Some Agent))
-
         let sidePanel = host.FindControl<SidePanelView>("SidePanelHost")
-        Assert.True(sidePanel.IsOpen)
-        Assert.Equal(500.0, sidePanel.PanelWidth)
-        Assert.Equal("Agent", sidePanel.Title)
-        Assert.Equal("Agent", (sidePanel.PanelContent :?> TextBlock).Text)
 
-        host.Dispatch(SelectPanel None)
-        Assert.False(sidePanel.IsOpen)
-        Assert.Equal(0.0, sidePanel.PanelWidth)
-
-        host.FindControl<Button>("NotebookPanelButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        host.FindControl<Button>("NotebookToggleButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
         Assert.True(sidePanel.IsOpen)
-        Assert.Equal("Notebook", sidePanel.Title)
+        Assert.Equal("Workspace", sidePanel.Title)
+
+        Assert.True(
+            WorkspaceModel.activeDocument host.SessionState.Workspace
+            |> Option.get
+            |> fun document -> document.Auxiliary.Notebook.IsOpen
+        )
 
         Assert.Same(firstEditor, host.Editor)
 
@@ -55,14 +51,9 @@ type ShellHostViewTests() =
         let window = Window(Content = host)
         window.Show()
 
-        host.ApplyLayout
-            { IsSidePanelOpen = false
-              SidePanelWidth = 480.0
-              ActivePanel = Some "agent" }
+        host.ApplyLayout { SidePanelWidth = 480.0 }
 
         Assert.Equal(480.0, host.Layout.SidePanelWidth)
-        Assert.Equal(Some "agent", host.Layout.ActivePanel)
-        Assert.False(host.Layout.IsSidePanelOpen)
 
         window.Close()
 
@@ -72,11 +63,11 @@ type ShellHostViewTests() =
         let window = Window(Content = host)
         window.Show()
 
-        Task.Run(fun () -> host.Dispatch(SelectPanel(Some Agent))).GetAwaiter().GetResult()
+        host.FindControl<Button>("NotebookToggleButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Task.Run(fun () -> host.Dispatch(SetSidePanelWidth 500.0)).GetAwaiter().GetResult()
         Dispatcher.UIThread.RunJobs()
 
         let sidePanel = host.FindControl<SidePanelView>("SidePanelHost")
-        Assert.True(sidePanel.IsOpen)
-        Assert.Equal("Agent", sidePanel.Title)
+        Assert.Equal(500.0, sidePanel.PanelWidth)
 
         window.Close()

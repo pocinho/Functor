@@ -57,7 +57,8 @@ type EditorSession(initialModel: CoreModel) =
                   Navigation = currentState.Model.Navigation
                   Diagnostics = currentState.Model.Diagnostics
                   Mode = currentState.Model.Mode
-                  View = currentState.Model.View }
+                  View = currentState.Model.View
+                  Auxiliary = currentState.Workspace.Documents[document.Id].Auxiliary }
 
             { currentState with
                 Workspace =
@@ -568,6 +569,24 @@ type EditorSession(initialModel: CoreModel) =
                     incrementalState <- IncrementalTokenizationState.extend startLine endLine incrementalState
                     requestCurrentTokenization CancellationToken.None
                 | None, _ -> ()
+        | SetNotebookOpen(documentId, isOpen) ->
+            state <-
+                { state with
+                    Workspace =
+                        Functor.Workspace.WorkspaceLogic.update
+                            (Functor.Workspace.SetNotebookOpen(documentId, isOpen))
+                            state.Workspace }
+
+            publishState ()
+        | SetAgentOpen(documentId, isOpen) ->
+            state <-
+                { state with
+                    Workspace =
+                        Functor.Workspace.WorkspaceLogic.update
+                            (Functor.Workspace.SetAgentOpen(documentId, isOpen))
+                            state.Workspace }
+
+            publishState ()
 
     member _.DispatchEffect(effect: AppEffect) =
         match effect with

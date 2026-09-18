@@ -10,7 +10,9 @@ type WorkspaceTabProjection =
       Name: string
       Path: string option
       IsActive: bool
-      IsDirty: bool }
+      IsDirty: bool
+      NotebookIsOpen: bool
+      AgentIsOpen: bool }
 
 type WorkspaceFileTreeNode =
     { Key: string
@@ -41,20 +43,29 @@ module WorkspaceProjection =
         documentState.Editing.IsDirty || documentState.Document.Metadata.IsDirty
 
     let private pathSegments (path: string) =
-        path.Split([| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |], StringSplitOptions.RemoveEmptyEntries)
+        path.Split(
+            [| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |],
+            StringSplitOptions.RemoveEmptyEntries
+        )
         |> Array.toList
 
     let private relativeSegments (workspace: WorkspaceModel) path =
         match workspace.RootPath with
         | Some root when WorkspaceModel.isPathWithinRoot path workspace ->
             Path.GetRelativePath(root, DocumentModel.canonicalizePath path) |> pathSegments
-        | _ ->
-            pathSegments (DocumentModel.canonicalizePath path)
+        | _ -> pathSegments (DocumentModel.canonicalizePath path)
 
     let private nodePath parentPath name =
-        if String.IsNullOrEmpty parentPath then name else Path.Combine(parentPath, name)
+        if String.IsNullOrEmpty parentPath then
+            name
+        else
+            Path.Combine(parentPath, name)
 
-    let private addTreeDocument (workspace: WorkspaceModel) (documentState: PerDocumentSessionState) (root: WorkspaceFileTreeNode) =
+    let private addTreeDocument
+        (workspace: WorkspaceModel)
+        (documentState: PerDocumentSessionState)
+        (root: WorkspaceFileTreeNode)
+        =
         let document = documentState.Document
 
         let segments, path =
@@ -68,10 +79,10 @@ module WorkspaceProjection =
             | [ name ] ->
                 let child =
                     { Key =
-                          if document.Metadata.Path.IsSome then
-                              "file:" + path
-                          else
-                              "document:" + document.Id.ToString("N")
+                        if document.Metadata.Path.IsSome then
+                            "file:" + path
+                        else
+                            "document:" + document.Id.ToString("N")
                       Name = name
                       Path = path
                       IsDirectory = false
@@ -86,6 +97,7 @@ module WorkspaceProjection =
                         |> List.sortBy (fun existing -> existing.Name.ToUpperInvariant()) }
             | name :: rest ->
                 let childPath = nodePath parentPath name
+
                 let existing =
                     node.Children
                     |> List.tryFind (fun child -> child.IsDirectory && child.Name = name)
@@ -106,14 +118,14 @@ module WorkspaceProjection =
                 { node with
                     Children =
                         updated
-                        :: (node.Children
-                            |> List.filter (fun child -> child.Key <> updated.Key))
+                        :: (node.Children |> List.filter (fun child -> child.Key <> updated.Key))
                         |> List.sortBy (fun child -> child.Name.ToUpperInvariant()) }
 
         insert root.Path segments root
 
     let private rootNode (workspace: WorkspaceModel) =
         let path = workspace.RootPath |> Option.defaultValue ""
+
         let name =
             workspace.RootPath
             |> Option.map Path.GetFileName
@@ -139,7 +151,9 @@ module WorkspaceProjection =
                       Name = documentState.Document.Metadata.Name
                       Path = documentState.Document.Metadata.Path
                       IsActive = workspace.ActiveDocumentId = Some documentId
-                      IsDirty = documentIsDirty documentState }
+                      IsDirty = documentIsDirty documentState
+                      NotebookIsOpen = documentState.Auxiliary.Notebook.IsOpen
+                      AgentIsOpen = documentState.Auxiliary.Agent.IsOpen }
             | None -> None)
         |> List.choose id
 

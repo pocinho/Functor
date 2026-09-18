@@ -10,6 +10,9 @@ type ShellViewNodeTests() =
         let input =
             { Tabs = []
               HasActiveDocument = false
+              ActiveDocumentId = None
+              NotebookIsOpen = false
+              AgentIsOpen = false
               Status =
                 { Line = 1
                   Column = 1
@@ -26,9 +29,8 @@ type ShellViewNodeTests() =
                   HorizontalViewport = 1.0
                   HorizontalOffset = 0.0 } }
 
-        let model, _ = ShellUpdate.update (SelectPanel(Some Agent)) ShellModel.initial
-        let nodes = ShellViewNode.describe model input
+        let nodes = ShellViewNode.describe ShellModel.initial input
 
         Assert.Contains(EditorNode false, nodes)
         Assert.Contains(WelcomeNode true, nodes)
-        Assert.Contains(SidePanelNode(true, ShellLayoutState.DefaultSidePanelWidth, Some Agent), nodes)
+        Assert.Contains(AuxiliaryNode(false, false), nodes)

@@ -5,26 +5,25 @@ open Functor.Avalonia
 open Functor.Avalonia.Controls
 
 module ShellView =
-    let private panelTitle panel =
-        match panel with
-        | Notebook -> "Notebook"
-        | Agent -> "Agent"
-        | PluginPanel name -> name
+    let private applyAuxiliary (host: SidePanelView) (model: ShellModel) (input: ShellViewInput) =
+        if input.NotebookIsOpen || input.AgentIsOpen then
+            let content = StackPanel(Spacing = 8.0)
 
-    let private applySidePanel (host: SidePanelView) node =
-        match node with
-        | SidePanelNode(isOpen, width, Some panel) when isOpen ->
+            if input.NotebookIsOpen then
+                content.Children.Add(TextBlock(Text = "Notebook")) |> ignore
+
+            if input.AgentIsOpen then
+                content.Children.Add(TextBlock(Text = "Agent")) |> ignore
+
             host.IsOpen <- true
-            host.PanelWidth <- width
-            let name = panelTitle panel
-            host.Title <- name
-            host.PanelContent <- TextBlock(Text = name)
-        | SidePanelNode _ ->
+            host.PanelWidth <- model.Layout.SidePanelWidth
+            host.Title <- "Workspace"
+            host.PanelContent <- content
+        else
             host.IsOpen <- false
             host.PanelWidth <- 0.0
             host.Title <- ""
             host.PanelContent <- null
-        | _ -> ()
 
     let applyModel
         (view: IShellProjectionTarget)
@@ -35,6 +34,6 @@ module ShellView =
         let nodes = ShellViewNode.describe model input
         view.ApplyShellInput input
 
-        nodes |> List.iter (applySidePanel sidePanelHost)
+        applyAuxiliary sidePanelHost model input
 
         nodes

@@ -3,6 +3,7 @@ namespace Functor.Application
 open Functor.Domain.Core
 open Functor.Domain.Document
 open Functor.Domain.Editing
+open Functor.Workspace
 
 /// High-level application commands emitted by the UI layer.
 /// These commands remain free of platform-specific behavior.
@@ -31,6 +32,8 @@ type AppCommand =
     | FileOperationFailed of message: string
     | RequestTokenization of language: string
     | TokenizationCompleted of TokenizationResult
+    | SetNotebookOpen of documentId: DocumentId * isOpen: bool
+    | SetAgentOpen of documentId: DocumentId * isOpen: bool
 
 module AppCommand =
     let toCoreEvent (event: CoreEvent) = ExecuteCoreEvent event
@@ -73,10 +76,15 @@ module AppCommand =
 
     let fileSaved path = FileSaved path
 
-    let fileSavedForDocument documentId revision path = FileSavedForDocument(documentId, revision, path)
+    let fileSavedForDocument documentId revision path =
+        FileSavedForDocument(documentId, revision, path)
 
     let fileOperationFailed message = FileOperationFailed message
 
     let requestTokenization language = RequestTokenization language
 
     let tokenizationCompleted result = TokenizationCompleted result
+
+    let setNotebookOpen documentId isOpen = SetNotebookOpen(documentId, isOpen)
+
+    let setAgentOpen documentId isOpen = SetAgentOpen(documentId, isOpen)

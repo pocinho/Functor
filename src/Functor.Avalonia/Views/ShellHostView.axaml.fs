@@ -28,6 +28,7 @@ type ShellHostView() as this =
     let fileNameText = lazy (this.FindControl<TextBlock>("FileNameText"))
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
     let tabBar = lazy (this.FindControl<Border>("TabBar"))
+    let tabToolbar = lazy (this.FindControl<Border>("TabToolbar"))
     let tabsPanel = lazy (this.FindControl<DocumentListView>("TabsPanel"))
     let sidePanelHost = lazy (this.FindControl<SidePanelView>("SidePanelHost"))
     let mutable model = ShellModel.initial
@@ -84,19 +85,12 @@ type ShellHostView() as this =
     let updateEmptyState (state: AppSessionState) =
         updateEmptyStateFromProjection state.Model.ActiveDocument.IsSome
 
-    let panelFromLayout panel =
-        match panel with
-        | Some "notebook" -> Some Notebook
-        | Some "agent" -> Some Agent
-        | Some name -> Some(PluginPanel name)
-        | None -> None
-
-    let panelToLayout panel =
-        match panel with
-        | Some Notebook -> Some "notebook"
-        | Some Agent -> Some "agent"
-        | Some(PluginPanel name) -> Some name
-        | None -> None
+    let updateToolbar (input: ShellViewInput) =
+        tabToolbar.Value.IsVisible <- input.HasActiveDocument
+        this.FindControl<Button>("NotebookToggleButton").IsEnabled <- input.HasActiveDocument
+        this.FindControl<Button>("AgentToggleButton").IsEnabled <- input.HasActiveDocument
+        this.FindControl<Button>("NotebookToggleButton").Classes.Set("selected", input.NotebookIsOpen)
+        this.FindControl<Button>("AgentToggleButton").Classes.Set("selected", input.AgentIsOpen)
 
     let showDiscardDialog () =
         match TopLevel.GetTopLevel(this) with
@@ -140,6 +134,7 @@ type ShellHostView() as this =
         let input = ShellProjection.fromEditor editor.Value
 
         ShellView.applyModel this sidePanelHost.Value model input |> ignore
+        updateToolbar input
 
     let refreshOnUiThread () =
         if Dispatcher.UIThread.CheckAccess() then
@@ -194,13 +189,41 @@ type ShellHostView() as this =
         updateTabs editor.SessionState
         updateEmptyState editor.SessionState
 
-        this.FindControl<Button>("NotebookPanelButton").Click.Add(fun _ -> this.Dispatch(SelectPanel(Some Notebook)))
-        this.FindControl<Button>("AgentPanelButton").Click.Add(fun _ -> this.Dispatch(SelectPanel(Some Agent)))
+        this
+            .FindControl<Button>("NotebookToggleButton")
+            .Click.Add(fun _ ->
+                match editor.SessionState.Workspace.ActiveDocumentId with
+                | Some documentId ->
+                    let isOpen =
+                        editor.SessionState.Workspace.Documents[documentId].Auxiliary.Notebook.IsOpen
+
+                    editor.DispatchApplicationCommand(AppCommand.setNotebookOpen documentId (not isOpen))
+                | None -> ())
+
+        this
+            .FindControl<Button>("AgentToggleButton")
+            .Click.Add(fun _ ->
+                match editor.SessionState.Workspace.ActiveDocumentId with
+                | Some documentId ->
+                    let isOpen =
+                        editor.SessionState.Workspace.Documents[documentId].Auxiliary.Agent.IsOpen
+
+                    editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId (not isOpen))
+                | None -> ())
+
         tabsPanel.Value.DocumentActivated.Add(fun documentId -> editor.ActivateDocument(documentId))
+
         tabsPanel.Value.DocumentCloseRequested.Add(fun documentId ->
             editor.ActivateDocument(documentId)
             editor.CloseDocument())
-        sidePanelHost.Value.CloseRequested.Add(fun _ -> this.Dispatch(SelectPanel None))
+
+        sidePanelHost.Value.CloseRequested.Add(fun _ ->
+            match editor.SessionState.Workspace.ActiveDocumentId with
+            | Some documentId ->
+                editor.DispatchApplicationCommand(AppCommand.setNotebookOpen documentId false)
+                editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId false)
+            | None -> ())
+
         this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())
         this.DetachedFromVisualTree.Add(fun _ -> disposeSubscriptions ())
 
@@ -209,18 +232,13 @@ type ShellHostView() as this =
     member _.SessionState = editor.Value.SessionState
 
     member _.Layout: WorkspaceLayout =
-        { IsSidePanelOpen = model.Layout.IsSidePanelOpen
-          SidePanelWidth = model.Layout.SidePanelWidth
-          ActivePanel = panelToLayout model.Layout.ActivePanel }
+        { SidePanelWidth = model.Layout.SidePanelWidth }
 
     member _.ApplyLayout(layout: WorkspaceLayout) =
-        let activePanel = panelFromLayout layout.ActivePanel
         let widthMessage = SetSidePanelWidth layout.SidePanelWidth
-        let panelMessage = SelectPanel activePanel
-        let openMessage = SetSidePanelOpen layout.IsSidePanelOpen
 
         model <-
-            [ widthMessage; panelMessage; openMessage ]
+            [ widthMessage ]
             |> List.fold (fun current message -> ShellUpdate.update message current |> fst) model
 
         refreshOnUiThread ()
@@ -244,6 +262,7 @@ type ShellHostView() as this =
         member _.ApplyShellInput(input) =
             updateTabsFromProjection input.Tabs
             updateEmptyStateFromProjection input.HasActiveDocument
+            updateToolbar input
             updateEditorStatus input.Status
             updateScrollBarFromProjection input.Scroll
 

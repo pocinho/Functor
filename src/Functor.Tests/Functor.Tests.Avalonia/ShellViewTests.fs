@@ -24,22 +24,23 @@ type ShellViewTests() =
         window.Close()
 
     [<AvaloniaFact>]
-    member _.``applying panel nodes updates and clears stable panel controls``() =
+    member _.``applying auxiliary projection updates and clears stable panel controls``() =
         let view = ShellHostView()
         let window = Window(Content = view)
         window.Show()
         let sidePanelHost = SidePanelView()
         let input = ShellProjection.fromEditor view.Editor
 
-        let panelModel, _ =
-            ShellUpdate.update (SelectPanel(Some(PluginPanel "Extensions"))) ShellModel.initial
+        let panelInput =
+            { input with
+                NotebookIsOpen = true
+                AgentIsOpen = true }
 
-        ShellView.applyModel view sidePanelHost panelModel input |> ignore
+        ShellView.applyModel view sidePanelHost ShellModel.initial panelInput |> ignore
 
         Assert.True(sidePanelHost.IsOpen)
         Assert.Equal(ShellLayoutState.DefaultSidePanelWidth, sidePanelHost.PanelWidth)
-        Assert.Equal("Extensions", sidePanelHost.Title)
-        Assert.Equal("Extensions", (sidePanelHost.PanelContent :?> TextBlock).Text)
+        Assert.Equal("Workspace", sidePanelHost.Title)
 
         ShellView.applyModel view sidePanelHost ShellModel.initial input |> ignore
 
