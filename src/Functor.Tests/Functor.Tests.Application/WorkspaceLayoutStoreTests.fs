@@ -6,6 +6,11 @@ open Functor.Application
 open Functor.Workspace
 
 module WorkspaceLayoutStoreTests =
+    let private persistedLayout =
+        { SidePanelWidth = 480.0
+          ActiveToolId = Some "search"
+          IsToolPanelOpen = true }
+
     type private FakeFileService() =
         let mutable readResult = Ok ""
         let mutable written: (string * string) option = None
@@ -26,18 +31,20 @@ module WorkspaceLayoutStoreTests =
     let ``store loads and saves workspace layout at workspace path`` () =
         let fileService = FakeFileService()
 
-        let layout = { SidePanelWidth = 480.0 }
-
-        fileService.ReadResult <- Ok(WorkspaceLayout.document layout |> WorkspaceLayout.toJson)
+        fileService.ReadResult <- Ok(WorkspaceLayout.document persistedLayout |> WorkspaceLayout.toJson)
         let store = WorkspaceLayoutStore(fileService)
         let root = Some "C:\\work"
         let loaded = store.Load(root) |> Async.RunSynchronously
-        let saved = store.Save(root, layout) |> Async.RunSynchronously
+        let saved = store.Save(root, persistedLayout) |> Async.RunSynchronously
         let expectedPath = Path.Combine("C:\\work", ".functor", "layout.json")
 
-        Assert.Equal(Ok(WorkspaceLayout.document layout), loaded)
+        Assert.Equal(Ok(WorkspaceLayout.document persistedLayout), loaded)
         Assert.Equal(Ok(), saved)
-        Assert.Equal(Some(expectedPath, WorkspaceLayout.document layout |> WorkspaceLayout.toJson), fileService.Written)
+
+        Assert.Equal(
+            Some(expectedPath, WorkspaceLayout.document persistedLayout |> WorkspaceLayout.toJson),
+            fileService.Written
+        )
 
     [<Fact>]
     let ``store rejects layout operations without workspace root`` () =

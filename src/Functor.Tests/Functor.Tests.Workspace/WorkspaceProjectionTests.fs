@@ -61,7 +61,7 @@ module WorkspaceProjectionTests =
         let model =
             workspace (Some "C:\\work") [ firstId, firstState; secondId, secondState ] [ firstId; secondId ] None
 
-        let tree = WorkspaceProjection.fileTree model
+        let tree = WorkspaceFileTree.create model
         let src = tree.Children |> List.exactlyOne
         let files = src.Children
 
@@ -70,6 +70,63 @@ module WorkspaceProjectionTests =
         Assert.Equal(Some secondId, files[0].DocumentId)
         Assert.Equal(Some firstId, files[1].DocumentId)
         Assert.All(files, fun file -> Assert.StartsWith("file:", file.Key))
+
+    [<Fact>]
+    let ``file tree is flat when no workspace root is selected`` () =
+        let first = DocumentModel.createFromFile "C:\\work\\src\\first.fs" "content"
+        let second = DocumentModel.createFromFile "D:\\other\\second.fs" "content"
+        let firstId = first.Id
+        let secondId = second.Id
+
+        let firstState =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument first)).Documents[firstId]
+
+        let secondState =
+            (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument second)).Documents[secondId]
+
+        let model =
+            workspace None [ firstId, firstState; secondId, secondState ] [ firstId; secondId ] None
+
+        let tree = WorkspaceFileTree.create model
+
+        Assert.True(tree.IsDirectory)
+        Assert.Equal<string list>([ "first.fs"; "second.fs" ], tree.Children |> List.map _.Name)
+        Assert.All(tree.Children, fun file -> Assert.False(file.IsDirectory))
+
+    [<Fact>]
+    let ``folder workspace tree includes closed files and nested directories`` () =
+        let root =
+            Path.Combine(Path.GetTempPath(), "functor-projection-" + Guid.NewGuid().ToString("N"))
+
+        let source = Path.Combine(root, "src")
+        let openPath = Path.Combine(root, "open.fs")
+        let closedPath = Path.Combine(source, "closed.fs")
+
+        try
+            Directory.CreateDirectory(source) |> ignore
+            File.WriteAllText(openPath, "open")
+            File.WriteAllText(closedPath, "closed")
+
+            let openDocument = DocumentModel.createFromFile openPath "open"
+
+            let openDocumentState =
+                (WorkspaceModel.empty |> WorkspaceLogic.update (AddDocument openDocument)).Documents[openDocument.Id]
+
+            let model =
+                workspace (Some root) [ openDocument.Id, openDocumentState ] [ openDocument.Id ] None
+
+            let tree = WorkspaceFileTree.create model
+            let sourceNode = tree.Children |> List.find (fun node -> node.Name = "src")
+            let closedNode = sourceNode.Children |> List.exactlyOne
+            let openNode = tree.Children |> List.find (fun node -> node.Name = "open.fs")
+
+            Assert.True(sourceNode.IsDirectory)
+            Assert.Equal("closed.fs", closedNode.Name)
+            Assert.True(closedNode.DocumentId.IsNone)
+            Assert.Equal(Some openDocument.Id, openNode.DocumentId)
+        finally
+            if Directory.Exists root then
+                Directory.Delete(root, true)
 
     [<Fact>]
     let ``active projection returns document session state`` () =
@@ -117,16 +174,8 @@ module WorkspaceProjectionTests =
             |> WorkspaceLogic.update (AddDocument first)
             |> WorkspaceLogic.update (AddDocument second)
 
-        let firstState = workspace.Documents[first.Id]
-        let workspace = WorkspaceLogic.update (SetNotebookOpen(first.Id, true)) workspace
         let workspace = WorkspaceLogic.update (SetAgentOpen(second.Id, true)) workspace
         let tabs = WorkspaceProjection.tabs workspace
-
-        Assert.True(
-            tabs
-            |> List.find (fun tab -> tab.DocumentId = first.Id)
-            |> fun tab -> tab.NotebookIsOpen
-        )
 
         Assert.False(
             tabs
@@ -140,4 +189,4 @@ module WorkspaceProjectionTests =
             |> fun tab -> tab.AgentIsOpen
         )
 
-        Assert.Equal(firstState.Auxiliary.Agent, workspace.Documents[first.Id].Auxiliary.Agent)
+        Assert.False(workspace.Documents[first.Id].Auxiliary.Agent.IsOpen)

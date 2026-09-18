@@ -15,9 +15,9 @@ type ShellScrollPresentation =
 
 type ShellViewInput =
     { Tabs: WorkspaceTabProjection list
+      FileTree: WorkspaceFileTreeNode
       HasActiveDocument: bool
       ActiveDocumentId: DocumentId option
-      NotebookIsOpen: bool
       AgentIsOpen: bool
       Status: EditorStatus
       Scroll: ShellScrollPresentation }
@@ -25,13 +25,9 @@ type ShellViewInput =
 module ShellProjection =
     let fromState (state: AppSessionState) (editor: EditorControl) =
         { Tabs = WorkspaceProjection.tabs state.Workspace
+          FileTree = WorkspaceFileTree.create state.Workspace
           HasActiveDocument = state.Model.ActiveDocument.IsSome
           ActiveDocumentId = state.Workspace.ActiveDocumentId
-          NotebookIsOpen =
-            state.Workspace
-            |> WorkspaceModel.activeDocument
-            |> Option.map (fun document -> document.Auxiliary.Notebook.IsOpen)
-            |> Option.defaultValue false
           AgentIsOpen =
             state.Workspace
             |> WorkspaceModel.activeDocument

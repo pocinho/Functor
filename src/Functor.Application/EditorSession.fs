@@ -263,6 +263,15 @@ type EditorSession(initialModel: CoreModel) =
         else
             requestEffects [ AppEffect.openFile ]
 
+    let requestOpenDocument path =
+        match Functor.Workspace.WorkspaceModel.tryFindDocumentByPath path state.Workspace with
+        | Some existing -> updateModel (SwitchDocument existing.Document.Id)
+        | None when isDirty () ->
+            setPendingAction
+                (PendingAction.OpenDocument path)
+                "Unsaved changes must be confirmed before opening another file."
+        | None -> requestEffects [ AppEffect.readFile path ]
+
     let requestOpenFolder () = requestEffects [ AppEffect.openFolder ]
 
     let replaceWorkspace path =
@@ -342,6 +351,7 @@ type EditorSession(initialModel: CoreModel) =
             else
                 updateModel (CoreEvent.NewDocument "untitled")
         | OpenFileRequested -> requestOpenFile ()
+        | OpenDocumentRequested path -> requestOpenDocument path
         | OpenFolderRequested -> requestOpenFolder ()
         | SaveFileRequested ->
             match state.Model.ActiveDocument with
@@ -387,6 +397,7 @@ type EditorSession(initialModel: CoreModel) =
                 match action with
                 | PendingAction.NewDocument -> updateModel (CoreEvent.NewDocument "untitled")
                 | PendingAction.OpenFile -> requestEffects [ AppEffect.openFile ]
+                | PendingAction.OpenDocument path -> requestEffects [ AppEffect.readFile path ]
                 | PendingAction.OpenWorkspace path -> replaceWorkspace path
                 | PendingAction.CloseDocument id -> updateModel (CoreEvent.CloseDocument id)
             | None -> ()
@@ -569,15 +580,20 @@ type EditorSession(initialModel: CoreModel) =
                     incrementalState <- IncrementalTokenizationState.extend startLine endLine incrementalState
                     requestCurrentTokenization CancellationToken.None
                 | None, _ -> ()
-        | SetNotebookOpen(documentId, isOpen) ->
-            state <-
-                { state with
-                    Workspace =
-                        Functor.Workspace.WorkspaceLogic.update
-                            (Functor.Workspace.SetNotebookOpen(documentId, isOpen))
-                            state.Workspace }
+        | ToggleAgentPanel ->
+            match state.Workspace.ActiveDocumentId with
+            | Some documentId ->
+                let isOpen = state.Workspace.Documents[documentId].Auxiliary.Agent.IsOpen
 
-            publishState ()
+                state <-
+                    { state with
+                        Workspace =
+                            Functor.Workspace.WorkspaceLogic.update
+                                (Functor.Workspace.SetAgentOpen(documentId, not isOpen))
+                                state.Workspace }
+
+                publishState ()
+            | None -> ()
         | SetAgentOpen(documentId, isOpen) ->
             state <-
                 { state with

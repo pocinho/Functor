@@ -2,6 +2,7 @@ namespace Functor.Tests.Avalonia
 
 open Functor.Application
 open Functor.Avalonia
+open Functor.Workspace
 open Xunit
 
 type ShellViewNodeTests() =
@@ -9,9 +10,16 @@ type ShellViewNodeTests() =
     member _.``view description reflects layout and projected editor visibility``() =
         let input =
             { Tabs = []
+              FileTree =
+                { Key = "root"
+                  Name = "Workspace"
+                  Path = ""
+                  IsDirectory = true
+                  DocumentId = None
+                  IsDirty = false
+                  Children = [] }
               HasActiveDocument = false
               ActiveDocumentId = None
-              NotebookIsOpen = false
               AgentIsOpen = false
               Status =
                 { Line = 1
@@ -33,4 +41,4 @@ type ShellViewNodeTests() =
 
         Assert.Contains(EditorNode false, nodes)
         Assert.Contains(WelcomeNode true, nodes)
-        Assert.Contains(AuxiliaryNode(false, false), nodes)
+        Assert.Contains(AuxiliaryNode false, nodes)

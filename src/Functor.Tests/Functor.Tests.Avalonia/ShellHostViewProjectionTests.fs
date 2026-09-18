@@ -140,7 +140,7 @@ module ShellHostViewProjectionTests =
             Assert.Equal("untitled *", label.Text))
 
     [<AvaloniaFact>]
-    let ``toolbar panel choices are restored independently per tab`` () =
+    let ``agent panel choices are restored independently per tab`` () =
         withHostedView (fun view ->
             view.Editor.NewDocument()
             view.Editor.NewDocument()
@@ -148,23 +148,16 @@ module ShellHostViewProjectionTests =
             let secondId = view.SessionState.Workspace.TabOrder.Tail.Head
             view.Editor.ActivateDocument(secondId)
             Dispatcher.UIThread.RunJobs()
-            let notebookButton = view.FindControl<Button>("NotebookToggleButton")
-            let agentButton = view.FindControl<Button>("AgentToggleButton")
-
-            agentButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+            view.Editor.DispatchApplicationCommand(AppCommand.toggleAgentPanel)
             view.Editor.ActivateDocument(firstId)
             Dispatcher.UIThread.RunJobs()
-            notebookButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
-            agentButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
-            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
+            view.Editor.DispatchApplicationCommand(AppCommand.toggleAgentPanel)
             Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen)
 
             view.Editor.ActivateDocument(secondId)
-            Assert.False(view.SessionState.Workspace.Documents[secondId].Auxiliary.Notebook.IsOpen)
             Assert.True(view.SessionState.Workspace.Documents[secondId].Auxiliary.Agent.IsOpen)
 
             view.Editor.ActivateDocument(firstId)
-            Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
             Assert.True(view.SessionState.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen))
 
     [<AvaloniaFact>]

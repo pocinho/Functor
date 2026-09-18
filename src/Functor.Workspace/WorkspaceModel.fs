@@ -11,18 +11,12 @@ open Functor.Domain.Syntax
 
 type WorkspaceId = Guid
 
-type NotebookState = { IsOpen: bool }
-
 type AgentState = { IsOpen: bool }
 
-type DocumentAuxiliaryState =
-    { Notebook: NotebookState
-      Agent: AgentState }
+type DocumentAuxiliaryState = { Agent: AgentState }
 
 module DocumentAuxiliaryState =
-    let initial: DocumentAuxiliaryState =
-        { Notebook = { IsOpen = false }
-          Agent = { IsOpen = false } }
+    let initial: DocumentAuxiliaryState = { Agent = { IsOpen = false } }
 
 /// State that belongs to one open document and survives tab switches.
 type PerDocumentSessionState =

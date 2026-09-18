@@ -5,6 +5,7 @@ open Functor.Domain.Document
 type PendingAction =
     | NewDocument
     | OpenFile
+    | OpenDocument of path: string
     | OpenWorkspace of path: string
     | CloseDocument of DocumentId
 

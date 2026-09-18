@@ -11,11 +11,10 @@ type AppCommandDescriptor =
 module AppCommandCatalog =
     let private alwaysEnabled _ = true
 
-    let private hasActiveDocument state =
-        state.Model.ActiveDocument.IsSome
+    let private hasActiveDocument state = state.Model.ActiveDocument.IsSome
 
     let private hasRecentlyClosedDocument state =
-      not state.Workspace.RecentlyClosedDocuments.IsEmpty
+        not state.Workspace.RecentlyClosedDocuments.IsEmpty
 
     let all =
         [ { Id = "file.new"
@@ -77,7 +76,13 @@ module AppCommandCatalog =
             Category = "Preferences"
             GestureText = Some "Ctrl+,"
             Command = AppCommand.openSettings
-            IsEnabled = alwaysEnabled } ]
+            IsEnabled = alwaysEnabled }
+          { Id = "workbench.toggleAgentPanel"
+            Title = "Toggle Agent Panel"
+            Category = "Workbench"
+            GestureText = None
+            Command = AppCommand.toggleAgentPanel
+            IsEnabled = hasActiveDocument } ]
 
     let tryFindById id =
         all |> List.tryFind (fun descriptor -> descriptor.Id = id)

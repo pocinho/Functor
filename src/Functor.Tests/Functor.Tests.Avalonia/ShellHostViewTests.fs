@@ -31,14 +31,19 @@ type ShellHostViewTests() =
 
         let sidePanel = host.FindControl<SidePanelView>("SidePanelHost")
 
-        host.FindControl<Button>("NotebookToggleButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        host.FindControl<Button>("WorkspaceToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
         Assert.True(sidePanel.IsOpen)
         Assert.Equal("Workspace", sidePanel.Title)
+        firstEditor.NewDocument()
+        Dispatcher.UIThread.RunJobs()
+        Assert.True(sidePanel.IsOpen)
+        Assert.Equal(500.0, sidePanel.PanelWidth)
+        Assert.Equal("Workspace", sidePanel.Title)
 
-        Assert.True(
+        Assert.False(
             WorkspaceModel.activeDocument host.SessionState.Workspace
             |> Option.get
-            |> fun document -> document.Auxiliary.Notebook.IsOpen
+            |> fun document -> document.Auxiliary.Agent.IsOpen
         )
 
         Assert.Same(firstEditor, host.Editor)
@@ -51,9 +56,15 @@ type ShellHostViewTests() =
         let window = Window(Content = host)
         window.Show()
 
-        host.ApplyLayout { SidePanelWidth = 480.0 }
+        host.ApplyLayout
+            { SidePanelWidth = 480.0
+              ActiveToolId = Some "search"
+              IsToolPanelOpen = true }
 
-        Assert.Equal(480.0, host.Layout.SidePanelWidth)
+        let layout = host.Layout
+        Assert.Equal(480.0, layout.SidePanelWidth)
+        Assert.Equal(Some "search", layout.ActiveToolId)
+        Assert.True(layout.IsToolPanelOpen)
 
         window.Close()
 
@@ -63,7 +74,7 @@ type ShellHostViewTests() =
         let window = Window(Content = host)
         window.Show()
 
-        host.FindControl<Button>("NotebookToggleButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        host.FindControl<Button>("WorkspaceToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
         Task.Run(fun () -> host.Dispatch(SetSidePanelWidth 500.0)).GetAwaiter().GetResult()
         Dispatcher.UIThread.RunJobs()
 

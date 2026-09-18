@@ -17,18 +17,16 @@ type EditorSessionTests() =
         Assert.Equal(session.State.Status, session.Status)
 
     [<Fact>]
-    member _.``auxiliary state remains isolated when switching tabs``() =
+    member _.``agent state remains isolated when switching tabs``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.newDocument)
         session.DispatchCommand(AppCommand.newDocument)
         let firstId = session.State.Workspace.TabOrder.Head
         let secondId = session.State.Workspace.TabOrder.Tail.Head
 
-        session.DispatchCommand(AppCommand.setNotebookOpen firstId true)
         session.DispatchCommand(AppCommand.setAgentOpen secondId true)
         session.Dispatch(CoreEvent.SwitchDocument firstId)
 
-        Assert.True(session.State.Workspace.Documents[firstId].Auxiliary.Notebook.IsOpen)
         Assert.False(session.State.Workspace.Documents[firstId].Auxiliary.Agent.IsOpen)
         Assert.True(session.State.Workspace.Documents[secondId].Auxiliary.Agent.IsOpen)
 
@@ -90,6 +88,46 @@ type EditorSessionTests() =
 
         Assert.Single(requestedEffects) |> ignore
         Assert.True([ AppEffect.openFile ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``opening a known closed path requests a read effect``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.openDocument "C:\\work\\file.fs")
+
+        Assert.True([ AppEffect.readFile "C:\\work\\file.fs" ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``opening an already open path activates the existing document``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\first.fs" "first")
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\second.fs" "second")
+        let firstId = session.State.Workspace.TabOrder.Head
+
+        session.DispatchCommand(AppCommand.openDocument "C:\\work\\first.fs")
+
+        Assert.Equal(Some firstId, session.State.Workspace.ActiveDocumentId)
+        Assert.Equal(2, session.State.Workspace.TabOrder.Length)
+
+    [<Fact>]
+    member _.``opening a path while dirty waits for discard confirmation``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\first.fs" "first")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
+        requestedEffects.Clear()
+
+        session.DispatchCommand(AppCommand.openDocument "C:\\work\\second.fs")
+
+        Assert.Equal(Some(PendingAction.OpenDocument "C:\\work\\second.fs"), session.Status.PendingAction)
+        Assert.Empty(requestedEffects)
+
+        session.DispatchCommand(AppCommand.confirmDiscardChanges)
+
+        Assert.True([ AppEffect.readFile "C:\\work\\second.fs" ] = requestedEffects[0])
 
     [<Fact>]
     member _.``file-opened command loads clean document contents``() =

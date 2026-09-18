@@ -28,9 +28,12 @@ type ShellHostView() as this =
     let fileNameText = lazy (this.FindControl<TextBlock>("FileNameText"))
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
     let tabBar = lazy (this.FindControl<Border>("TabBar"))
-    let tabToolbar = lazy (this.FindControl<Border>("TabToolbar"))
     let tabsPanel = lazy (this.FindControl<DocumentListView>("TabsPanel"))
     let sidePanelHost = lazy (this.FindControl<SidePanelView>("SidePanelHost"))
+
+    let auxiliaryPanelHost =
+        lazy (this.FindControl<SidePanelView>("AuxiliaryPanelHost"))
+
     let mutable model = ShellModel.initial
     let mutable subscriptions: IDisposable list = []
     let mutable confirmationOpen = false
@@ -85,12 +88,28 @@ type ShellHostView() as this =
     let updateEmptyState (state: AppSessionState) =
         updateEmptyStateFromProjection state.Model.ActiveDocument.IsSome
 
-    let updateToolbar (input: ShellViewInput) =
-        tabToolbar.Value.IsVisible <- input.HasActiveDocument
-        this.FindControl<Button>("NotebookToggleButton").IsEnabled <- input.HasActiveDocument
-        this.FindControl<Button>("AgentToggleButton").IsEnabled <- input.HasActiveDocument
-        this.FindControl<Button>("NotebookToggleButton").Classes.Set("selected", input.NotebookIsOpen)
-        this.FindControl<Button>("AgentToggleButton").Classes.Set("selected", input.AgentIsOpen)
+    let updateToolRail () =
+        let activeTool = model.Layout.ActiveTool
+        let isPanelOpen = model.Layout.IsToolPanelOpen
+
+        this
+            .FindControl<Button>("WorkspaceToolButton")
+            .Classes.Set("selected", isPanelOpen && activeTool = Some WorkspaceTool)
+
+        this
+            .FindControl<Button>("SearchToolButton")
+            .Classes.Set("selected", isPanelOpen && activeTool = Some SearchTool)
+
+    let updateToolRailMetadata () =
+        let applyDescriptor controlName descriptor =
+            let button = this.FindControl<Button>(controlName)
+            button.Content <- descriptor.Glyph
+            button.SetValue(ToolTip.TipProperty, descriptor.AccessibilityName)
+
+        applyDescriptor "WorkspaceToolButton" (ToolDescriptor.get WorkspaceTool)
+        |> ignore
+
+        applyDescriptor "SearchToolButton" (ToolDescriptor.get SearchTool) |> ignore
 
     let showDiscardDialog () =
         match TopLevel.GetTopLevel(this) with
@@ -133,8 +152,17 @@ type ShellHostView() as this =
     let refresh () =
         let input = ShellProjection.fromEditor editor.Value
 
-        ShellView.applyModel this sidePanelHost.Value model input |> ignore
-        updateToolbar input
+        ShellView.applyModel
+            this
+            sidePanelHost.Value
+            auxiliaryPanelHost.Value
+            model
+            input
+            (fun documentId -> editor.Value.ActivateDocument(documentId))
+            (fun path -> editor.Value.DispatchApplicationCommand(AppCommand.openDocument path))
+        |> ignore
+
+        updateToolRail ()
 
     let refreshOnUiThread () =
         if Dispatcher.UIThread.CheckAccess() then
@@ -188,28 +216,11 @@ type ShellHostView() as this =
         updateEditorStatus editor.EditorStatus
         updateTabs editor.SessionState
         updateEmptyState editor.SessionState
+        updateToolRailMetadata ()
 
-        this
-            .FindControl<Button>("NotebookToggleButton")
-            .Click.Add(fun _ ->
-                match editor.SessionState.Workspace.ActiveDocumentId with
-                | Some documentId ->
-                    let isOpen =
-                        editor.SessionState.Workspace.Documents[documentId].Auxiliary.Notebook.IsOpen
+        this.FindControl<Button>("WorkspaceToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool WorkspaceTool))
 
-                    editor.DispatchApplicationCommand(AppCommand.setNotebookOpen documentId (not isOpen))
-                | None -> ())
-
-        this
-            .FindControl<Button>("AgentToggleButton")
-            .Click.Add(fun _ ->
-                match editor.SessionState.Workspace.ActiveDocumentId with
-                | Some documentId ->
-                    let isOpen =
-                        editor.SessionState.Workspace.Documents[documentId].Auxiliary.Agent.IsOpen
-
-                    editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId (not isOpen))
-                | None -> ())
+        this.FindControl<Button>("SearchToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool SearchTool))
 
         tabsPanel.Value.DocumentActivated.Add(fun documentId -> editor.ActivateDocument(documentId))
 
@@ -217,11 +228,13 @@ type ShellHostView() as this =
             editor.ActivateDocument(documentId)
             editor.CloseDocument())
 
-        sidePanelHost.Value.CloseRequested.Add(fun _ ->
+        sidePanelHost.Value.CloseRequested.Add(fun _ -> this.Dispatch(CloseToolPanel))
+
+        sidePanelHost.Value.ResizeRequested.Add(fun width -> this.Dispatch(SetSidePanelWidth width))
+
+        auxiliaryPanelHost.Value.CloseRequested.Add(fun _ ->
             match editor.SessionState.Workspace.ActiveDocumentId with
-            | Some documentId ->
-                editor.DispatchApplicationCommand(AppCommand.setNotebookOpen documentId false)
-                editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId false)
+            | Some documentId -> editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId false)
             | None -> ())
 
         this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())
@@ -232,13 +245,23 @@ type ShellHostView() as this =
     member _.SessionState = editor.Value.SessionState
 
     member _.Layout: WorkspaceLayout =
-        { SidePanelWidth = model.Layout.SidePanelWidth }
+        { SidePanelWidth = model.Layout.SidePanelWidth
+          ActiveToolId =
+            model.Layout.ActiveTool
+            |> Option.map (ToolDescriptor.get >> fun descriptor -> descriptor.Id)
+          IsToolPanelOpen = model.Layout.IsToolPanelOpen }
 
     member _.ApplyLayout(layout: WorkspaceLayout) =
         let widthMessage = SetSidePanelWidth layout.SidePanelWidth
 
+        let toolMessage =
+            layout.ActiveToolId
+            |> Option.bind (fun toolId -> ToolDescriptor.all |> List.tryFind (fun descriptor -> descriptor.Id = toolId))
+            |> Option.map (fun descriptor -> descriptor.Kind)
+            |> fun tool -> RestoreTool(tool, layout.IsToolPanelOpen)
+
         model <-
-            [ widthMessage ]
+            [ widthMessage; toolMessage ]
             |> List.fold (fun current message -> ShellUpdate.update message current |> fst) model
 
         refreshOnUiThread ()
@@ -262,7 +285,6 @@ type ShellHostView() as this =
         member _.ApplyShellInput(input) =
             updateTabsFromProjection input.Tabs
             updateEmptyStateFromProjection input.HasActiveDocument
-            updateToolbar input
             updateEditorStatus input.Status
             updateScrollBarFromProjection input.Scroll
 

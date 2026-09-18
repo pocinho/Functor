@@ -14,6 +14,7 @@ type AppCommand =
     | ReportError of string
     | NewDocumentRequested
     | OpenFileRequested
+    | OpenDocumentRequested of path: string
     | OpenFolderRequested
     | SaveFileRequested
     | SaveFileAsRequested
@@ -32,7 +33,7 @@ type AppCommand =
     | FileOperationFailed of message: string
     | RequestTokenization of language: string
     | TokenizationCompleted of TokenizationResult
-    | SetNotebookOpen of documentId: DocumentId * isOpen: bool
+    | ToggleAgentPanel
     | SetAgentOpen of documentId: DocumentId * isOpen: bool
 
 module AppCommand =
@@ -45,6 +46,8 @@ module AppCommand =
     let reportError (error: string) = ReportError error
 
     let openFile = OpenFileRequested
+
+    let openDocument path = OpenDocumentRequested path
 
     let openFolder = OpenFolderRequested
 
@@ -85,6 +88,6 @@ module AppCommand =
 
     let tokenizationCompleted result = TokenizationCompleted result
 
-    let setNotebookOpen documentId isOpen = SetNotebookOpen(documentId, isOpen)
+    let toggleAgentPanel = ToggleAgentPanel
 
     let setAgentOpen documentId isOpen = SetAgentOpen(documentId, isOpen)

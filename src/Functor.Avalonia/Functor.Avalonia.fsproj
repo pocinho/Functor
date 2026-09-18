@@ -18,6 +18,7 @@
     <Compile Include="Controls\EditorControl.fs" />
     <Compile Include="Controls\SidePanelView.fs" />
     <Compile Include="Controls\DocumentListView.fs" />
+    <Compile Include="Controls\WorkspaceDocumentView.fs" />
     <Compile Include="ShellProjection.fs" />
     <Compile Include="ShellViewNode.fs" />
     <Compile Include="Views\CommandPaletteView.axaml.fs" />

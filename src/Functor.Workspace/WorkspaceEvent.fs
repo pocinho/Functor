@@ -21,5 +21,4 @@ type WorkspaceEvent =
     | ApplySyntaxEvent of documentId: DocumentId * revision: int64 * event: SyntaxEvent
     | ApplyNavigationEvent of documentId: DocumentId * revision: int64 * event: NavigationEvent
     | ApplyDiagnosticsEvent of documentId: DocumentId * revision: int64 * event: DiagnosticsEvent
-    | SetNotebookOpen of documentId: DocumentId * isOpen: bool
     | SetAgentOpen of documentId: DocumentId * isOpen: bool

@@ -5,7 +5,10 @@ open System.IO
 open System.Text
 open System.Text.Json
 
-type WorkspaceLayout = { SidePanelWidth: double }
+type WorkspaceLayout =
+    { SidePanelWidth: double
+      ActiveToolId: string option
+      IsToolPanelOpen: bool }
 
 type WorkspaceLayoutDocument =
     { Version: int
@@ -15,7 +18,10 @@ module WorkspaceLayout =
     [<Literal>]
     let CurrentVersion = 1
 
-    let defaults = { SidePanelWidth = 320.0 }
+    let defaults =
+        { SidePanelWidth = 320.0
+          ActiveToolId = None
+          IsToolPanelOpen = false }
 
     let document layout =
         { Version = CurrentVersion
@@ -31,6 +37,12 @@ module WorkspaceLayout =
         writer.WriteStartObject()
         writer.WriteNumber("sidePanelWidth", layoutDocument.Layout.SidePanelWidth)
 
+        match layoutDocument.Layout.ActiveToolId with
+        | Some toolId -> writer.WriteString("activeToolId", toolId)
+        | None -> ()
+
+        writer.WriteBoolean("isToolPanelOpen", layoutDocument.Layout.IsToolPanelOpen)
+
         writer.WriteEndObject()
         writer.WriteEndObject()
         writer.Flush()
@@ -43,6 +55,8 @@ module WorkspaceLayout =
             let mutable version = Unchecked.defaultof<JsonElement>
             let mutable layout = Unchecked.defaultof<JsonElement>
             let mutable sidePanelWidth = Unchecked.defaultof<JsonElement>
+            let mutable activeToolId = Unchecked.defaultof<JsonElement>
+            let mutable isToolPanelOpen = Unchecked.defaultof<JsonElement>
 
             if
                 not (root.TryGetProperty("version", &version))
@@ -64,9 +78,30 @@ module WorkspaceLayout =
             elif not (Double.IsFinite(sidePanelWidth.GetDouble())) then
                 Error "Layout sidePanelWidth must be finite."
             else
+                let activeTool =
+                    if layout.TryGetProperty("activeToolId", &activeToolId) then
+                        if activeToolId.ValueKind = JsonValueKind.String then
+                            Some(activeToolId.GetString())
+                        else
+                            None
+                    else
+                        None
+
+                let isPanelOpen =
+                    if
+                        layout.TryGetProperty("isToolPanelOpen", &isToolPanelOpen)
+                        && isToolPanelOpen.ValueKind = JsonValueKind.True
+                    then
+                        true
+                    else
+                        false
+
                 Ok
                     { Version = CurrentVersion
-                      Layout = { SidePanelWidth = sidePanelWidth.GetDouble() } }
+                      Layout =
+                        { SidePanelWidth = sidePanelWidth.GetDouble()
+                          ActiveToolId = activeTool
+                          IsToolPanelOpen = isPanelOpen } }
         with
         | :? JsonException as error -> Error(sprintf "Invalid layout JSON: %s" error.Message)
         | :? FormatException as error -> Error(sprintf "Invalid layout value: %s" error.Message)

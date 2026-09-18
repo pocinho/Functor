@@ -16,8 +16,9 @@ type ShellViewTests() =
         let editor = view.Editor
         let input = ShellProjection.fromEditor editor
         let sidePanelHost = SidePanelView()
+        let auxiliaryPanelHost = SidePanelView()
 
-        ShellView.applyModel view sidePanelHost ShellModel.initial input |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore |> ignore
 
         Assert.Same(editor, view.Editor)
 
@@ -29,24 +30,24 @@ type ShellViewTests() =
         let window = Window(Content = view)
         window.Show()
         let sidePanelHost = SidePanelView()
+        let auxiliaryPanelHost = SidePanelView()
         let input = ShellProjection.fromEditor view.Editor
 
         let panelInput =
             { input with
-                NotebookIsOpen = true
                 AgentIsOpen = true }
 
-        ShellView.applyModel view sidePanelHost ShellModel.initial panelInput |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial panelInput ignore |> ignore
 
-        Assert.True(sidePanelHost.IsOpen)
-        Assert.Equal(ShellLayoutState.DefaultSidePanelWidth, sidePanelHost.PanelWidth)
-        Assert.Equal("Workspace", sidePanelHost.Title)
+        Assert.True(auxiliaryPanelHost.IsOpen)
+        Assert.Equal(ShellLayoutState.DefaultSidePanelWidth, auxiliaryPanelHost.PanelWidth)
+        Assert.Equal("Agent", auxiliaryPanelHost.Title)
 
-        ShellView.applyModel view sidePanelHost ShellModel.initial input |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore |> ignore
 
-        Assert.False(sidePanelHost.IsOpen)
-        Assert.Equal(0.0, sidePanelHost.PanelWidth)
-        Assert.Equal("", sidePanelHost.Title)
-        Assert.Null(sidePanelHost.PanelContent)
+        Assert.False(auxiliaryPanelHost.IsOpen)
+        Assert.Equal(0.0, auxiliaryPanelHost.PanelWidth)
+        Assert.Equal("", auxiliaryPanelHost.Title)
+        Assert.Null(auxiliaryPanelHost.PanelContent)
 
         window.Close()

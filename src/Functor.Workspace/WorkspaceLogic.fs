@@ -110,12 +110,6 @@ module WorkspaceLogic =
             updateDocumentAtRevision documentId revision (fun documentState ->
                 { documentState with
                     Diagnostics = Functor.Domain.Diagnostics.DiagnosticsLogic.update event documentState.Diagnostics }) workspace
-        | SetNotebookOpen(documentId, isOpen) ->
-            updateDocument documentId (fun documentState ->
-                { documentState with
-                    Auxiliary =
-                        { documentState.Auxiliary with
-                            Notebook = { IsOpen = isOpen } } }) workspace
         | SetAgentOpen(documentId, isOpen) ->
             updateDocument documentId (fun documentState ->
                 { documentState with
