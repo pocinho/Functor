@@ -186,8 +186,8 @@ Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic 
 ## 🚧 Phase 7 — Navigation
 
 ### Phase 7.0 — Host UI Foundation (Pending)
-- Create Avalonia side panel widget abstraction (`SidePanelView`)
-- Build document list widget (open tabs, file icons, close controls)
+- ✅ Create Avalonia side panel widget abstraction (`SidePanelView`)
+- ✅ Build document list widget (open tabs, file icons, close controls)
 - Implement tab bar host component (active indicator, minimize/close)
 - Wire into `Functor.Avalonia.Desktop` host
 

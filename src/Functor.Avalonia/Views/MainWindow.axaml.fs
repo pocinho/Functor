@@ -1,11 +1,13 @@
 namespace Functor.Avalonia.Views
 
+open System
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
 open Avalonia.Markup.Xaml
 open Avalonia.Media
 open Avalonia.Styling
+open Avalonia.Threading
 open Functor.Application
 open Functor.Platform
 
@@ -13,8 +15,11 @@ type MainWindow() as this =
     inherit Window()
 
     let mutable shellState = ShellState.initial
+    let layoutStore = WorkspaceLayoutStore(FileService() :> IFileService)
+    let mutable loadedLayoutRoot: string option = None
     let titleBarDragSurface = lazy (this.FindControl<Border>("TitleBarDragSurface"))
-    let mainView = lazy (this.FindControl<MainView>("MainView"))
+    let shellHostView = lazy (this.FindControl<ShellHostView>("ShellHostView"))
+    let editor = lazy shellHostView.Value.Editor
     let commandPaletteOverlay = lazy (this.FindControl<Border>("CommandPaletteOverlay"))
 
     let commandPaletteView =
@@ -60,7 +65,7 @@ type MainWindow() as this =
 
     let applySettings settings =
         shellState <- ShellState.withSettings settings shellState
-        mainView.Value.ApplySettings settings
+        shellHostView.Value.ApplySettings settings
         applyTheme settings
         commandPaletteView.Value.ApplyTheme settings.Theme
 
@@ -71,6 +76,40 @@ type MainWindow() as this =
             | Ok settings -> applySettings settings
             | Error _ -> ()
         | Error _ -> ()
+
+    let saveLayoutForRoot root =
+        layoutStore.Save(root, shellHostView.Value.Layout)
+
+    let restoreLayoutForWorkspace (state: AppSessionState) =
+        let root = state.Workspace.RootPath
+
+        if root <> loadedLayoutRoot then
+            match loadedLayoutRoot with
+            | Some previousRoot ->
+                Async.StartImmediate(
+                    async {
+                        let! _ = saveLayoutForRoot(Some previousRoot)
+                        return ()
+                    }
+                )
+            | None -> ()
+
+            loadedLayoutRoot <- root
+
+            match root with
+            | Some workspaceRoot ->
+                Async.StartImmediate(
+                    async {
+                        let! result = layoutStore.Load(Some workspaceRoot)
+
+                        match result with
+                        | Ok layout ->
+                            Dispatcher.UIThread.Post(Action(fun () -> shellHostView.Value.ApplyLayout(layout.Layout)))
+                            |> ignore
+                        | Error _ -> ()
+                    }
+                )
+            | None -> ()
 
     let saveSettings settings =
         let json = AppSettingsLoader.toJson settings
@@ -90,7 +129,7 @@ type MainWindow() as this =
             let item = MenuItem(Header = sprintf "%s (%s)" closed.Name closed.Path)
 
             item.Click.Add(fun _ ->
-                mainView.Value.Editor.DispatchApplicationCommand(AppCommand.reopenRecentDocument closed.Path))
+                editor.Value.DispatchApplicationCommand(AppCommand.reopenRecentDocument closed.Path))
 
             recentMenu.Items.Add(item) |> ignore)
 
@@ -100,11 +139,11 @@ type MainWindow() as this =
     let hideCommandPalette () =
         shellState <- ShellState.closeCommandPalette shellState
         commandPaletteOverlay.Value.IsVisible <- false
-        mainView.Value.Editor.Focus() |> ignore
+        editor.Value.Focus() |> ignore
 
     let rec showCommandPalette () =
-        commandPaletteView.Value.ApplyTheme mainView.Value.Editor.ThemeSettings
-        commandPaletteView.Value.Configure(AppCommandCatalog.all, mainView.Value.SessionState, executeSelectedCommand)
+        commandPaletteView.Value.ApplyTheme editor.Value.ThemeSettings
+        commandPaletteView.Value.Configure(AppCommandCatalog.all, shellHostView.Value.SessionState, executeSelectedCommand)
         shellState <- ShellState.openCommandPalette shellState
         commandPaletteOverlay.Value.IsVisible <- true
         commandPaletteView.Value.FocusSearch()
@@ -113,7 +152,7 @@ type MainWindow() as this =
         match command with
         | OpenCommandPaletteRequested -> showCommandPalette ()
         | OpenSettingsRequested -> showSettingsDialog ()
-        | other -> mainView.Value.Editor.DispatchApplicationCommand(other)
+        | other -> editor.Value.DispatchApplicationCommand(other)
 
     and executeDescriptor (descriptor: AppCommandDescriptor) = executeCommand descriptor.Command
 
@@ -174,15 +213,21 @@ type MainWindow() as this =
 
         commandCenterButton.Value.Click.Add(fun _ -> showCommandPalette ())
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())
-        mainView.Value.Editor.StateChanged.Add(updateRecentDocumentsMenu)
-        updateRecentDocumentsMenu mainView.Value.SessionState
+        editor.Value.StateChanged.Add(updateRecentDocumentsMenu)
+        editor.Value.StateChanged.Add(restoreLayoutForWorkspace)
+        updateRecentDocumentsMenu shellHostView.Value.SessionState
 
-        mainView.Value.Editor.StateChanged.Add(fun state ->
+        editor.Value.StateChanged.Add(fun state ->
             let hasRecentDocuments = not state.Workspace.RecentlyClosedDocuments.IsEmpty
             this.FindControl<MenuItem>("ReopenClosedTabMenuItem").IsEnabled <- hasRecentDocuments)
 
         this.FindControl<MenuItem>("ReopenClosedTabMenuItem").IsEnabled <-
-            not mainView.Value.SessionState.Workspace.RecentlyClosedDocuments.IsEmpty
+            not shellHostView.Value.SessionState.Workspace.RecentlyClosedDocuments.IsEmpty
+
+        this.Closing.Add(fun _ ->
+            match loadedLayoutRoot with
+            | Some root -> saveLayoutForRoot(Some root) |> Async.RunSynchronously |> ignore
+            | None -> ())
 
         minimizeButton.Value.Click.Add(fun _ -> this.WindowState <- WindowState.Minimized)
         maximizeButton.Value.Click.Add(fun _ -> toggleMaximize ())

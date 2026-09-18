@@ -7,12 +7,14 @@ open Avalonia.Controls.Primitives
 open Avalonia.Layout
 open Avalonia.Media
 open Avalonia.Markup.Xaml
+open Avalonia.Threading
 open Functor.Application
+open Functor.Avalonia
 open Functor.Avalonia.Controls
 open Functor.Domain.Document
 open Functor.Workspace
 
-type MainView() as this =
+type ShellHostView() as this =
     inherit UserControl()
 
     let editor = lazy (this.FindControl<EditorControl>("EditorControl"))
@@ -26,33 +28,36 @@ type MainView() as this =
     let fileNameText = lazy (this.FindControl<TextBlock>("FileNameText"))
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
     let tabBar = lazy (this.FindControl<Border>("TabBar"))
-    let tabsPanel = lazy (this.FindControl<StackPanel>("TabsPanel"))
+    let tabsPanel = lazy (this.FindControl<DocumentListView>("TabsPanel"))
+    let sidePanelHost = lazy (this.FindControl<SidePanelView>("SidePanelHost"))
+    let mutable model = ShellModel.initial
+    let mutable subscriptions: IDisposable list = []
     let mutable confirmationOpen = false
 
     let colorFromArgb (argb: uint32) =
         Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
 
-    let updateEmptyState (state: AppSessionState) =
-        let hasActiveDocument = state.Model.ActiveDocument.IsSome
+    let updateEmptyStateFromProjection hasActiveDocument =
         editor.Value.IsVisible <- hasActiveDocument
         welcomeView.Value.IsVisible <- not hasActiveDocument
 
-    let updateScrollBar () =
-        let editor = editor.Value
+    let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
         let verticalScrollBar = verticalScrollBar.Value
         let horizontalScrollBar = horizontalScrollBar.Value
-        let maximum = float editor.VerticalScrollMaximum
 
-        verticalScrollBar.Maximum <- maximum
-        verticalScrollBar.ViewportSize <- float editor.VerticalScrollViewport
-        verticalScrollBar.LargeChange <- max 1.0 (float editor.VerticalScrollViewport)
-        verticalScrollBar.IsEnabled <- maximum > 0.0
-        verticalScrollBar.Value <- float editor.VerticalOffset
-        horizontalScrollBar.Maximum <- float editor.HorizontalScrollMaximum
-        horizontalScrollBar.ViewportSize <- editor.HorizontalScrollViewport
-        horizontalScrollBar.LargeChange <- max 1.0 editor.HorizontalScrollViewport
-        horizontalScrollBar.IsEnabled <- editor.HorizontalScrollMaximum > 0
-        horizontalScrollBar.Value <- float editor.HorizontalOffset
+        verticalScrollBar.Maximum <- scroll.VerticalMaximum
+        verticalScrollBar.ViewportSize <- scroll.VerticalViewport
+        verticalScrollBar.LargeChange <- max 1.0 scroll.VerticalViewport
+        verticalScrollBar.IsEnabled <- scroll.VerticalMaximum > 0.0
+        verticalScrollBar.Value <- scroll.VerticalOffset
+        horizontalScrollBar.Maximum <- scroll.HorizontalMaximum
+        horizontalScrollBar.ViewportSize <- scroll.HorizontalViewport
+        horizontalScrollBar.LargeChange <- max 1.0 scroll.HorizontalViewport
+        horizontalScrollBar.IsEnabled <- scroll.HorizontalMaximum > 0.0
+        horizontalScrollBar.Value <- scroll.HorizontalOffset
+
+    let updateScrollBar () =
+        updateScrollBarFromProjection (ShellProjection.fromEditor editor.Value).Scroll
 
     let updateEditorStatus (status: Functor.Application.EditorStatus) =
         positionText.Value.Text <- sprintf "Ln %d, Col %d" status.Line status.Column
@@ -61,10 +66,7 @@ type MainView() as this =
         fileNameText.Value.Text <- status.FileName
         dirtyText.Value.Text <- if status.IsDirty then "Modified" else ""
 
-    let updateTabs (state: AppSessionState) =
-        let panel = tabsPanel.Value
-        panel.Children.Clear()
-
+    let updateTabsFromProjection tabs =
         let palette = editor.Value.ThemeSettings.ThemeSource.Resolve()
         let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
 
@@ -74,49 +76,27 @@ type MainView() as this =
         let selected = SolidColorBrush(colorFromArgb palette.Selection)
         let background = SolidColorBrush(colorFromArgb palette.GutterBackground)
 
-        WorkspaceProjection.tabs state.Workspace
-        |> List.iter (fun tab ->
-            let tabButton =
-                Button(
-                    Padding = Thickness(10, 4),
-                    MinHeight = 28.0,
-                    BorderThickness = Thickness(1),
-                    BorderBrush = border,
-                    Background = (if tab.IsActive then selected else background),
-                    Foreground = foreground,
-                    HorizontalContentAlignment = HorizontalAlignment.Stretch
-                )
+        tabsPanel.Value.ApplyTabs tabs foreground border selected background
 
-            let label = TextBlock(Text = (if tab.IsDirty then tab.Name + " *" else tab.Name))
+    let updateTabs (state: AppSessionState) =
+        updateTabsFromProjection (WorkspaceProjection.tabs state.Workspace)
 
-            let closeButton =
-                Button(
-                    Content =
-                        TextBlock(
-                            Text = "\uE8BB",
-                            FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                            FontSize = 9.0,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            HorizontalAlignment = HorizontalAlignment.Center
-                        ),
-                    Width = 22.0,
-                    Height = 22.0,
-                    Padding = Thickness(0)
-                )
+    let updateEmptyState (state: AppSessionState) =
+        updateEmptyStateFromProjection state.Model.ActiveDocument.IsSome
 
-            let content = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
-            content.Children.Add(label) |> ignore
-            content.Children.Add(closeButton) |> ignore
-            tabButton.Content <- content
+    let panelFromLayout panel =
+        match panel with
+        | Some "notebook" -> Some Notebook
+        | Some "agent" -> Some Agent
+        | Some name -> Some(PluginPanel name)
+        | None -> None
 
-            tabButton.Click.Add(fun _ -> editor.Value.ActivateDocument(tab.DocumentId))
-
-            closeButton.Click.Add(fun args ->
-                args.Handled <- true
-                editor.Value.ActivateDocument(tab.DocumentId)
-                editor.Value.CloseDocument())
-
-            panel.Children.Add(tabButton) |> ignore)
+    let panelToLayout panel =
+        match panel with
+        | Some Notebook -> Some "notebook"
+        | Some Agent -> Some "agent"
+        | Some(PluginPanel name) -> Some name
+        | None -> None
 
     let showDiscardDialog () =
         match TopLevel.GetTopLevel(this) with
@@ -156,6 +136,32 @@ type MainView() as this =
             dialog.ShowDialog(owner) |> ignore
         | _ -> editor.Value.CancelPendingOperation()
 
+    let refresh () =
+        let input = ShellProjection.fromEditor editor.Value
+
+        ShellView.applyModel this sidePanelHost.Value model input |> ignore
+
+    let refreshOnUiThread () =
+        if Dispatcher.UIThread.CheckAccess() then
+            refresh ()
+        else
+            Dispatcher.UIThread.Post(Action refresh) |> ignore
+
+    let disposeSubscriptions () =
+        subscriptions |> List.iter (fun subscription -> subscription.Dispose())
+        subscriptions <- []
+
+    let attachSubscriptions () =
+        if subscriptions.IsEmpty then
+            let editorControl = editor.Value
+
+            subscriptions <-
+                [ editorControl.StateChanged.Subscribe(fun _ -> refreshOnUiThread ())
+                  editorControl.EditorStatusChanged.Subscribe(fun _ -> refreshOnUiThread ())
+                  editorControl.ScrollStateChanged.Subscribe(fun _ -> refreshOnUiThread ()) ]
+
+            refreshOnUiThread ()
+
     do
         this.InitializeComponent()
 
@@ -166,12 +172,6 @@ type MainView() as this =
         editor.StatusChanged.Add(fun status ->
             if status.PendingAction.IsSome && not confirmationOpen then
                 showDiscardDialog ())
-
-        editor.EditorStatusChanged.Add(updateEditorStatus)
-        editor.StateChanged.Add(updateTabs)
-        editor.StateChanged.Add(updateEmptyState)
-
-        editor.ScrollStateChanged.Add(fun () -> updateScrollBar ())
 
         verticalScrollBar.ValueChanged.Add(fun args ->
             let offset = int (Math.Round(args.NewValue))
@@ -194,9 +194,36 @@ type MainView() as this =
         updateTabs editor.SessionState
         updateEmptyState editor.SessionState
 
+        this.FindControl<Button>("NotebookPanelButton").Click.Add(fun _ -> this.Dispatch(SelectPanel(Some Notebook)))
+        this.FindControl<Button>("AgentPanelButton").Click.Add(fun _ -> this.Dispatch(SelectPanel(Some Agent)))
+        tabsPanel.Value.DocumentActivated.Add(fun documentId -> editor.ActivateDocument(documentId))
+        tabsPanel.Value.DocumentCloseRequested.Add(fun documentId ->
+            editor.ActivateDocument(documentId)
+            editor.CloseDocument())
+        sidePanelHost.Value.CloseRequested.Add(fun _ -> this.Dispatch(SelectPanel None))
+        this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())
+        this.DetachedFromVisualTree.Add(fun _ -> disposeSubscriptions ())
+
     member _.Editor = editor.Value
 
     member _.SessionState = editor.Value.SessionState
+
+    member _.Layout: WorkspaceLayout =
+        { IsSidePanelOpen = model.Layout.IsSidePanelOpen
+          SidePanelWidth = model.Layout.SidePanelWidth
+          ActivePanel = panelToLayout model.Layout.ActivePanel }
+
+    member _.ApplyLayout(layout: WorkspaceLayout) =
+        let activePanel = panelFromLayout layout.ActivePanel
+        let widthMessage = SetSidePanelWidth layout.SidePanelWidth
+        let panelMessage = SelectPanel activePanel
+        let openMessage = SetSidePanelOpen layout.IsSidePanelOpen
+
+        model <-
+            [ widthMessage; panelMessage; openMessage ]
+            |> List.fold (fun current message -> ShellUpdate.update message current |> fst) model
+
+        refreshOnUiThread ()
 
     member _.ApplySettings(settings: AppSettings) =
         editor.Value.ThemeSettings <- settings.Theme
@@ -212,5 +239,25 @@ type MainView() as this =
         statusBar.Value.BorderBrush <- SolidColorBrush(colorFromArgb borderColor)
         tabBar.Value.Background <- SolidColorBrush(colorFromArgb palette.GutterBackground)
         updateTabs editor.Value.SessionState
+
+    interface IShellProjectionTarget with
+        member _.ApplyShellInput(input) =
+            updateTabsFromProjection input.Tabs
+            updateEmptyStateFromProjection input.HasActiveDocument
+            updateEditorStatus input.Status
+            updateScrollBarFromProjection input.Scroll
+
+    member _.Model = model
+
+    member _.Dispatch(message: ShellMsg) =
+        let updatedModel, effects = ShellUpdate.update message model
+        model <- updatedModel
+
+        effects
+        |> List.iter (fun effect ->
+            match effect with
+            | DispatchAppCommand command -> editor.Value.DispatchApplicationCommand(command))
+
+        refreshOnUiThread ()
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)

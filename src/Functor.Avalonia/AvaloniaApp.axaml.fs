@@ -16,8 +16,8 @@ type AvaloniaApp() =
         match this.ApplicationLifetime with
         | :? IClassicDesktopStyleApplicationLifetime as desktopLifetime -> desktopLifetime.MainWindow <- MainWindow()
         | :? IActivityApplicationLifetime as singleViewFactoryApplicationLifetime ->
-            singleViewFactoryApplicationLifetime.MainViewFactory <- fun () -> MainView()
-        | :? ISingleViewApplicationLifetime as singleViewLifetime -> singleViewLifetime.MainView <- MainView()
+            singleViewFactoryApplicationLifetime.MainViewFactory <- fun () -> ShellHostView()
+        | :? ISingleViewApplicationLifetime as singleViewLifetime -> singleViewLifetime.MainView <- ShellHostView()
         | _ -> ()
 
         base.OnFrameworkInitializationCompleted()

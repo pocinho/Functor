@@ -9,6 +9,7 @@
     <Compile Include="FileType.fs" />
     <Compile Include="IClipboardService.fs" />
     <Compile Include="IFileService.fs" />
+    <Compile Include="WorkspaceLayoutStore.fs" />
     <Compile Include="IDialogService.fs" />
     <Compile Include="ITokenizerService.fs" />
     <Compile Include="IncrementalTokenizationState.fs" />

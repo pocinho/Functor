@@ -6,7 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="MainViewTests.fs" />
+    <Compile Include="ShellModelTests.fs" />
+    <Compile Include="ShellProjectionTests.fs" />
+    <Compile Include="ShellViewNodeTests.fs" />
+    <Compile Include="ShellViewTests.fs" />
+    <Compile Include="ShellHostViewTests.fs" />
+    <Compile Include="ShellHostViewProjectionTests.fs" />
     <Compile Include="MainWindowTests.fs" />
     <Compile Include="EditorControlTests.fs" />
     <Compile Include="InputAdapterTests.fs" />

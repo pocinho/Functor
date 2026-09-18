@@ -13,7 +13,7 @@ module MainWindowTests =
         let window = MainWindow()
         window.Show()
 
-        let mainView = window.FindControl<MainView>("MainView")
+        let editor = window.FindControl<ShellHostView>("ShellHostView").Editor
         let recentMenu = window.FindControl<MenuItem>("RecentDocumentsMenuItem")
         let reopenMenu = window.FindControl<MenuItem>("ReopenClosedTabMenuItem")
         let clearMenu = window.FindControl<MenuItem>("ClearRecentDocumentsMenuItem")
@@ -22,8 +22,8 @@ module MainWindowTests =
         Assert.False(reopenMenu.IsEnabled)
         Assert.False(clearMenu.IsEnabled)
 
-        mainView.Editor.DispatchApplicationCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
-        mainView.Editor.CloseDocument()
+        editor.DispatchApplicationCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        editor.CloseDocument()
 
         Assert.Equal(1, recentMenu.Items.Count)
         Assert.True(recentMenu.IsEnabled)

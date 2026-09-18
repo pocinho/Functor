@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="WorkspaceSettings.fs" />
+    <Compile Include="WorkspaceLayout.fs" />
     <Compile Include="WorkspaceModel.fs" />
     <Compile Include="WorkspaceProjection.fs" />
     <Compile Include="WorkspaceEvent.fs" />
