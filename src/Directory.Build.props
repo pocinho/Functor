@@ -5,6 +5,7 @@
 
   <PropertyGroup>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
 </Project>

@@ -183,8 +183,6 @@ Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic 
 - ✅ Added application-boundary integration coverage and validated the full solution: 235 tests passing.
 - ✅ Targeted desktop smoke testing performed and recorded manually.
 
-## 🚧 Phase alpha 3 - Dock integration
-
 ## 🚧 Phase 7 — Navigation
 
 ### Phase 7.0 — Host UI Foundation (Pending)
