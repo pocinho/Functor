@@ -18,7 +18,15 @@ module RenderingPipeline =
     /// - gutter width
     /// - tab width
     /// - soft-wrap settings
-    type RenderingConfig = { Measurer: TextMeasurer }
+    type RenderingConfig =
+        { Measurer: TextMeasurer
+          GutterPadding: float32
+          GutterMinimumWidth: float32 }
+
+    let createConfig measurer gutterPadding gutterMinimumWidth =
+        { Measurer = measurer
+          GutterPadding = gutterPadding
+          GutterMinimumWidth = gutterMinimumWidth }
 
     /// Runs the full rendering pipeline and produces a RenderingModel.
     let render (config: RenderingConfig) (model: CoreModel) : RenderingModel =
@@ -28,23 +36,30 @@ module RenderingPipeline =
             if config.Measurer.Metrics.LineHeight <= 0.0f then
                 1
             else
-              max 1 (int (ceil (float32 renderInput.View.Viewport.Height / config.Measurer.Metrics.LineHeight)))
+                max 1 (int (ceil (float32 renderInput.View.Viewport.Height / config.Measurer.Metrics.LineHeight)))
 
         // 1. Slice domain state into visible spans (Position/Range space)
         let sliced = SlicingEngine.sliceAll visibleLineCount renderInput
 
         // 2. Layout spans into pixel geometry
-        let gutterWidth = LayoutEngine.gutterWidth config.Measurer renderInput.Editing.Buffer.Length
+        let gutterWidth =
+            LayoutEngine.gutterWidthWithMetrics
+                config.Measurer
+                renderInput.Editing.Buffer.Length
+                config.GutterPadding
+                config.GutterMinimumWidth
 
         let layout =
-          LayoutEngine.layoutAll
-            config.Measurer
-            renderInput.View.Viewport
-            gutterWidth
-            renderInput.View.HorizontalOffset
-            sliced
+            LayoutEngine.layoutAllWithGutterPadding
+                config.Measurer
+                renderInput.View.Viewport
+                gutterWidth
+                config.GutterPadding
+                renderInput.View.HorizontalOffset
+                sliced
 
-        let textRuns = LayoutEngine.layoutTextRuns config.Measurer layout.Lines layout.Tokens
+        let textRuns =
+            LayoutEngine.layoutTextRuns config.Measurer layout.Lines layout.Tokens
 
         // 3. Convert layout result into a RenderingModel
         { TextRuns = textRuns
@@ -60,7 +75,12 @@ module RenderingPipeline =
           VisibleTokens =
             layout.Tokens
             |> List.map (fun t ->
-                { LineIndex = t.LineIndex; Range = t.Range; Style = t.Style; XStart = t.XStart; XEnd = t.XEnd; Y = t.Y })
+                { LineIndex = t.LineIndex
+                  Range = t.Range
+                  Style = t.Style
+                  XStart = t.XStart
+                  XEnd = t.XEnd
+                  Y = t.Y })
 
           Selections = layout.Selections |> List.map (fun s -> { Range = s.Range; Rects = s.Rects })
 

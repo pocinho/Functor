@@ -15,7 +15,12 @@ type LineLayout =
 
 /// Represents a laid-out token in pixel space.
 type TokenLayout =
-    { LineIndex: int; Range: Range; Style: TextStyle; XStart: float32; XEnd: float32; Y: float32 }
+    { LineIndex: int
+      Range: Range
+      Style: TextStyle
+      XStart: float32
+      XEnd: float32
+      Y: float32 }
 
 /// Represents laid-out selection geometry (rectangles in pixel space).
 type SelectionLayout = { Range: Range; Rects: list<Rect> }
@@ -37,7 +42,12 @@ type DiagnosticLayout =
 
 /// Aggregated layout result, ready to be turned into a RenderingModel.
 type LayoutResult =
-    { Lines: list<LineLayout>; Tokens: list<TokenLayout>; Selections: list<SelectionLayout>; Cursors: list<CursorLayout>; Diagnostics: list<DiagnosticLayout>; LineNumbers: list<LineNumber> }
+    { Lines: list<LineLayout>
+      Tokens: list<TokenLayout>
+      Selections: list<SelectionLayout>
+      Cursors: list<CursorLayout>
+      Diagnostics: list<DiagnosticLayout>
+      LineNumbers: list<LineNumber> }
 
 /// The LayoutEngine is responsible for converting sliced spans
 /// (still in Position/Range space) into pixel geometry using font metrics
@@ -50,12 +60,16 @@ module LayoutEngine =
         lines
         |> List.tryFind (fun line -> line.LineIndex = position.Line)
         |> Option.map (fun line ->
-            { position with Column = TextMeasurer.normalizeColumn line.Text position.Column })
+            { position with
+                Column = TextMeasurer.normalizeColumn line.Text position.Column })
         |> Option.defaultValue position
 
-    let gutterWidth (measurer: TextMeasurer) (lineCount: int) =
+    let gutterWidthWithMetrics (measurer: TextMeasurer) (lineCount: int) (padding: float32) (minimumWidth: float32) =
         let numberText = string (max 1 lineCount)
-        measurer.MeasureRange numberText 0 numberText.Length + 16.0f
+        max minimumWidth (measurer.MeasureRange numberText 0 numberText.Length + padding)
+
+    let gutterWidth (measurer: TextMeasurer) (lineCount: int) =
+        gutterWidthWithMetrics measurer lineCount 4.0f 16.0f
 
     let maxVerticalOffset (visibleLineCount: int) (buffer: string list) =
         max 0 (buffer.Length - max 1 visibleLineCount)
@@ -67,6 +81,7 @@ module LayoutEngine =
         (buffer: string list)
         =
         let availableWidth = max 0.0f (viewportWidth - gutterWidth)
+
         let maxOffsetForLine text =
             let widths = measurer.MeasurePrefix text
             let targetWidth = max 0.0f (widths.[text.Length] - availableWidth)
@@ -145,7 +160,8 @@ module LayoutEngine =
             lines
             |> List.tryFind (fun line -> line.LineIndex = token.Line)
             |> Option.map (fun line ->
-                let startColumn, endColumn = TextMeasurer.normalizeRange line.Text token.Column token.Length
+                let startColumn, endColumn =
+                    TextMeasurer.normalizeRange line.Text token.Column token.Length
 
                 let tokenRange: Range =
                     { Start =
@@ -177,8 +193,12 @@ module LayoutEngine =
             { LineIndex = line.LineIndex
               Text = line.Text.Substring(startColumn, endColumn - startColumn)
               Range =
-                { Start = { Line = line.LineIndex; Column = startColumn }
-                  End = { Line = line.LineIndex; Column = endColumn } }
+                { Start =
+                    { Line = line.LineIndex
+                      Column = startColumn }
+                  End =
+                    { Line = line.LineIndex
+                      Column = endColumn } }
               X = line.X + measurer.MeasureRange line.Text 0 startColumn
               Y = line.Y
               Height = line.Height
@@ -194,19 +214,22 @@ module LayoutEngine =
 
             let runs, column =
                 lineTokens
-                |> List.fold (fun (runs, column) token ->
-                    let startColumn = max column token.Range.Start.Column
-                    let endColumn = max startColumn token.Range.End.Column
-                    let runs =
-                        if column < startColumn then
-                            createRun line column startColumn TextStyle.defaultStyle :: runs
-                        else
-                            runs
+                |> List.fold
+                    (fun (runs, column) token ->
+                        let startColumn = max column token.Range.Start.Column
+                        let endColumn = max startColumn token.Range.End.Column
 
-                    if startColumn < endColumn then
-                        createRun line startColumn endColumn token.Style :: runs, endColumn
-                    else
-                        runs, column) ([], 0)
+                        let runs =
+                            if column < startColumn then
+                                createRun line column startColumn TextStyle.defaultStyle :: runs
+                            else
+                                runs
+
+                        if startColumn < endColumn then
+                            createRun line startColumn endColumn token.Style :: runs, endColumn
+                        else
+                            runs, column)
+                    ([], 0)
 
             let runs =
                 if column < line.Text.Length then
@@ -369,9 +392,10 @@ module LayoutEngine =
               Underline = underline })
 
     /// Layout line numbers into gutter geometry.
-    let layoutLineNumbersWithGutter
+    let layoutLineNumbersWithGutterAndPadding
         (measurer: TextMeasurer)
         (gutterWidth: float32)
+        (padding: float32)
         (lines: list<LineLayout>)
         : list<LineNumber> =
         lines
@@ -380,17 +404,25 @@ module LayoutEngine =
 
             { LineIndex = line.LineIndex
               Text = text
-              X = gutterWidth - measurer.MeasureRange text 0 text.Length - 4.0f
+              X = gutterWidth - measurer.MeasureRange text 0 text.Length - padding
               Y = line.Y })
+
+    let layoutLineNumbersWithGutter
+        (measurer: TextMeasurer)
+        (gutterWidth: float32)
+        (lines: list<LineLayout>)
+        : list<LineNumber> =
+        layoutLineNumbersWithGutterAndPadding measurer gutterWidth 4.0f lines
 
     let layoutLineNumbers (measurer: TextMeasurer) (lines: list<LineLayout>) : list<LineNumber> =
         layoutLineNumbersWithGutter measurer 0.0f lines
 
     /// Run the full layout pipeline.
-    let layoutAll
+    let layoutAllWithGutterPadding
         (measurer: TextMeasurer)
         (viewport: Viewport)
         (gutterWidth: float32)
+        (gutterPadding: float32)
         (horizontalOffset: int)
         (sliced: SlicingEngine.SlicedSpans)
         : LayoutResult =
@@ -399,7 +431,9 @@ module LayoutEngine =
         let selections = layoutSelections measurer horizontalOffset lines sliced.Selections
         let cursors = layoutCursors measurer horizontalOffset lines sliced.Cursors
         let diagnostics = layoutDiagnostics measurer lines sliced.Diagnostics
-        let lineNumbers = layoutLineNumbersWithGutter measurer gutterWidth lines
+
+        let lineNumbers =
+            layoutLineNumbersWithGutterAndPadding measurer gutterWidth gutterPadding lines
 
         { Lines = lines
           Tokens = tokens
@@ -407,3 +441,12 @@ module LayoutEngine =
           Cursors = cursors
           Diagnostics = diagnostics
           LineNumbers = lineNumbers }
+
+    let layoutAll
+        (measurer: TextMeasurer)
+        (viewport: Viewport)
+        (gutterWidth: float32)
+        (horizontalOffset: int)
+        (sliced: SlicingEngine.SlicedSpans)
+        : LayoutResult =
+        layoutAllWithGutterPadding measurer viewport gutterWidth 4.0f horizontalOffset sliced

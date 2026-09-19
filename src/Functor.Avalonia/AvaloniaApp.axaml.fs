@@ -5,12 +5,16 @@ open Avalonia.Controls.ApplicationLifetimes
 open Avalonia.Data.Core
 open Avalonia.Data.Core.Plugins
 open Avalonia.Markup.Xaml
+open Avalonia.Media
 open Functor.Avalonia.Views
 
 type AvaloniaApp() =
     inherit Application()
 
-    override this.Initialize() = AvaloniaXamlLoader.Load(this)
+    override this.Initialize() =
+        AvaloniaXamlLoader.Load(this)
+
+        ThemeManager.applyDefaults this
 
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with

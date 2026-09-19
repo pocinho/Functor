@@ -29,9 +29,14 @@ type ShellHostView() as this =
     let messageText = lazy (this.FindControl<TextBlock>("MessageText"))
     let fileNameText = lazy (this.FindControl<TextBlock>("FileNameText"))
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
-    let tabBar = lazy (this.FindControl<Border>("TabBar"))
     let tabsPanel = lazy (this.FindControl<DocumentListView>("TabsPanel"))
     let sidePanelHost = lazy (this.FindControl<SidePanelControl>("SidePanelHost"))
+    let settingsTabButton = lazy (this.FindControl<Button>("SettingsTabButton"))
+    let settingsDocument = lazy (this.FindControl<Grid>("SettingsDocument"))
+    let settingsView = lazy (this.FindControl<SettingsView>("SettingsView"))
+    let applySettingsButton = lazy (this.FindControl<Button>("ApplySettingsButton"))
+    let saveSettingsButton = lazy (this.FindControl<Button>("SaveSettingsButton"))
+    let closeSettingsButton = lazy (this.FindControl<Button>("CloseSettingsButton"))
 
     let auxiliaryPanelHost =
         lazy (this.FindControl<SidePanelControl>("AuxiliaryPanelHost"))
@@ -45,16 +50,19 @@ type ShellHostView() as this =
     let mutable pendingWorkspaceTree: WorkspaceModel option = None
     let mutable workspaceTreeGeneration = 0L
     let mutable requestRefresh: unit -> unit = ignore
+    let mutable settingsOpen = false
+    let mutable currentSettings = AppSettings.defaults
+    let mutable applySettingsCallback: AppSettings -> unit = ignore
 
-    let mutable cachedTabBrushes: (Functor.Rendering.ThemePalette * (IBrush * IBrush * IBrush * IBrush)) option =
-        None
-
-    let colorFromArgb (argb: uint32) =
-        Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
+    let mutable saveSettingsCallback: AppSettings -> Result<unit, string> =
+        fun _ -> Ok()
 
     let updateEmptyStateFromProjection hasActiveDocument =
-        editor.Value.IsVisible <- hasActiveDocument
-        welcomeView.Value.IsVisible <- not hasActiveDocument
+        editor.Value.IsVisible <- not settingsOpen && hasActiveDocument
+        welcomeView.Value.IsVisible <- not settingsOpen && not hasActiveDocument
+        settingsDocument.Value.IsVisible <- settingsOpen
+        settingsTabButton.Value.IsVisible <- settingsOpen
+        settingsTabButton.Value.Classes.Set("selected", settingsOpen)
 
     let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
         let verticalScrollBar = verticalScrollBar.Value
@@ -81,25 +89,7 @@ type ShellHostView() as this =
         fileNameText.Value.Text <- status.FileName
         dirtyText.Value.Text <- if status.IsDirty then "Modified" else ""
 
-    let updateTabsFromProjection tabs =
-        let palette = editor.Value.ThemeSettings.ThemeSource.Resolve()
-
-        let foreground, border, selected, background =
-            match cachedTabBrushes with
-            | Some(cachedPalette, brushes) when cachedPalette = palette -> brushes
-            | _ ->
-                let foreground: IBrush = SolidColorBrush(colorFromArgb palette.Foreground)
-
-                let border: IBrush =
-                    SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
-
-                let selected: IBrush = SolidColorBrush(colorFromArgb palette.Selection)
-                let background: IBrush = SolidColorBrush(colorFromArgb palette.GutterBackground)
-                let brushes = foreground, border, selected, background
-                cachedTabBrushes <- Some(palette, brushes)
-                brushes
-
-        tabsPanel.Value.ApplyTabs tabs foreground border selected background
+    let updateTabsFromProjection tabs = tabsPanel.Value.ApplyTabs tabs
 
     let updateTabs (state: AppSessionState) =
         updateTabsFromProjection (WorkspaceProjection.tabs state.Workspace)
@@ -167,6 +157,36 @@ type ShellHostView() as this =
             dialog.Closed.Add(fun _ -> confirmationOpen <- false)
             dialog.ShowDialog(owner) |> ignore
         | _ -> editor.Value.CancelPendingOperation()
+
+    let closeSettingsTab () =
+        settingsOpen <- false
+        settingsDocument.Value.IsVisible <- false
+        settingsTabButton.Value.IsVisible <- false
+        updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
+        editor.Value.Focus() |> ignore
+
+    let openSettingsTab () =
+        settingsView.Value.Configure(currentSettings)
+        settingsOpen <- true
+        settingsTabButton.Value.IsVisible <- true
+        updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
+
+    let tryApplySettings save =
+        match settingsView.Value.Draft with
+        | None -> settingsView.Value.SetError("Settings draft is not initialized.")
+        | Some draft ->
+            match SettingsDraft.tryCreateSettings draft with
+            | Error error -> settingsView.Value.SetError(error)
+            | Ok settings ->
+                let result =
+                    if save then
+                        saveSettingsCallback settings
+                    else
+                        Ok(applySettingsCallback settings)
+
+                match result with
+                | Ok() -> settingsView.Value.SetError("")
+                | Error error -> settingsView.Value.SetError(error)
 
     let hasDiskWorkspace (workspace: WorkspaceModel) =
         match workspace.RootPath with
@@ -328,13 +348,22 @@ type ShellHostView() as this =
 
         this.FindControl<Button>("SearchToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool SearchTool))
 
-        tabsPanel.Value.DocumentActivated.Add(fun documentId -> editor.ActivateDocument(documentId))
+        tabsPanel.Value.DocumentActivated.Add(fun documentId ->
+            settingsOpen <- false
+            editor.ActivateDocument(documentId)
+            updateEmptyStateFromProjection editor.SessionState.Workspace.ActiveDocumentId.IsSome)
 
         tabsPanel.Value.DocumentCloseRequested.Add(fun documentId ->
             editor.ActivateDocument(documentId)
             editor.CloseDocument())
 
         sidePanelHost.Value.ResizeRequested.Add(fun width -> this.Dispatch(SetSidePanelWidth width))
+
+        settingsTabButton.Value.Click.Add(fun _ -> openSettingsTab ())
+
+        applySettingsButton.Value.Click.Add(fun _ -> tryApplySettings false)
+        saveSettingsButton.Value.Click.Add(fun _ -> tryApplySettings true)
+        closeSettingsButton.Value.Click.Add(fun _ -> closeSettingsTab ())
 
         this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())
         this.DetachedFromVisualTree.Add(fun _ -> disposeSubscriptions ())
@@ -368,19 +397,38 @@ type ShellHostView() as this =
         refreshOnUiThread ()
 
     member _.ApplySettings(settings: AppSettings) =
+        currentSettings <- settings
         editor.Value.ThemeSettings <- settings.Theme
+        tabsPanel.Value.ApplyUiTheme(settings.Theme.Ui)
 
-        let palette = settings.Theme.ThemeSource.Resolve()
-        let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
-        let background = SolidColorBrush(colorFromArgb palette.Background)
-        let borderColor = palette.GutterSeparator |> Option.defaultValue palette.Foreground
+        match sidePanelHost.Value.PanelContent with
+        | :? WorkspaceDocumentControl as workspace -> workspace.ApplyUiTheme(settings.Theme.Ui)
+        | _ -> ()
 
-        this.Background <- background
-        this.Foreground <- foreground
-        statusBar.Value.Background <- SolidColorBrush(colorFromArgb palette.GutterBackground)
-        statusBar.Value.BorderBrush <- SolidColorBrush(colorFromArgb borderColor)
-        tabBar.Value.Background <- SolidColorBrush(colorFromArgb palette.GutterBackground)
         updateTabs editor.Value.SessionState
+
+    member _.OpenSettings
+        (settings: AppSettings, applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>)
+        =
+        applySettingsCallback <- applySettings
+        saveSettingsCallback <- saveSettings
+        currentSettings <- settings
+        openSettingsTab ()
+
+    member _.ToggleSettings
+        (settings: AppSettings, applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>)
+        =
+        if settingsOpen then
+            closeSettingsTab ()
+        else
+            applySettingsCallback <- applySettings
+            saveSettingsCallback <- saveSettings
+            currentSettings <- settings
+            openSettingsTab ()
+
+    member _.SetSettingsActions(applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>) =
+        applySettingsCallback <- applySettings
+        saveSettingsCallback <- saveSettings
 
     interface IShellProjectionTarget with
         member _.ApplyShellInput(input) =

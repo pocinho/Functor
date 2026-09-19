@@ -27,6 +27,7 @@
     <Compile Include="CommandPaletteState.fs" />
     <Compile Include="EditorStatus.fs" />
     <Compile Include="EditorSession.fs" />
+    <Compile Include="UiTheme.fs" />
     <Compile Include="ThemeSettings.fs" />
     <Compile Include="ThemeSettingsLoader.fs" />
     <Compile Include="AppSettings.fs" />

@@ -5,11 +5,11 @@ open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
 open Avalonia.Markup.Xaml
-open Avalonia.Media
-open Avalonia.Styling
 open Avalonia.Threading
+open Functor.Avalonia
 open Functor.Application
 open Functor.Platform
+open Functor.Rendering
 
 type MainWindow() as this =
     inherit Window()
@@ -27,8 +27,6 @@ type MainWindow() as this =
     let maximizeButton = lazy (this.FindControl<Button>("MaximizeButton"))
     let closeButton = lazy (this.FindControl<Button>("CloseButton"))
     let commandCenterButton = lazy (this.FindControl<Button>("CommandCenterButton"))
-    let applicationRoot = lazy (this.FindControl<Grid>("ApplicationRoot"))
-    let titleBar = lazy (this.FindControl<Border>("TitleBar"))
 
     let recentDocumentsMenuItem =
         lazy (this.FindControl<MenuItem>("RecentDocumentsMenuItem"))
@@ -36,43 +34,22 @@ type MainWindow() as this =
     let clearRecentDocumentsMenuItem =
         lazy (this.FindControl<MenuItem>("ClearRecentDocumentsMenuItem"))
 
-    let colorFromArgb (argb: uint32) =
-        Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
-
     let applyTheme (settings: AppSettings) =
-        let palette = settings.Theme.ThemeSource.Resolve()
-        let background = SolidColorBrush(colorFromArgb palette.Background)
-        let gutterBackground = SolidColorBrush(colorFromArgb palette.GutterBackground)
-        let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
-        let borderColor = palette.GutterSeparator |> Option.defaultValue palette.Foreground
-        let border = SolidColorBrush(colorFromArgb borderColor)
-
-        this.RequestedThemeVariant <-
-            if settings.Theme.Preset = "Graphite Light" then
-                ThemeVariant.Light
-            else
-                ThemeVariant.Dark
-
-        applicationRoot.Value.Background <- background
-        this.Foreground <- foreground
-        titleBar.Value.Background <- gutterBackground
-        titleBar.Value.BorderBrush <- border
-        commandCenterButton.Value.Background <- SolidColorBrush(colorFromArgb palette.Selection)
-        commandCenterButton.Value.BorderBrush <- border
-        commandCenterButton.Value.Foreground <- foreground
+        ThemeManager.apply Application.Current this settings
 
     let applySettings settings =
         shellState <- ShellState.withSettings settings shellState
-        shellHostView.Value.ApplySettings settings
         applyTheme settings
-        commandPaletteView.Value.ApplyTheme settings.Theme
+        shellHostView.Value.ApplySettings settings
 
     let loadSettings () =
         match Settings.tryReadText Settings.themeFilePath with
         | Ok text ->
             match AppSettingsLoader.loadText text with
             | Ok settings -> applySettings settings
-            | Error _ -> ()
+            | Error error when error.StartsWith("Theme schema warning:", StringComparison.Ordinal) ->
+                eprintfn "Warning: %s" error
+            | Error error -> eprintfn "Unable to load theme settings: %s" error
         | Error _ -> ()
 
     let saveSettings settings =
@@ -106,8 +83,6 @@ type MainWindow() as this =
         editor.Value.Focus() |> ignore
 
     let rec showCommandPalette () =
-        commandPaletteView.Value.ApplyTheme editor.Value.ThemeSettings
-
         commandPaletteView.Value.Configure(
             AppCommandCatalog.all,
             shellHostView.Value.SessionState,
@@ -134,8 +109,7 @@ type MainWindow() as this =
         | None -> ()
 
     and showSettingsDialog () =
-        let dialog = SettingsWindow(shellState.AppSettings, applySettings, saveSettings)
-        dialog.ShowDialog(this) |> ignore
+        shellHostView.Value.ToggleSettings(shellState.AppSettings, applySettings, saveSettings)
 
     let executeCommandById id =
         AppCommandCatalog.tryFindById id |> Option.iter executeDescriptor
@@ -157,6 +131,7 @@ type MainWindow() as this =
     do
         this.InitializeComponent()
 
+        shellHostView.Value.SetSettingsActions(applySettings, saveSettings)
         loadSettings ()
 
         this.FindControl<MenuItem>("NewMenuItem").Click.Add(fun _ -> executeCommandById "file.new")

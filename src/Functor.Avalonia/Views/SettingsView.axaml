@@ -3,7 +3,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="520"
-             x:Class="Functor.Avalonia.Views.SettingsView">
+             x:Class="Functor.Avalonia.Views.SettingsView"
+             Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
+             Foreground="{DynamicResource Theme.TextPrimaryBrush}">
   <ScrollViewer>
     <StackPanel Margin="16" Spacing="4">
       <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -47,6 +49,31 @@
         <TextBlock Text="Diagnostic info" VerticalAlignment="Center" />
         <TextBox x:Name="DiagnosticInfo" Grid.Column="1" />
       </Grid>
+      <TextBlock Text="Syntax colors" FontWeight="SemiBold" Margin="0,12,0,8" />
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Keyword" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxKeyword" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="String" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxString" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Comment" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxComment" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Number" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxNumber" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Type" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxType" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Function" VerticalAlignment="Center" />
+        <TextBox x:Name="SyntaxFunction" Grid.Column="1" />
+      </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Editor border" VerticalAlignment="Center" />
         <TextBox x:Name="EditorBorder" Grid.Column="1" />
@@ -55,7 +82,70 @@
         <TextBlock Text="Border width" VerticalAlignment="Center" />
         <TextBox x:Name="EditorBorderWidth" Grid.Column="1" />
       </Grid>
-      <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+      <TextBlock Text="Editor and UI" FontWeight="SemiBold" Margin="0,12,0,8" />
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor font" VerticalAlignment="Center" />
+        <TextBox x:Name="EditorFontFamily" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor fallback font" VerticalAlignment="Center" />
+        <TextBox x:Name="EditorFallbackFontFamily" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Icon font" VerticalAlignment="Center" />
+        <TextBox x:Name="IconFontFamily" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Workspace font size" VerticalAlignment="Center" />
+        <TextBox x:Name="WorkspaceFontSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor line height" VerticalAlignment="Center" />
+        <TextBox x:Name="EditorLineHeight" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor tab size" VerticalAlignment="Center" />
+        <TextBox x:Name="EditorTabSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Cursor width" VerticalAlignment="Center" />
+        <TextBox x:Name="CursorWidth" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Gutter separator width" VerticalAlignment="Center" />
+        <TextBox x:Name="GutterSeparatorWidth" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Command palette size" VerticalAlignment="Center" />
+        <TextBox x:Name="CommandPaletteFontSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Welcome title size" VerticalAlignment="Center" />
+        <TextBox x:Name="WelcomeTitleFontSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Control corner radius" VerticalAlignment="Center" />
+        <TextBox x:Name="ControlCornerRadius" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Resize handle color" VerticalAlignment="Center" />
+        <TextBox x:Name="ResizeHandleColor" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Command palette shadow" VerticalAlignment="Center" />
+        <TextBox x:Name="CommandPaletteShadowColor" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Workspace separator" VerticalAlignment="Center" />
+        <TextBox x:Name="WorkspaceSeparatorColor" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Measurement color" VerticalAlignment="Center" />
+        <TextBox x:Name="MeasurementColor" Grid.Column="1" />
+      </Grid>
+      <TextBlock x:Name="ErrorText"
+             TextWrapping="Wrap"
+             Foreground="{DynamicResource Theme.ErrorBrush}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

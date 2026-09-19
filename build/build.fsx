@@ -24,7 +24,7 @@ let parseArguments () =
             parse tail (Map.add (optionName.Substring(2)) optionValue values)
         | [ optionName ] when optionName = "--help" ->
             Console.WriteLine(
-                "Usage: dotnet fsi build.fsx [--runtimeIdentifier VALUE] [--outputRoot VALUE] [--outputDirectory VALUE] [--configuration VALUE]"
+                "Usage: dotnet fsi build.fsx [--runtimeIdentifier VALUE] [--outputRoot VALUE] [--outputDirectory VALUE] [--configuration VALUE] [--publishSingleFile VALUE] [--debugSymbols VALUE] [--selfContained VALUE]"
             )
 
             exit 0
@@ -45,10 +45,13 @@ let parseArguments () =
         |> resolvePath
 
     let configuration = get "configuration" "Release"
+    let publishSingleFile = get "publishSingleFile" "false"
+    let debugSymbols = get "debugSymbols" "true"
+    let selfContained = get "selfContained" "false"
 
-    runtimeIdentifier, outputRoot, outputDirectory, configuration
+    runtimeIdentifier, outputRoot, outputDirectory, configuration, publishSingleFile, debugSymbols, selfContained
 
-let runtimeIdentifier, outputRoot, outputDirectory, configuration =
+let runtimeIdentifier, outputRoot, outputDirectory, configuration, publishSingleFile, debugSymbols, selfContained =
     parseArguments ()
 
 let run (command: string) (arguments: string) (workingDirectory: string) =
@@ -87,12 +90,22 @@ let publish () =
     run
         "dotnet"
         (sprintf
-            "publish \"%s\" --configuration %s --runtime %s --no-self-contained --output \"%s\""
+            "publish \"%s\" --configuration %s --runtime %s --self-contained %s --output \"%s\" --property:PublishSingleFile=%s --property:IncludeNativeLibrariesForSelfExtract=%s --property:DebugSymbols=%s --property:DebugType=%s"
             project
             configuration
             runtimeIdentifier
-            outputDirectory)
+            selfContained
+            outputDirectory
+            publishSingleFile
+            publishSingleFile
+            debugSymbols
+            (if debugSymbols = "true" then "portable" else "None"))
         repositoryRoot
+
+    if publishSingleFile = "true" then
+        for file in Directory.EnumerateFiles(outputDirectory, "*", SearchOption.AllDirectories) do
+            if not (String.Equals(Path.GetExtension(file), ".exe", StringComparison.OrdinalIgnoreCase)) then
+                File.Delete(file)
 
 let signAndVerify () =
     let certificatePath = Path.Combine(buildDirectory, "FunctorDev.pfx")

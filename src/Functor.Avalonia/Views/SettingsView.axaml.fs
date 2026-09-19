@@ -1,5 +1,6 @@
 namespace Functor.Avalonia.Views
 
+open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Primitives
 open Avalonia.Media
@@ -57,11 +58,73 @@ type SettingsView() as this =
                 DiagnosticWarning = value })
 
         updateTextField "DiagnosticInfo" (fun value current -> { current with DiagnosticInfo = value })
+
+        updateTextField "SyntaxKeyword" (fun value current -> { current with SyntaxKeyword = value })
+        updateTextField "SyntaxString" (fun value current -> { current with SyntaxString = value })
+        updateTextField "SyntaxComment" (fun value current -> { current with SyntaxComment = value })
+        updateTextField "SyntaxNumber" (fun value current -> { current with SyntaxNumber = value })
+        updateTextField "SyntaxType" (fun value current -> { current with SyntaxType = value })
+        updateTextField "SyntaxFunction" (fun value current -> { current with SyntaxFunction = value })
+
         updateTextField "EditorBorder" (fun value current -> { current with EditorBorder = value })
 
         updateTextField "EditorBorderWidth" (fun value current ->
             { current with
                 EditorBorderWidth = value })
+
+        updateTextField "EditorFontFamily" (fun value current ->
+            { current with
+                EditorFontFamily = value })
+
+        updateTextField "EditorFallbackFontFamily" (fun value current ->
+            { current with
+                EditorFallbackFontFamily = value })
+
+        updateTextField "IconFontFamily" (fun value current -> { current with IconFontFamily = value })
+
+        updateTextField "WorkspaceFontSize" (fun value current ->
+            { current with
+                WorkspaceFontSize = value })
+
+        updateTextField "EditorLineHeight" (fun value current ->
+            { current with
+                EditorLineHeight = value })
+
+        updateTextField "EditorTabSize" (fun value current -> { current with EditorTabSize = value })
+
+        updateTextField "CursorWidth" (fun value current -> { current with CursorWidth = value })
+
+        updateTextField "GutterSeparatorWidth" (fun value current ->
+            { current with
+                GutterSeparatorWidth = value })
+
+        updateTextField "CommandPaletteFontSize" (fun value current ->
+            { current with
+                CommandPaletteFontSize = value })
+
+        updateTextField "WelcomeTitleFontSize" (fun value current ->
+            { current with
+                WelcomeTitleFontSize = value })
+
+        updateTextField "ControlCornerRadius" (fun value current ->
+            { current with
+                ControlCornerRadius = value })
+
+        updateTextField "ResizeHandleColor" (fun value current ->
+            { current with
+                ResizeHandleColor = value })
+
+        updateTextField "CommandPaletteShadowColor" (fun value current ->
+            { current with
+                CommandPaletteShadowColor = value })
+
+        updateTextField "WorkspaceSeparatorColor" (fun value current ->
+            { current with
+                WorkspaceSeparatorColor = value })
+
+        updateTextField "MeasurementColor" (fun value current ->
+            { current with
+                MeasurementColor = value })
 
     member this.Configure(settings: AppSettings) =
         draft <- Some(SettingsDraft.fromSettings settings)
@@ -87,19 +150,30 @@ type SettingsView() as this =
             setText (textBox "DiagnosticError") value.DiagnosticError
             setText (textBox "DiagnosticWarning") value.DiagnosticWarning
             setText (textBox "DiagnosticInfo") value.DiagnosticInfo
+            setText (textBox "SyntaxKeyword") value.SyntaxKeyword
+            setText (textBox "SyntaxString") value.SyntaxString
+            setText (textBox "SyntaxComment") value.SyntaxComment
+            setText (textBox "SyntaxNumber") value.SyntaxNumber
+            setText (textBox "SyntaxType") value.SyntaxType
+            setText (textBox "SyntaxFunction") value.SyntaxFunction
             setText (textBox "EditorBorder") value.EditorBorder
             setText (textBox "EditorBorderWidth") value.EditorBorderWidth
+            setText (textBox "EditorFontFamily") value.EditorFontFamily
+            setText (textBox "EditorFallbackFontFamily") value.EditorFallbackFontFamily
+            setText (textBox "IconFontFamily") value.IconFontFamily
+            setText (textBox "WorkspaceFontSize") value.WorkspaceFontSize
+            setText (textBox "EditorLineHeight") value.EditorLineHeight
+            setText (textBox "EditorTabSize") value.EditorTabSize
+            setText (textBox "CursorWidth") value.CursorWidth
+            setText (textBox "GutterSeparatorWidth") value.GutterSeparatorWidth
+            setText (textBox "CommandPaletteFontSize") value.CommandPaletteFontSize
+            setText (textBox "WelcomeTitleFontSize") value.WelcomeTitleFontSize
+            setText (textBox "ControlCornerRadius") value.ControlCornerRadius
+            setText (textBox "ResizeHandleColor") value.ResizeHandleColor
+            setText (textBox "CommandPaletteShadowColor") value.CommandPaletteShadowColor
+            setText (textBox "WorkspaceSeparatorColor") value.WorkspaceSeparatorColor
+            setText (textBox "MeasurementColor") value.MeasurementColor
             updatingControls <- false
         | None -> ()
-
-    member this.ApplyTheme(themeSettings: ThemeSettings) =
-        let palette = themeSettings.ThemeSource.Resolve()
-
-        let colorFromArgb (argb: uint32) =
-            Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
-
-        this.Background <- SolidColorBrush(colorFromArgb palette.Background)
-        this.Foreground <- SolidColorBrush(colorFromArgb palette.Foreground)
-        this.FindControl<TextBlock>("ErrorText").Foreground <- SolidColorBrush(colorFromArgb palette.DiagnosticError)
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)

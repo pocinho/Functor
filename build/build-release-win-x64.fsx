@@ -9,7 +9,7 @@ let outputDirectory = Path.Combine(outputRoot, "win-x64")
 
 let arguments =
     sprintf
-        "fsi \"%s\" --runtimeIdentifier win-x64 --outputRoot \"%s\" --outputDirectory \"%s\" --configuration Release"
+        "fsi \"%s\" --runtimeIdentifier win-x64 --outputRoot \"%s\" --outputDirectory \"%s\" --configuration Release --publishSingleFile true --debugSymbols false --selfContained true"
         buildScript
         outputRoot
         outputDirectory
@@ -26,5 +26,17 @@ buildProcess.WaitForExit()
 
 if buildProcess.ExitCode <> 0 then
     failwithf "build.fsx failed with exit code %d." buildProcess.ExitCode
+
+let executables =
+    Directory.GetFiles(outputDirectory, "*.exe", SearchOption.AllDirectories)
+
+if executables.Length <> 1 then
+    failwithf "Expected exactly one executable in the release output, found %d." executables.Length
+
+let executablePath = executables.[0]
+let targetPath = Path.Combine(outputDirectory, "Functor.exe")
+
+if not (String.Equals(executablePath, targetPath, StringComparison.OrdinalIgnoreCase)) then
+    File.Move(executablePath, targetPath)
 
 buildProcess.Dispose()

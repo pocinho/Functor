@@ -2,26 +2,38 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:Functor.Avalonia.Controls"
              xmlns:views="using:Functor.Avalonia.Views"
-             x:Class="Functor.Avalonia.Views.ShellHostView">
+             x:Class="Functor.Avalonia.Views.ShellHostView"
+             Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
+             Foreground="{DynamicResource Theme.TextPrimaryBrush}">
     <Grid>
         <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
             <Border x:Name="TabBar"
                     Grid.Row="0"
                     Grid.Column="2"
                     Grid.ColumnSpan="3"
-                    BorderThickness="0,0,0,1"
-                    Padding="4,3">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Hidden">
+                        BorderThickness="0,0,0,1"
+                        Padding="4,3"
+                        Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                        BorderBrush="{DynamicResource Theme.BorderBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="2">
                     <controls:DocumentListView x:Name="TabsPanel" />
-                </ScrollViewer>
+                        <Button x:Name="SettingsTabButton"
+                            Content="Settings"
+                            Padding="10,4"
+                            MinHeight="28"
+                            Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                            BorderBrush="{DynamicResource Theme.BorderBrush}"
+                            Foreground="{DynamicResource Theme.TextPrimaryBrush}" />
+                </StackPanel>
             </Border>
             <Border x:Name="ToolRail"
                     Grid.Row="0"
                     Grid.RowSpan="3"
                     Grid.Column="0"
                     Padding="3"
-                    BorderThickness="0,0,1,0">
+                    BorderThickness="0,0,1,0"
+                    Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                    BorderBrush="{DynamicResource Theme.BorderBrush}">
                 <StackPanel Spacing="4">
                     <Button x:Name="WorkspaceToolButton" Content="W" ToolTip.Tip="Workspace" />
                     <Button x:Name="SearchToolButton" Content="S" ToolTip.Tip="Search" />
@@ -46,6 +58,24 @@
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"
                               IsVisible="False" />
+            <Grid x:Name="SettingsDocument"
+                  Grid.Row="1"
+                  Grid.Column="2"
+                  IsVisible="False"
+                  RowDefinitions="*,Auto">
+                <views:SettingsView x:Name="SettingsView" Grid.Row="0" />
+                <Border x:Name="SettingsFooter"
+                    Grid.Row="1"
+                    BorderThickness="0,1,0,0"
+                    Padding="12"
+                    BorderBrush="{DynamicResource Theme.BorderBrush}">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <Button x:Name="ApplySettingsButton" Content="Apply" />
+                        <Button x:Name="SaveSettingsButton" Content="Save" />
+                        <Button x:Name="CloseSettingsButton" Content="Close" />
+                    </StackPanel>
+                </Border>
+            </Grid>
                      <controls:SidePanelControl x:Name="AuxiliaryPanelHost"
                                  Grid.Row="1"
                                  Grid.Column="3"
@@ -71,7 +101,9 @@
                     Grid.Row="3"
                     Grid.ColumnSpan="5"
                     BorderThickness="0,1,0,0"
-                    Padding="8,4">
+                    Padding="8,4"
+                    Background="{DynamicResource Theme.PanelBackgroundBrush}"
+                    BorderBrush="{DynamicResource Theme.BorderBrush}">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                     <TextBlock x:Name="PositionText" Grid.Column="0" />
                     <TextBlock x:Name="FileTypeText" Grid.Column="1" Margin="20,0,0,0" />

@@ -6,6 +6,7 @@ open Avalonia.Controls
 open Avalonia.Layout
 open Avalonia.Markup.Xaml
 open Avalonia.Media
+open Functor.Application
 open Functor.Domain.Document
 open Functor.Workspace
 
@@ -22,7 +23,8 @@ type WorkspaceDocumentControl() as this =
     let mutable openEditorsPanel: StackPanel option = None
     let mutable treePanel: StackPanel option = None
 
-    let itemFontSize = 12.0
+    let mutable uiTheme = UiThemeDefaults.defaultTheme
+    let mutable itemFontSize = uiTheme.WorkspaceFontSize
 
     let indentation depth = Thickness(float (depth * 14), 0, 0, 0)
 
@@ -50,7 +52,7 @@ type WorkspaceDocumentControl() as this =
 
         let header =
             Border(
-                BorderBrush = SolidColorBrush(Color.FromArgb(110uy, 160uy, 160uy, 160uy)),
+                BorderBrush = (Application.Current.Resources["Theme.WorkspaceSeparatorBrush"] :?> IBrush),
                 BorderThickness = Thickness(0, 0, 0, 1),
                 Padding = Thickness(0),
                 Child =
@@ -136,6 +138,22 @@ type WorkspaceDocumentControl() as this =
     member _.DocumentActivated = documentActivated.Publish
 
     member _.FileOpenRequested = fileOpenRequested.Publish
+
+    member this.ApplyUiTheme(value: UiThemeDefaults) =
+        let previousRoot = renderedRoot
+        let previousTabs = renderedTabs
+
+        uiTheme <- value
+        itemFontSize <- value.WorkspaceFontSize
+        renderedRoot <- None
+        renderedTabs <- None
+        openEditorsPanel <- None
+        treePanel <- None
+        content.Value.Children.Clear()
+
+        match previousRoot, previousTabs with
+        | Some root, Some tabs -> this.ApplyWorkspace(root, tabs)
+        | _ -> ()
 
     member _.ApplyWorkspace(root: WorkspaceFileTreeNode, tabs: WorkspaceTabProjection list) =
         let rootChanged =

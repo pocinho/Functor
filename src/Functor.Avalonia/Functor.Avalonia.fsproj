@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <Compile Include="ShellModel.fs" />
+    <Compile Include="ThemeResources.fs" />
+    <Compile Include="ThemeManager.fs" />
     <Compile Include="Services\AvaloniaClipboardService.fs" />
     <Compile Include="Services\AvaloniaDialogService.fs" />
     <Compile Include="Rendering\RenderingSurface.fs" />
@@ -23,7 +25,6 @@
     <Compile Include="ShellViewNode.fs" />
     <Compile Include="Views\CommandPaletteView.axaml.fs" />
     <Compile Include="Views\SettingsView.axaml.fs" />
-    <Compile Include="Views\SettingsWindow.axaml.fs" />
     <Compile Include="Views\WelcomeView.axaml.fs" />
     <Compile Include="Views\IShellProjectionTarget.fs" />
     <Compile Include="Views\ShellView.axaml.fs" />

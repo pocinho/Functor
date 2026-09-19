@@ -6,5 +6,155 @@
 
     <Application.Styles>
         <FluentTheme />
+
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Theme.HoverBrush}" />
+        </Style>
+
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="{DynamicResource Theme.PressedBrush}" />
+        </Style>
+
+        <Style Selector="Button:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="Button.selected">
+            <Setter Property="Background" Value="{DynamicResource Theme.SelectionBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="Button.tab">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="Button:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.DisabledBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="TextBox:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="TextBox:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.DisabledBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+        </Style>
+
+        <Style Selector="TextBox:error">
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.ErrorBrush}" />
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="ComboBox:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="ComboBox:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextMutedBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+        </Style>
+
+        <Style Selector="ListBox">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Theme.HoverBrush}" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource Theme.SelectionBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="TabControl">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Theme.HoverBrush}" />
+        </Style>
+
+        <Style Selector="TabItem:selected">
+            <Setter Property="Background" Value="{DynamicResource Theme.FocusBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}" />
+        </Style>
+
+        <Style Selector="MenuItem">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="MenuItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Theme.HoverBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
+
+        <Style Selector="MenuItem:pressed">
+            <Setter Property="Background" Value="{DynamicResource Theme.PressedBrush}" />
+        </Style>
+
+        <Style Selector="MenuItem:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="MenuItem:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.DisabledBrush}" />
+        </Style>
+
+        <Style Selector="ScrollBar">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.BorderBrush}" />
+        </Style>
+
+        <Style Selector="ScrollBar:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="ScrollBar:focus-visible">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.FocusBrush}" />
+        </Style>
+
+        <Style Selector="ToolTip">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="FlyoutPresenter">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.BorderBrush}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+        </Style>
+
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource Theme.SurfaceBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimaryBrush}" />
+        </Style>
     </Application.Styles>
 </Application>

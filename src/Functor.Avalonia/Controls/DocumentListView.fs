@@ -5,12 +5,14 @@ open Avalonia.Controls
 open Avalonia.Controls.Primitives
 open Avalonia.Layout
 open Avalonia.Media
+open Functor.Application
 open Functor.Domain.Document
 open Functor.Workspace
 
 type DocumentListView() as this =
     inherit UserControl()
 
+    let mutable uiTheme = UiThemeDefaults.defaultTheme
     let tabsPanel = StackPanel(Orientation = Orientation.Horizontal, Spacing = 2.0)
     let documentActivated = Event<DocumentId>()
     let documentCloseRequested = Event<DocumentId>()
@@ -35,13 +37,22 @@ type DocumentListView() as this =
 
     member _.GetTab(index: int) = tabsPanel.Children[index] :?> Button
 
-    member _.ApplyTabs
-        (tabs: WorkspaceTabProjection list)
-        (foreground: IBrush)
-        (border: IBrush)
-        (selected: IBrush)
-        (background: IBrush)
-        =
+    member _.ApplyUiTheme(value: UiThemeDefaults) =
+        uiTheme <- value
+
+        tabControls
+        |> Map.iter (fun _ (tabButton, _) ->
+            match tabButton.Content with
+            | :? StackPanel as content when content.Children.Count > 1 ->
+                match content.Children[1] with
+                | :? Button as closeButton ->
+                    match closeButton.Content with
+                    | :? TextBlock as icon -> icon.FontFamily <- FontFamily(uiTheme.IconFontFamily)
+                    | _ -> ()
+                | _ -> ()
+            | _ -> ())
+
+    member _.ApplyTabs(tabs: WorkspaceTabProjection list) =
         let tabIds = tabs |> List.map (fun tab -> tab.DocumentId)
 
         if tabIds <> renderedTabIds then
@@ -58,6 +69,8 @@ type DocumentListView() as this =
                             HorizontalContentAlignment = HorizontalAlignment.Stretch
                         )
 
+                    tabButton.Classes.Add("tab")
+
                     let label = TextBlock()
 
                     let closeButton =
@@ -65,8 +78,8 @@ type DocumentListView() as this =
                             Content =
                                 TextBlock(
                                     Text = "\uE8BB",
-                                    FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                                    FontSize = 9.0,
+                                    FontFamily = new FontFamily(uiTheme.IconFontFamily),
+                                    FontSize = uiTheme.TabCloseIconSize,
                                     VerticalAlignment = VerticalAlignment.Center,
                                     HorizontalAlignment = HorizontalAlignment.Center
                                 ),
@@ -97,7 +110,5 @@ type DocumentListView() as this =
             match tabControls |> Map.tryFind tab.DocumentId with
             | Some(tabButton, label) ->
                 label.Text <- if tab.IsDirty then tab.Name + " *" else tab.Name
-                tabButton.BorderBrush <- border
-                tabButton.Background <- if tab.IsActive then selected else background
-                tabButton.Foreground <- foreground
+                tabButton.Classes.Set("selected", tab.IsActive)
             | None -> ())

@@ -142,7 +142,7 @@ module EditorControlTests =
                     (RenderingSurface.measureGraphemeAdvance lineHeight)
             )
 
-        let renderingConfig: RenderingPipeline.RenderingConfig = { Measurer = measurer }
+        let renderingConfig = RenderingPipeline.createConfig measurer 4.0f 16.0f
         let frame = RenderingPipeline.render renderingConfig editor.SessionState.Model
         let visibleLineTexts = frame.VisibleLines |> List.map (fun line -> line.Text)
 
@@ -204,7 +204,7 @@ module EditorControlTests =
                     (RenderingSurface.measureGraphemeAdvance lineHeight)
             )
 
-        let renderingConfig: RenderingPipeline.RenderingConfig = { Measurer = measurer }
+        let renderingConfig = RenderingPipeline.createConfig measurer 4.0f 16.0f
         let frame = RenderingPipeline.render renderingConfig editor.SessionState.Model
         let cursor = frame.Cursors |> List.exactlyOne
         let firstRun = frame.TextRuns |> List.head
@@ -231,7 +231,7 @@ module EditorControlTests =
                     (RenderingSurface.measureGraphemeAdvance lineHeight)
             )
 
-        let renderingConfig: RenderingPipeline.RenderingConfig = { Measurer = measurer }
+        let renderingConfig = RenderingPipeline.createConfig measurer 4.0f 16.0f
         let frame = RenderingPipeline.render renderingConfig editor.SessionState.Model
         let cursor = frame.Cursors |> List.exactlyOne
         let firstRun = frame.TextRuns |> List.exactlyOne
@@ -291,7 +291,7 @@ module EditorControlTests =
                     (RenderingSurface.measureGraphemeAdvance lineHeight)
             )
 
-        let renderingConfig: RenderingPipeline.RenderingConfig = { Measurer = measurer }
+        let renderingConfig = RenderingPipeline.createConfig measurer 4.0f 16.0f
         let frame = RenderingPipeline.render renderingConfig editor.SessionState.Model
         let runXPositions = frame.TextRuns |> List.map (fun run -> run.X)
 

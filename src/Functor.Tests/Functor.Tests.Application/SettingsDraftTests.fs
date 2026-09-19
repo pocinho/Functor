@@ -59,3 +59,33 @@ type SettingsDraftTests() =
 
         Assert.Equal("Graphite Light", updated.ThemePreset)
         Assert.Equal("#FFE7E5EA", updated.Background)
+
+    [<Fact>]
+    member _.``round trips custom UI settings``() =
+        let draft =
+            AppSettings.defaults
+            |> SettingsDraft.fromSettings
+            |> fun value ->
+                { value with
+                    EditorFontFamily = "Cascadia Code"
+                    EditorLineHeight = "18"
+                    EditorTabSize = "2"
+                    CursorWidth = "2.5"
+                    GutterSeparatorWidth = "1.75"
+                    ControlCornerRadius = "4"
+                    WorkspaceSeparatorColor = "#FF123456"
+                    SyntaxKeyword = "#FF654321" }
+
+        let result = SettingsDraft.tryCreateSettings draft
+
+        match result with
+        | Ok settings ->
+            Assert.Equal("Cascadia Code", settings.Theme.Ui.EditorFontFamily)
+            Assert.Equal(18.0, settings.Theme.Ui.EditorLineHeight)
+            Assert.Equal(2, settings.Theme.Ui.EditorTabSize)
+            Assert.Equal(2.5, settings.Theme.Ui.CursorWidth)
+            Assert.Equal(1.75, settings.Theme.Ui.GutterSeparatorWidth)
+            Assert.Equal(4.0, settings.Theme.Ui.ControlCornerRadius)
+            Assert.Equal(0xFF123456u, settings.Theme.Ui.WorkspaceSeparatorColor)
+            Assert.Equal(Some 0xFF654321u, settings.Theme.ThemeSource.Resolve().SyntaxColors |> Map.tryFind "keyword")
+        | Error error -> failwith error

@@ -78,27 +78,35 @@ type EditorControl() as this =
                 state.Workspace.Documents
                 |> Map.map (fun _ documentState -> documentState.Document.Metadata.Path))
 
-    let lineHeight = 16.0f
+    let mutable themeSettings = ThemeSettings.defaultTheme
+    let mutable lineHeight = float32 themeSettings.Ui.EditorLineHeight
 
-    let renderingConfig =
-        { RenderingPipeline.Measurer =
+    let createRenderingConfig (uiTheme: UiThemeDefaults) =
+        let lineHeight = float32 uiTheme.EditorLineHeight
+
+        let measurer =
             TextMeasurer.create (
                 TextMetrics.createWithGraphemeAdvance
                     lineHeight
                     (RenderingSurface.measureDefaultAdvance lineHeight)
-                    4
+                    uiTheme.EditorTabSize
                     (RenderingSurface.measureGraphemeAdvance lineHeight)
-            ) }
+            )
+
+        RenderingPipeline.createConfig measurer (float32 uiTheme.GutterPadding) (float32 uiTheme.GutterMinimumWidth)
+
+    let mutable renderingConfig = createRenderingConfig themeSettings.Ui
 
     let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> =
         AvaloniaRenderBackend()
-
-    let mutable themeSettings = ThemeSettings.defaultTheme
 
     member this.ThemeSettings
         with get () = themeSettings
         and set (value: ThemeSettings) =
             themeSettings <- value
+            lineHeight <- float32 value.Ui.EditorLineHeight
+            RenderingSurface.setUiTheme value.Ui
+            renderingConfig <- createRenderingConfig value.Ui
             this.InvalidateVisual()
 
     member this.ThemeSource
@@ -127,7 +135,11 @@ type EditorControl() as this =
     member private this.PositionAtPoint(point: Point) =
         LayoutEngine.positionAtPointWithGutter
             renderingConfig.Measurer
-            (LayoutEngine.gutterWidth renderingConfig.Measurer session.Model.Editing.Buffer.Length)
+            (LayoutEngine.gutterWidthWithMetrics
+                renderingConfig.Measurer
+                session.Model.Editing.Buffer.Length
+                renderingConfig.GutterPadding
+                renderingConfig.GutterMinimumWidth)
             session.Model.View.HorizontalOffset
             session.Model.View.VerticalOffset
             session.Model.Editing.Buffer
@@ -224,7 +236,11 @@ type EditorControl() as this =
         LayoutEngine.maxHorizontalOffset
             renderingConfig.Measurer
             this.ContentWidth
-            (LayoutEngine.gutterWidth renderingConfig.Measurer session.Model.Editing.Buffer.Length)
+            (LayoutEngine.gutterWidthWithMetrics
+                renderingConfig.Measurer
+                session.Model.Editing.Buffer.Length
+                renderingConfig.GutterPadding
+                renderingConfig.GutterMinimumWidth)
             session.Model.Editing.Buffer
 
     member this.VerticalScrollViewport = this.VisibleLineCount
@@ -234,7 +250,11 @@ type EditorControl() as this =
             max
                 1.0f
                 (this.ContentWidth
-                 - LayoutEngine.gutterWidth renderingConfig.Measurer session.Model.Editing.Buffer.Length)
+                 - LayoutEngine.gutterWidthWithMetrics
+                     renderingConfig.Measurer
+                     session.Model.Editing.Buffer.Length
+                     renderingConfig.GutterPadding
+                     renderingConfig.GutterMinimumWidth)
 
         max 1.0 (Math.Floor(float availableWidth / float renderingConfig.Measurer.Metrics.DefaultAdvance))
 
