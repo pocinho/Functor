@@ -97,6 +97,21 @@ module ShellHostViewProjectionTests =
             Assert.Equal(2, tabs.TabCount))
 
     [<AvaloniaFact>]
+    let ``tab projection updates reuse existing controls when order is unchanged`` () =
+        withHostedView (fun view ->
+            view.Editor.NewDocument()
+            view.Editor.NewDocument()
+
+            let tabs = view.FindControl<DocumentListView>("TabsPanel")
+            let firstTab = tabs.GetTab(0)
+            let firstDocumentId = view.SessionState.Workspace.TabOrder.Head
+
+            view.Editor.ActivateDocument(firstDocumentId)
+            Dispatcher.UIThread.RunJobs()
+
+            Assert.Same(firstTab, tabs.GetTab(0)))
+
+    [<AvaloniaFact>]
     let ``tab activation updates the active document projection`` () =
         let view = ShellHostView()
         let window = Window(Content = view)

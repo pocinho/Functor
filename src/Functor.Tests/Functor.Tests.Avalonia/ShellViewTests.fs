@@ -15,10 +15,11 @@ type ShellViewTests() =
         window.Show()
         let editor = view.Editor
         let input = ShellProjection.fromEditor editor
-        let sidePanelHost = SidePanelView()
-        let auxiliaryPanelHost = SidePanelView()
+        let sidePanelHost = SidePanelControl()
+        let auxiliaryPanelHost = SidePanelControl()
 
-        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore ignore
+        |> ignore
 
         Assert.Same(editor, view.Editor)
 
@@ -29,21 +30,21 @@ type ShellViewTests() =
         let view = ShellHostView()
         let window = Window(Content = view)
         window.Show()
-        let sidePanelHost = SidePanelView()
-        let auxiliaryPanelHost = SidePanelView()
+        let sidePanelHost = SidePanelControl()
+        let auxiliaryPanelHost = SidePanelControl()
         let input = ShellProjection.fromEditor view.Editor
 
-        let panelInput =
-            { input with
-                AgentIsOpen = true }
+        let panelInput = { input with AgentIsOpen = true }
 
-        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial panelInput ignore |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial panelInput ignore ignore
+        |> ignore
 
         Assert.True(auxiliaryPanelHost.IsOpen)
         Assert.Equal(ShellLayoutState.DefaultSidePanelWidth, auxiliaryPanelHost.PanelWidth)
         Assert.Equal("Agent", auxiliaryPanelHost.Title)
 
-        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore |> ignore
+        ShellView.applyModel view sidePanelHost auxiliaryPanelHost ShellModel.initial input ignore ignore
+        |> ignore
 
         Assert.False(auxiliaryPanelHost.IsOpen)
         Assert.Equal(0.0, auxiliaryPanelHost.PanelWidth)

@@ -23,9 +23,14 @@ type ShellViewInput =
       Scroll: ShellScrollPresentation }
 
 module ShellProjection =
-    let fromState (state: AppSessionState) (editor: EditorControl) =
-        { Tabs = WorkspaceProjection.tabs state.Workspace
-          FileTree = WorkspaceFileTree.create state.Workspace
+    let fromStateWithWorkspace
+        (state: AppSessionState)
+        (editor: EditorControl)
+        (tabs: WorkspaceTabProjection list)
+        (fileTree: WorkspaceFileTreeNode)
+        =
+        { Tabs = tabs
+          FileTree = fileTree
           HasActiveDocument = state.Model.ActiveDocument.IsSome
           ActiveDocumentId = state.Workspace.ActiveDocumentId
           AgentIsOpen =
@@ -42,4 +47,18 @@ module ShellProjection =
               HorizontalViewport = editor.HorizontalScrollViewport
               HorizontalOffset = float editor.HorizontalOffset } }
 
+    let fromState (state: AppSessionState) (editor: EditorControl) =
+        fromStateWithWorkspace
+            state
+            editor
+            (WorkspaceProjection.tabs state.Workspace)
+            (WorkspaceFileTree.create state.Workspace)
+
     let fromEditor (editor: EditorControl) = fromState editor.SessionState editor
+
+    let fromEditorWithWorkspace
+        (editor: EditorControl)
+        (tabs: WorkspaceTabProjection list)
+        (fileTree: WorkspaceFileTreeNode)
+        =
+        fromStateWithWorkspace editor.SessionState editor tabs fileTree

@@ -38,6 +38,9 @@ module WorkspaceFileTree =
         else
             Path.Combine(parentPath, name)
 
+    let private childSortKey (child: WorkspaceFileTreeNode) =
+        (if child.IsDirectory then 0 else 1), child.Name.ToUpperInvariant()
+
     let private addOpenDocument
         (workspace: WorkspaceModel)
         (documentState: PerDocumentSessionState)
@@ -71,7 +74,7 @@ module WorkspaceFileTree =
                     Children =
                         child
                         :: (node.Children |> List.filter (fun existing -> existing.Key <> child.Key))
-                        |> List.sortBy (fun existing -> existing.Name.ToUpperInvariant()) }
+                        |> List.sortBy childSortKey }
             | name :: rest ->
                 let childPath = nodePath parentPath name
 
@@ -96,7 +99,7 @@ module WorkspaceFileTree =
                     Children =
                         updated
                         :: (node.Children |> List.filter (fun child -> child.Key <> updated.Key))
-                        |> List.sortBy (fun child -> child.Name.ToUpperInvariant()) }
+                        |> List.sortBy childSortKey }
 
         insert root.Path segments root
 
@@ -117,22 +120,21 @@ module WorkspaceFileTree =
           IsDirty = false
           Children = [] }
 
-    let private openDocumentAtPath path (workspace: WorkspaceModel) =
-        workspace.TabOrder
-        |> List.tryPick (fun documentId ->
-            workspace.Documents
-            |> Map.tryFind documentId
-            |> Option.bind (fun documentState ->
-                documentState.Document.Metadata.Path
-                |> Option.bind (fun documentPath ->
-                    if String.Equals(documentPath, path, StringComparison.OrdinalIgnoreCase) then
-                        Some documentState
-                    else
-                        None)))
+    let loading (workspace: WorkspaceModel) = rootNode workspace
 
-    let private fileNode workspace path =
+    let private pathKey (path: string) = path.ToUpperInvariant()
+
+    let private openDocumentsByPath (workspace: WorkspaceModel) =
+        workspace.Documents
+        |> Map.toSeq
+        |> Seq.choose (fun (_, documentState: PerDocumentSessionState) ->
+            documentState.Document.Metadata.Path
+            |> Option.map (fun path -> pathKey (DocumentModel.canonicalizePath path), documentState))
+        |> Map.ofSeq
+
+    let private fileNode openDocuments path =
         let canonicalPath = DocumentModel.canonicalizePath path
-        let openDocument = openDocumentAtPath canonicalPath workspace
+        let openDocument = openDocuments |> Map.tryFind (pathKey canonicalPath)
 
         { Key = "file:" + canonicalPath
           Name = Path.GetFileName(canonicalPath)
@@ -142,7 +144,7 @@ module WorkspaceFileTree =
           IsDirty = openDocument |> Option.exists documentIsDirty
           Children = [] }
 
-    let rec private directoryNode workspace path =
+    let rec private directoryNode openDocuments path =
         let directories =
             try
                 Directory.EnumerateDirectories(path) |> Seq.toList
@@ -156,9 +158,9 @@ module WorkspaceFileTree =
                 []
 
         let children =
-            (directories |> List.map (directoryNode workspace))
-            @ (files |> List.map (fileNode workspace))
-            |> List.sortBy (fun child -> child.Name.ToUpperInvariant())
+            (directories |> List.map (directoryNode openDocuments))
+            @ (files |> List.map (fileNode openDocuments))
+            |> List.sortBy childSortKey
 
         { Key = "directory:" + DocumentModel.canonicalizePath path
           Name = Path.GetFileName(path)
@@ -170,7 +172,7 @@ module WorkspaceFileTree =
 
     let create (workspace: WorkspaceModel) =
         match workspace.RootPath with
-        | Some root when Directory.Exists root -> directoryNode workspace root
+        | Some root when Directory.Exists root -> directoryNode (openDocumentsByPath workspace) root
         | _ ->
             workspace.TabOrder
             |> List.choose (fun documentId -> workspace.Documents |> Map.tryFind documentId)

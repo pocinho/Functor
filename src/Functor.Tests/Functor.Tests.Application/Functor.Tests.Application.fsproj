@@ -23,7 +23,6 @@
     <Compile Include="EditorSessionTokenizationTests.fs" />
     <Compile Include="TokenizationCoordinatorTests.fs" />
     <Compile Include="AppEffectInterpreterTests.fs" />
-    <Compile Include="WorkspaceLayoutStoreTests.fs" />
     <ProjectReference Include="..\..\Functor.Application\Functor.Application.fsproj" />
     <ProjectReference Include="..\..\Functor.Domain\Functor.Domain.fsproj" />
     <ProjectReference Include="..\..\Functor.Workspace\Functor.Workspace.fsproj" />

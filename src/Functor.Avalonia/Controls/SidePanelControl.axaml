@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Functor.Avalonia.Controls.SidePanelControl">
+  <Border x:Name="PanelBorder"
+          BorderThickness="1,0,0,0"
+          Padding="0,0,8,0">
+    <Grid ColumnDefinitions="*,4">
+      <ContentControl x:Name="PanelContentControl" Grid.Column="0" />
+      <Border x:Name="ResizeHandle"
+              Grid.Column="1"
+              Width="4"
+              HorizontalAlignment="Right"
+              Background="#DCDC3C3C"
+              Cursor="SizeWestEast"
+              IsHitTestVisible="True"
+              ZIndex="10" />
+    </Grid>
+  </Border>
+</UserControl>

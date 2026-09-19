@@ -27,7 +27,7 @@
                     <Button x:Name="SearchToolButton" Content="S" ToolTip.Tip="Search" />
                 </StackPanel>
             </Border>
-            <controls:SidePanelView x:Name="SidePanelHost"
+            <controls:SidePanelControl x:Name="SidePanelHost"
                                     Grid.Row="0"
                                     Grid.RowSpan="2"
                                     Grid.Column="1"
@@ -46,7 +46,7 @@
                               HorizontalAlignment="Stretch"
                               VerticalAlignment="Stretch"
                               IsVisible="False" />
-                     <controls:SidePanelView x:Name="AuxiliaryPanelHost"
+                     <controls:SidePanelControl x:Name="AuxiliaryPanelHost"
                                  Grid.Row="1"
                                  Grid.Column="3"
                                  PanelWidth="0"

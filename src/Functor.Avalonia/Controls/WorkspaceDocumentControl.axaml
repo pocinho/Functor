@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Functor.Avalonia.Controls.WorkspaceDocumentControl"
+             Padding="0"
+             Margin="0">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+    <StackPanel x:Name="ContentPanel"
+          Spacing="0"
+                Margin="0" />
+  </ScrollViewer>
+</UserControl>

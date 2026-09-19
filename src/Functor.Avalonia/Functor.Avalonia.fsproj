@@ -16,9 +16,9 @@
     <Compile Include="Rendering\AvaloniaRenderBackend.fs" />
     <Compile Include="InputAdapter.fs" />
     <Compile Include="Controls\EditorControl.fs" />
-    <Compile Include="Controls\SidePanelView.fs" />
+    <Compile Include="Controls\SidePanelControl.axaml.fs" />
     <Compile Include="Controls\DocumentListView.fs" />
-    <Compile Include="Controls\WorkspaceDocumentView.fs" />
+    <Compile Include="Controls\WorkspaceDocumentControl.axaml.fs" />
     <Compile Include="ShellProjection.fs" />
     <Compile Include="ShellViewNode.fs" />
     <Compile Include="Views\CommandPaletteView.axaml.fs" />
@@ -26,7 +26,7 @@
     <Compile Include="Views\SettingsWindow.axaml.fs" />
     <Compile Include="Views\WelcomeView.axaml.fs" />
     <Compile Include="Views\IShellProjectionTarget.fs" />
-    <Compile Include="Views\ShellView.fs" />
+    <Compile Include="Views\ShellView.axaml.fs" />
     <Compile Include="Views\ShellHostView.axaml.fs" />
     <Compile Include="Views\MainWindow.axaml.fs" />
     <Compile Include="AvaloniaApp.axaml.fs" />

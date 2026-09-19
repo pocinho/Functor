@@ -129,6 +129,35 @@ module WorkspaceProjectionTests =
                 Directory.Delete(root, true)
 
     [<Fact>]
+    let ``large workspace tree builds a complete sorted snapshot`` () =
+        let root =
+            Path.Combine(Path.GetTempPath(), "functor-large-projection-" + Guid.NewGuid().ToString("N"))
+
+        try
+            for directoryIndex in 0..19 do
+                let directory = Path.Combine(root, sprintf "dir-%02d" directoryIndex)
+                Directory.CreateDirectory(directory) |> ignore
+
+                for fileIndex in 0..19 do
+                    File.WriteAllText(Path.Combine(directory, sprintf "file-%02d.fs" fileIndex), "content")
+
+            let tree = WorkspaceFileTree.create (workspace (Some root) [] [] None)
+            let files = tree.Children |> List.collect (fun directory -> directory.Children)
+
+            Assert.Equal(20, tree.Children.Length)
+            Assert.Equal(400, files.Length)
+
+            Assert.Equal<string list>(
+                [ "dir-00"; "dir-01"; "dir-02"; "dir-03"; "dir-04" ],
+                tree.Children |> List.take 5 |> List.map _.Name
+            )
+
+            Assert.All(files, fun file -> Assert.EndsWith(".fs", file.Name))
+        finally
+            if Directory.Exists root then
+                Directory.Delete(root, true)
+
+    [<Fact>]
     let ``active projection returns document session state`` () =
         let document = DocumentModel.createUntitled "untitled.fs"
         let documentId = document.Id

@@ -1,6 +1,8 @@
 namespace Functor.Avalonia.Views
 
 open System
+open System.IO
+open System.Threading.Tasks
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Primitives
@@ -29,14 +31,23 @@ type ShellHostView() as this =
     let dirtyText = lazy (this.FindControl<TextBlock>("DirtyText"))
     let tabBar = lazy (this.FindControl<Border>("TabBar"))
     let tabsPanel = lazy (this.FindControl<DocumentListView>("TabsPanel"))
-    let sidePanelHost = lazy (this.FindControl<SidePanelView>("SidePanelHost"))
+    let sidePanelHost = lazy (this.FindControl<SidePanelControl>("SidePanelHost"))
 
     let auxiliaryPanelHost =
-        lazy (this.FindControl<SidePanelView>("AuxiliaryPanelHost"))
+        lazy (this.FindControl<SidePanelControl>("AuxiliaryPanelHost"))
 
     let mutable model = ShellModel.initial
     let mutable subscriptions: IDisposable list = []
     let mutable confirmationOpen = false
+    let mutable refreshQueued = false
+    let mutable cachedWorkspace: WorkspaceModel option = None
+    let mutable cachedWorkspaceTree: WorkspaceFileTreeNode option = None
+    let mutable pendingWorkspaceTree: WorkspaceModel option = None
+    let mutable workspaceTreeGeneration = 0L
+    let mutable requestRefresh: unit -> unit = ignore
+
+    let mutable cachedTabBrushes: (Functor.Rendering.ThemePalette * (IBrush * IBrush * IBrush * IBrush)) option =
+        None
 
     let colorFromArgb (argb: uint32) =
         Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
@@ -72,13 +83,21 @@ type ShellHostView() as this =
 
     let updateTabsFromProjection tabs =
         let palette = editor.Value.ThemeSettings.ThemeSource.Resolve()
-        let foreground = SolidColorBrush(colorFromArgb palette.Foreground)
 
-        let border =
-            SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+        let foreground, border, selected, background =
+            match cachedTabBrushes with
+            | Some(cachedPalette, brushes) when cachedPalette = palette -> brushes
+            | _ ->
+                let foreground: IBrush = SolidColorBrush(colorFromArgb palette.Foreground)
 
-        let selected = SolidColorBrush(colorFromArgb palette.Selection)
-        let background = SolidColorBrush(colorFromArgb palette.GutterBackground)
+                let border: IBrush =
+                    SolidColorBrush(colorFromArgb (palette.GutterSeparator |> Option.defaultValue palette.Foreground))
+
+                let selected: IBrush = SolidColorBrush(colorFromArgb palette.Selection)
+                let background: IBrush = SolidColorBrush(colorFromArgb palette.GutterBackground)
+                let brushes = foreground, border, selected, background
+                cachedTabBrushes <- Some(palette, brushes)
+                brushes
 
         tabsPanel.Value.ApplyTabs tabs foreground border selected background
 
@@ -101,7 +120,7 @@ type ShellHostView() as this =
             .Classes.Set("selected", isPanelOpen && activeTool = Some SearchTool)
 
     let updateToolRailMetadata () =
-        let applyDescriptor controlName descriptor =
+        let applyDescriptor controlName (descriptor: ToolDescriptor) =
             let button = this.FindControl<Button>(controlName)
             button.Content <- descriptor.Glyph
             button.SetValue(ToolTip.TipProperty, descriptor.AccessibilityName)
@@ -149,8 +168,81 @@ type ShellHostView() as this =
             dialog.ShowDialog(owner) |> ignore
         | _ -> editor.Value.CancelPendingOperation()
 
+    let hasDiskWorkspace (workspace: WorkspaceModel) =
+        match workspace.RootPath with
+        | Some root -> Directory.Exists root
+        | None -> false
+
+    let workspaceTreeKey (workspace: WorkspaceModel) =
+        let documents =
+            workspace.Documents
+            |> Map.toList
+            |> List.choose (fun (_, documentState) ->
+                let isDirty =
+                    documentState.Editing.IsDirty || documentState.Document.Metadata.IsDirty
+
+                if isDirty then
+                    Some(
+                        documentState.Document.Metadata.Path
+                        |> Option.map DocumentModel.canonicalizePath,
+                        documentState.Document.Metadata.Name,
+                        isDirty
+                    )
+                else
+                    None)
+
+        match workspace.RootPath with
+        | Some root -> Some(DocumentModel.canonicalizePath root), documents, None
+        | None -> None, documents, Some workspace.TabOrder
+
+    let startWorkspaceTreeLoad (workspace: WorkspaceModel) =
+        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
+        let generation = workspaceTreeGeneration
+        pendingWorkspaceTree <- Some workspace
+
+        Task
+            .Run(fun () -> WorkspaceFileTree.create workspace)
+            .ContinueWith(fun (completed: Task<WorkspaceFileTreeNode>) ->
+                if completed.Status = System.Threading.Tasks.TaskStatus.RanToCompletion then
+                    Dispatcher.UIThread.Post(
+                        Action(fun () ->
+                            if generation = workspaceTreeGeneration then
+                                pendingWorkspaceTree <- None
+                                cachedWorkspace <- Some workspace
+                                cachedWorkspaceTree <- Some completed.Result
+                                requestRefresh ())
+                    )
+                    |> ignore)
+        |> ignore
+
     let refresh () =
-        let input = ShellProjection.fromEditor editor.Value
+        refreshQueued <- false
+        let editorControl = editor.Value
+        let sessionState = editorControl.SessionState
+        let treeKey = workspaceTreeKey sessionState.Workspace
+        let tabs = WorkspaceProjection.tabs sessionState.Workspace
+
+        let fileTree =
+            match cachedWorkspace with
+            | Some previous when workspaceTreeKey previous = treeKey -> cachedWorkspaceTree.Value
+            | _ when
+                pendingWorkspaceTree
+                |> Option.exists (fun pending -> workspaceTreeKey pending = treeKey)
+                ->
+                WorkspaceFileTree.loading sessionState.Workspace
+            | _ ->
+                if hasDiskWorkspace sessionState.Workspace then
+                    startWorkspaceTreeLoad sessionState.Workspace
+                    WorkspaceFileTree.loading sessionState.Workspace
+                else
+                    workspaceTreeGeneration <- workspaceTreeGeneration + 1L
+                    pendingWorkspaceTree <- None
+                    let fileTree = WorkspaceFileTree.create sessionState.Workspace
+                    cachedWorkspace <- Some sessionState.Workspace
+                    cachedWorkspaceTree <- Some fileTree
+                    fileTree
+
+        let input = ShellProjection.fromEditorWithWorkspace editorControl tabs fileTree
 
         ShellView.applyModel
             this
@@ -167,26 +259,27 @@ type ShellHostView() as this =
     let refreshOnUiThread () =
         if Dispatcher.UIThread.CheckAccess() then
             refresh ()
-        else
+        elif not refreshQueued then
+            refreshQueued <- true
             Dispatcher.UIThread.Post(Action refresh) |> ignore
 
     let disposeSubscriptions () =
         subscriptions |> List.iter (fun subscription -> subscription.Dispose())
         subscriptions <- []
+        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
+        pendingWorkspaceTree <- None
 
     let attachSubscriptions () =
         if subscriptions.IsEmpty then
             let editorControl = editor.Value
 
-            subscriptions <-
-                [ editorControl.StateChanged.Subscribe(fun _ -> refreshOnUiThread ())
-                  editorControl.EditorStatusChanged.Subscribe(fun _ -> refreshOnUiThread ())
-                  editorControl.ScrollStateChanged.Subscribe(fun _ -> refreshOnUiThread ()) ]
+            subscriptions <- [ editorControl.StateChanged.Subscribe(fun _ -> refreshOnUiThread ()) ]
 
             refreshOnUiThread ()
 
     do
         this.InitializeComponent()
+        requestRefresh <- refreshOnUiThread
 
         let editor = editor.Value
         let verticalScrollBar = verticalScrollBar.Value
@@ -228,14 +321,7 @@ type ShellHostView() as this =
             editor.ActivateDocument(documentId)
             editor.CloseDocument())
 
-        sidePanelHost.Value.CloseRequested.Add(fun _ -> this.Dispatch(CloseToolPanel))
-
         sidePanelHost.Value.ResizeRequested.Add(fun width -> this.Dispatch(SetSidePanelWidth width))
-
-        auxiliaryPanelHost.Value.CloseRequested.Add(fun _ ->
-            match editor.SessionState.Workspace.ActiveDocumentId with
-            | Some documentId -> editor.DispatchApplicationCommand(AppCommand.setAgentOpen documentId false)
-            | None -> ())
 
         this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())
         this.DetachedFromVisualTree.Add(fun _ -> disposeSubscriptions ())
