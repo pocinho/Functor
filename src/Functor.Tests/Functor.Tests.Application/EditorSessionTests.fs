@@ -347,16 +347,22 @@ type EditorSessionTests() =
         Assert.True(session.State.Model.ActiveDocument.IsNone)
 
     [<Fact>]
-    member _.``canceling a pending new document leaves the current document unchanged``() =
+    member _.``creating a new document preserves the dirty document in another tab``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
 
         session.DispatchCommand(AppCommand.newDocument)
-        session.DispatchCommand(AppCommand.cancelPendingOperation)
 
-        Assert.Equal(Some "C:\\work\\file.fs", session.State.Model.ActiveDocument.Value.Metadata.Path)
-        Assert.True(session.State.Model.Editing.IsDirty)
+        Assert.Equal(None, session.State.Model.ActiveDocument.Value.Metadata.Path)
+        Assert.False(session.State.Model.Editing.IsDirty)
+        Assert.Equal(2, session.State.Workspace.Documents.Count)
+
+        Assert.True(
+            session.State.Workspace.Documents.Values
+            |> Seq.exists (fun document -> document.Editing.IsDirty)
+        )
+
         Assert.Equal(None, session.State.Status.PendingAction)
 
     [<Fact>]
@@ -395,23 +401,6 @@ type EditorSessionTests() =
 
         Assert.True(session.State.Model.Editing.IsDirty)
         Assert.Equal(Some "C:\\work\\file.fs", session.State.Model.ActiveDocument.Value.Metadata.Path)
-
-    [<Fact>]
-    member _.``confirming a pending new document preserves a new clean buffer``() =
-        let session = EditorSession()
-        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
-        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " updated")))
-
-        session.DispatchCommand(AppCommand.newDocument)
-
-        Assert.Equal(Some PendingAction.NewDocument, session.State.Status.PendingAction)
-        session.DispatchCommand(AppCommand.confirmDiscardChanges)
-
-        Assert.Equal(None, session.State.Model.ActiveDocument.Value.Metadata.Path)
-        Assert.Equal("untitled", session.State.Model.ActiveDocument.Value.Metadata.Name)
-        Assert.True([ "" ] = session.State.Model.Editing.Buffer)
-        Assert.False(session.State.Model.Editing.IsDirty)
-        Assert.Equal(None, session.State.Status.PendingAction)
 
     [<Fact>]
     member _.``switching tabs restores each document editing state``() =

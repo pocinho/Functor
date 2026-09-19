@@ -83,6 +83,12 @@ module ThemeSettingsLoader =
         | Some value when Single.IsFinite value && value > 0.0f -> Ok(update value ui)
         | Some _ -> Error(sprintf "Invalid UI theme value: %s" name)
 
+    let private applyUiOpacity element name update ui =
+        match tryFloat32 element name with
+        | None -> Ok ui
+        | Some value when Single.IsFinite value && value >= 0.0f && value <= 1.0f -> Ok(update value ui)
+        | Some _ -> Error(sprintf "Invalid UI theme value: %s" name)
+
     let private applyUiInt element name update ui =
         match tryInt32 element name with
         | None -> Ok ui
@@ -215,6 +221,9 @@ module ThemeSettingsLoader =
                                 EditorFallbackFontFamily = value })
                     )
                     |> Result.bind (
+                        applyUiString theme "uiFontFamily" (fun value ui -> { ui with UiFontFamily = value })
+                    )
+                    |> Result.bind (
                         applyUiString theme "iconFontFamily" (fun value ui -> { ui with IconFontFamily = value })
                     )
                     |> Result.bind (
@@ -264,6 +273,11 @@ module ThemeSettingsLoader =
                         applyUiFloat theme "welcomeTitleFontSize" (fun value ui ->
                             { ui with
                                 WelcomeTitleFontSize = float value })
+                    )
+                    |> Result.bind (
+                        applyUiOpacity theme "textMutedOpacity" (fun value ui ->
+                            { ui with
+                                TextMutedOpacity = float value })
                     )
                     |> Result.bind (
                         applyUiFloat theme "controlCornerRadius" (fun value ui ->

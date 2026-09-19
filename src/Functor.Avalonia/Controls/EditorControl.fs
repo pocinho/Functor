@@ -216,6 +216,7 @@ type EditorControl() as this =
 
     member this.ActivateDocument(documentId: DocumentId) =
         session.Dispatch(CoreEvent.SwitchDocument documentId)
+        this.Focus() |> ignore
 
     member this.DispatchApplicationCommand(command: AppCommand) = session.DispatchCommand(command)
 
@@ -303,6 +304,14 @@ type EditorControl() as this =
             this.NewDocument()
 
         this.Focus() |> ignore
+
+    override this.OnGotFocus(e: FocusChangedEventArgs) =
+        base.OnGotFocus(e)
+        this.InvalidateVisual()
+
+    override this.OnLostFocus(e: FocusChangedEventArgs) =
+        base.OnLostFocus(e)
+        this.InvalidateVisual()
 
     override this.OnTextInput(e: TextInputEventArgs) =
         base.OnTextInput(e)
@@ -449,7 +458,14 @@ type EditorControl() as this =
     override this.Render(context: DrawingContext) =
         base.Render(context)
 
-        let frame: RenderingModel = RenderingPipeline.render renderingConfig session.Model
+        let frame: RenderingModel =
+            RenderingPipeline.render renderingConfig session.Model
+            |> fun frame ->
+                if this.IsFocused then
+                    frame
+                else
+                    { frame with Cursors = [] }
+
         let bounds = Avalonia.Rect(0.0, 0.0, this.Bounds.Width, this.Bounds.Height)
         let theme = themeSettings.ThemeSource.Resolve()
 

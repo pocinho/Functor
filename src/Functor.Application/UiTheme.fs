@@ -4,6 +4,7 @@ namespace Functor.Application
 type UiThemeDefaults =
     { EditorFontFamily: string
       EditorFallbackFontFamily: string
+      UiFontFamily: string
       IconFontFamily: string
       TabCloseIconSize: float
       WorkspaceFontSize: float
@@ -15,6 +16,7 @@ type UiThemeDefaults =
       GutterMinimumWidth: float
       CommandPaletteFontSize: float
       WelcomeTitleFontSize: float
+      TextMutedOpacity: float
       ControlCornerRadius: float
       ResizeHandleColor: uint32
       CommandPaletteShadowColor: uint32
@@ -25,6 +27,7 @@ module UiThemeDefaults =
     let defaultTheme =
         { EditorFontFamily = "Consolas"
           EditorFallbackFontFamily = "Segoe UI Emoji"
+          UiFontFamily = "Segoe UI"
           IconFontFamily = "Segoe MDL2 Assets"
           TabCloseIconSize = 9.0
           WorkspaceFontSize = 12.0
@@ -36,6 +39,7 @@ module UiThemeDefaults =
           GutterMinimumWidth = 16.0
           CommandPaletteFontSize = 14.0
           WelcomeTitleFontSize = 28.0
+          TextMutedOpacity = 0.68
           ControlCornerRadius = 0.0
           ResizeHandleColor = 0xDCDC3C3Cu
           CommandPaletteShadowColor = 0x66000000u

@@ -53,11 +53,16 @@ module RenderingSurface =
     let private graphemeAdvanceCache =
         System.Collections.Concurrent.ConcurrentDictionary<struct (float32 * string), float32>()
 
+    let mutable private measurementCacheGeneration = 0L
+
     let setUiTheme (value: UiThemeDefaults) =
         uiTheme <- value
         editorTypeface <- Typeface(editorFontFamily ())
         defaultAdvanceCache.Clear()
         graphemeAdvanceCache.Clear()
+        measurementCacheGeneration <- measurementCacheGeneration + 1L
+
+    let measurementCacheGenerationValue () = measurementCacheGeneration
 
     let private colorFromArgb (argb: uint32) =
         let a = byte ((argb >>> 24) &&& 0xFFu)

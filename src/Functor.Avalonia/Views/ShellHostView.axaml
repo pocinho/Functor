@@ -3,8 +3,8 @@
              xmlns:controls="using:Functor.Avalonia.Controls"
              xmlns:views="using:Functor.Avalonia.Views"
              x:Class="Functor.Avalonia.Views.ShellHostView"
-             Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
-             Foreground="{DynamicResource Theme.TextPrimaryBrush}">
+             Background="{DynamicResource Theme.SurfaceBackground}"
+             Foreground="{DynamicResource Theme.TextPrimary}">
     <Grid>
         <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
             <Border x:Name="TabBar"
@@ -13,17 +13,17 @@
                     Grid.ColumnSpan="3"
                         BorderThickness="0,0,0,1"
                         Padding="4,3"
-                        Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource Theme.BorderBrush}">
+                        Background="{DynamicResource Theme.PanelBackground}"
+                        BorderBrush="{DynamicResource Theme.Border}">
                 <StackPanel Orientation="Horizontal" Spacing="2">
                     <controls:DocumentListView x:Name="TabsPanel" />
                         <Button x:Name="SettingsTabButton"
                             Content="Settings"
                             Padding="10,4"
                             MinHeight="28"
-                            Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                            BorderBrush="{DynamicResource Theme.BorderBrush}"
-                            Foreground="{DynamicResource Theme.TextPrimaryBrush}" />
+                            Background="{DynamicResource Theme.PanelBackground}"
+                            BorderBrush="{DynamicResource Theme.Border}"
+                            Foreground="{DynamicResource Theme.TextPrimary}" />
                 </StackPanel>
             </Border>
             <Border x:Name="ToolRail"
@@ -32,8 +32,8 @@
                     Grid.Column="0"
                     Padding="3"
                     BorderThickness="0,0,1,0"
-                    Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                    BorderBrush="{DynamicResource Theme.BorderBrush}">
+                    Background="{DynamicResource Theme.PanelBackground}"
+                    BorderBrush="{DynamicResource Theme.Border}">
                 <StackPanel Spacing="4">
                     <Button x:Name="WorkspaceToolButton" Content="W" ToolTip.Tip="Workspace" />
                     <Button x:Name="SearchToolButton" Content="S" ToolTip.Tip="Search" />
@@ -68,7 +68,7 @@
                     Grid.Row="1"
                     BorderThickness="0,1,0,0"
                     Padding="12"
-                    BorderBrush="{DynamicResource Theme.BorderBrush}">
+                    BorderBrush="{DynamicResource Theme.Border}">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                         <Button x:Name="ApplySettingsButton" Content="Apply" />
                         <Button x:Name="SaveSettingsButton" Content="Save" />
@@ -102,8 +102,8 @@
                     Grid.ColumnSpan="5"
                     BorderThickness="0,1,0,0"
                     Padding="8,4"
-                    Background="{DynamicResource Theme.PanelBackgroundBrush}"
-                    BorderBrush="{DynamicResource Theme.BorderBrush}">
+                    Background="{DynamicResource Theme.PanelBackground}"
+                    BorderBrush="{DynamicResource Theme.Border}">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                     <TextBlock x:Name="PositionText" Grid.Column="0" />
                     <TextBlock x:Name="FileTypeText" Grid.Column="1" Margin="20,0,0,0" />

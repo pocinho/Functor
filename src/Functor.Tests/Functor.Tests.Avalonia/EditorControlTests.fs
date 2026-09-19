@@ -16,6 +16,20 @@ open Xunit
 module EditorControlTests =
 
     [<AvaloniaFact>]
+    let ``changing the editor theme invalidates measurement caches`` () =
+        let initialGeneration = RenderingSurface.measurementCacheGenerationValue ()
+
+        let updatedTheme =
+            { UiThemeDefaults.defaultTheme with
+                EditorFontFamily = "Cascadia Mono" }
+
+        try
+            RenderingSurface.setUiTheme updatedTheme
+            Assert.True(RenderingSurface.measurementCacheGenerationValue () > initialGeneration)
+        finally
+            RenderingSurface.setUiTheme UiThemeDefaults.defaultTheme
+
+    [<AvaloniaFact>]
     let ``shifted cursor movement updates the keyboard selection`` () =
         let editor = EditorControl()
         editor.NewDocument()

@@ -52,7 +52,7 @@ type WorkspaceDocumentControl() as this =
 
         let header =
             Border(
-                BorderBrush = (Application.Current.Resources["Theme.WorkspaceSeparatorBrush"] :?> IBrush),
+                BorderBrush = (Application.Current.Resources["Theme.Separator"] :?> IBrush),
                 BorderThickness = Thickness(0, 0, 0, 1),
                 Padding = Thickness(0),
                 Child =

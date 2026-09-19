@@ -53,6 +53,15 @@ type SettingsDraftTests() =
         Assert.Equal(Error "Editor border width must be a non-negative number.", SettingsDraft.tryCreateSettings draft)
 
     [<Fact>]
+    member _.``rejects non-positive tab close icon sizes``() =
+        let draft =
+            AppSettings.defaults
+            |> SettingsDraft.fromSettings
+            |> fun value -> { value with TabCloseIconSize = "0" }
+
+        Assert.Equal(Error "Tab close icon size must be a positive number.", SettingsDraft.tryCreateSettings draft)
+
+    [<Fact>]
     member _.``applying a preset replaces palette values``() =
         let draft = AppSettings.defaults |> SettingsDraft.fromSettings
         let updated = SettingsDraft.applyPreset "Graphite Light" draft
@@ -68,10 +77,12 @@ type SettingsDraftTests() =
             |> fun value ->
                 { value with
                     EditorFontFamily = "Cascadia Code"
+                    UiFontFamily = "Segoe UI Variable"
                     EditorLineHeight = "18"
                     EditorTabSize = "2"
                     CursorWidth = "2.5"
                     GutterSeparatorWidth = "1.75"
+                    TabCloseIconSize = "11"
                     ControlCornerRadius = "4"
                     WorkspaceSeparatorColor = "#FF123456"
                     SyntaxKeyword = "#FF654321" }
@@ -81,10 +92,12 @@ type SettingsDraftTests() =
         match result with
         | Ok settings ->
             Assert.Equal("Cascadia Code", settings.Theme.Ui.EditorFontFamily)
+            Assert.Equal("Segoe UI Variable", settings.Theme.Ui.UiFontFamily)
             Assert.Equal(18.0, settings.Theme.Ui.EditorLineHeight)
             Assert.Equal(2, settings.Theme.Ui.EditorTabSize)
             Assert.Equal(2.5, settings.Theme.Ui.CursorWidth)
             Assert.Equal(1.75, settings.Theme.Ui.GutterSeparatorWidth)
+            Assert.Equal(11.0, settings.Theme.Ui.TabCloseIconSize)
             Assert.Equal(4.0, settings.Theme.Ui.ControlCornerRadius)
             Assert.Equal(0xFF123456u, settings.Theme.Ui.WorkspaceSeparatorColor)
             Assert.Equal(Some 0xFF654321u, settings.Theme.ThemeSource.Resolve().SyntaxColors |> Map.tryFind "keyword")

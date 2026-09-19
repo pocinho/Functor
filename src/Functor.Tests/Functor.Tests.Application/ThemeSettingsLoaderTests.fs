@@ -20,6 +20,31 @@ type ThemeSettingsLoaderTests() =
         Assert.Equal(Theme.graphiteLight.Background, settings.ThemeSource.Resolve().Background)
 
     [<Fact>]
+    member _.``loads the graphite dark preset by default``() =
+        let result = ThemeSettingsLoader.loadText "{ \"theme\": { \"schemaVersion\": 1 } }"
+
+        let settings =
+            match result with
+            | Ok value -> value
+            | Error error -> failwith error
+
+        Assert.Equal("Graphite Dark", settings.Preset)
+        Assert.Equal(Theme.dark.Background, settings.ThemeSource.Resolve().Background)
+
+    [<Fact>]
+    member _.``loads the explicit graphite dark preset``() =
+        let result =
+            ThemeSettingsLoader.loadText "{ \"theme\": { \"schemaVersion\": 1, \"preset\": \"Graphite Dark\" } }"
+
+        let settings =
+            match result with
+            | Ok value -> value
+            | Error error -> failwith error
+
+        Assert.Equal("Graphite Dark", settings.Preset)
+        Assert.Equal(Theme.dark.Foreground, settings.ThemeSource.Resolve().Foreground)
+
+    [<Fact>]
     member _.``loads nested theme colors and border settings``() =
         let json =
             """
@@ -115,10 +140,12 @@ type ThemeSettingsLoaderTests() =
         let ui =
             { UiThemeDefaults.defaultTheme with
                 EditorFontFamily = "Cascadia Code"
+                UiFontFamily = "Segoe UI Variable"
                 EditorLineHeight = 18.0
                 EditorTabSize = 2
                 CursorWidth = 2.5
                 GutterSeparatorWidth = 1.75
+                TabCloseIconSize = 11.0
                 ControlCornerRadius = 3.0
                 WorkspaceSeparatorColor = 0xFF123456u }
 
@@ -134,10 +161,12 @@ type ThemeSettingsLoaderTests() =
             | Error error -> failwith error
 
         Assert.Equal("Cascadia Code", loaded.EditorFontFamily)
+        Assert.Equal("Segoe UI Variable", loaded.UiFontFamily)
         Assert.Equal(18.0, loaded.EditorLineHeight)
         Assert.Equal(2, loaded.EditorTabSize)
         Assert.Equal(2.5, loaded.CursorWidth)
         Assert.Equal(1.75, loaded.GutterSeparatorWidth)
+        Assert.Equal(11.0, loaded.TabCloseIconSize)
         Assert.Equal(3.0, loaded.ControlCornerRadius)
         Assert.Equal(0xFF123456u, loaded.WorkspaceSeparatorColor)
 

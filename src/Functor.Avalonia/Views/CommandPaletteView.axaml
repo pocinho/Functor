@@ -5,11 +5,11 @@
              xmlns:views="using:Functor.Avalonia.Views"
              mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="340"
              x:Class="Functor.Avalonia.Views.CommandPaletteView"
-             Foreground="{DynamicResource Theme.TextPrimaryBrush}">
+             Foreground="{DynamicResource Theme.TextPrimary}">
   <Border x:Name="PaletteBorder"
           BorderThickness="1"
-           Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
-           BorderBrush="{DynamicResource Theme.BorderBrush}"
+           Background="{DynamicResource Theme.SurfaceBackground}"
+           BorderBrush="{DynamicResource Theme.Border}"
            CornerRadius="{DynamicResource Theme.ControlCornerRadius}"
           BoxShadow="{DynamicResource Theme.CommandPaletteShadow}"
           Padding="10">
@@ -18,21 +18,21 @@
                Grid.Row="0"
                PlaceholderText="Type a command"
                FontSize="{DynamicResource Theme.CommandPaletteFontSize}"
-               Background="{DynamicResource Theme.InputBackgroundBrush}"
-               Foreground="{DynamicResource Theme.TextPrimaryBrush}"
+               Background="{DynamicResource Theme.InputBackground}"
+               Foreground="{DynamicResource Theme.TextPrimary}"
                Padding="10,8"
                Margin="0,0,0,8" />
       <ListBox x:Name="CommandList"
                Grid.Row="1"
-               Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
-               Foreground="{DynamicResource Theme.TextPrimaryBrush}"
+               Background="{DynamicResource Theme.SurfaceBackground}"
+               Foreground="{DynamicResource Theme.TextPrimary}"
                MaxHeight="260">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="views:CommandPaletteItem">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
-              <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="0.68" Width="92" />
+              <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="{DynamicResource Theme.TextMutedOpacity}" Width="92" />
               <TextBlock Grid.Column="1" Text="{Binding Title}" />
-              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Opacity="0.68" Margin="16,0,0,0" />
+              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Opacity="{DynamicResource Theme.TextMutedOpacity}" Margin="16,0,0,0" />
             </Grid>
           </DataTemplate>
         </ListBox.ItemTemplate>

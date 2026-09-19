@@ -4,6 +4,8 @@ open System
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
+open Avalonia.Layout
+open Avalonia.Media
 open Avalonia.Markup.Xaml
 open Avalonia.Threading
 open Functor.Avalonia
@@ -15,6 +17,7 @@ type MainWindow() as this =
     inherit Window()
 
     let mutable shellState = ShellState.initial
+    let mutable closeAfterDiscardConfirmation = false
     let titleBarDragSurface = lazy (this.FindControl<Border>("TitleBarDragSurface"))
     let shellHostView = lazy (this.FindControl<ShellHostView>("ShellHostView"))
     let editor = lazy shellHostView.Value.Editor
@@ -60,6 +63,42 @@ type MainWindow() as this =
             applySettings settings
             Ok()
         | Error error -> Error error
+
+    let hasUnsavedChanges () =
+        shellHostView.Value.SessionState.Workspace.Documents
+        |> Map.exists (fun _ documentState -> documentState.Editing.IsDirty || documentState.Document.Metadata.IsDirty)
+
+    let showCloseConfirmation () =
+        match TopLevel.GetTopLevel(this) with
+        | :? Window as owner ->
+            let dialog, setContent =
+                ThemedDialogWindow.create shellState.AppSettings "Unsaved changes" 420.0 160.0
+
+            let message =
+                TextBlock(
+                    Text = "There are unsaved changes. Discard them and close Functor?",
+                    TextWrapping = TextWrapping.Wrap
+                )
+
+            let discardButton = Button(Content = "Discard and Close")
+            let cancelButton = Button(Content = "Cancel")
+            let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
+            let content = StackPanel(Spacing = 16.0, Margin = Thickness(16.0))
+
+            buttons.Children.Add(discardButton) |> ignore
+            buttons.Children.Add(cancelButton) |> ignore
+            content.Children.Add(message) |> ignore
+            content.Children.Add(buttons) |> ignore
+            setContent content
+
+            discardButton.Click.Add(fun _ ->
+                closeAfterDiscardConfirmation <- true
+                dialog.Close()
+                this.Close())
+
+            cancelButton.Click.Add(fun _ -> dialog.Close())
+            dialog.ShowDialog(owner) |> ignore
+        | _ -> ()
 
     let updateRecentDocumentsMenu (state: AppSessionState) =
         let recentMenu = recentDocumentsMenuItem.Value
@@ -155,6 +194,11 @@ type MainWindow() as this =
             .Click.Add(fun _ -> executeCommandById "workbench.commandPalette")
 
         this.FindControl<MenuItem>("SettingsMenuItem").Click.Add(fun _ -> executeCommandById "workbench.settings")
+
+        this.Closing.Add(fun args ->
+            if hasUnsavedChanges () && not closeAfterDiscardConfirmation then
+                args.Cancel <- true
+                showCloseConfirmation ())
 
         commandCenterButton.Value.Click.Add(fun _ -> showCommandPalette ())
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())

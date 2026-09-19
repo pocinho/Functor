@@ -35,11 +35,14 @@ type SettingsDraft =
       GutterMinimumWidth: string
       CommandPaletteFontSize: string
       WelcomeTitleFontSize: string
+      TextMutedOpacity: string
       ControlCornerRadius: string
       ResizeHandleColor: string
       CommandPaletteShadowColor: string
       WorkspaceSeparatorColor: string
-      MeasurementColor: string }
+      MeasurementColor: string
+      TabCloseIconSize: string
+      UiFontFamily: string }
 
 module SettingsDraft =
     let private colorText color = sprintf "#%08X" color
@@ -103,6 +106,7 @@ module SettingsDraft =
           EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture)
           EditorFontFamily = settings.Theme.Ui.EditorFontFamily
           EditorFallbackFontFamily = settings.Theme.Ui.EditorFallbackFontFamily
+          UiFontFamily = settings.Theme.Ui.UiFontFamily
           IconFontFamily = settings.Theme.Ui.IconFontFamily
           WorkspaceFontSize = settings.Theme.Ui.WorkspaceFontSize.ToString(CultureInfo.InvariantCulture)
           EditorLineHeight = settings.Theme.Ui.EditorLineHeight.ToString(CultureInfo.InvariantCulture)
@@ -113,11 +117,13 @@ module SettingsDraft =
           GutterMinimumWidth = settings.Theme.Ui.GutterMinimumWidth.ToString(CultureInfo.InvariantCulture)
           CommandPaletteFontSize = settings.Theme.Ui.CommandPaletteFontSize.ToString(CultureInfo.InvariantCulture)
           WelcomeTitleFontSize = settings.Theme.Ui.WelcomeTitleFontSize.ToString(CultureInfo.InvariantCulture)
+          TextMutedOpacity = settings.Theme.Ui.TextMutedOpacity.ToString(CultureInfo.InvariantCulture)
           ControlCornerRadius = settings.Theme.Ui.ControlCornerRadius.ToString(CultureInfo.InvariantCulture)
           ResizeHandleColor = colorText settings.Theme.Ui.ResizeHandleColor
           CommandPaletteShadowColor = colorText settings.Theme.Ui.CommandPaletteShadowColor
           WorkspaceSeparatorColor = colorText settings.Theme.Ui.WorkspaceSeparatorColor
-          MeasurementColor = colorText settings.Theme.Ui.MeasurementColor }
+          MeasurementColor = colorText settings.Theme.Ui.MeasurementColor
+          TabCloseIconSize = settings.Theme.Ui.TabCloseIconSize.ToString(CultureInfo.InvariantCulture) }
 
     let applyPreset preset draft =
         let palette = paletteForPreset preset
@@ -275,6 +281,13 @@ module SettingsDraft =
                         { ui with
                             EditorFallbackFontFamily = draft.EditorFallbackFontFamily })
             |> bind (fun ui ->
+                if String.IsNullOrWhiteSpace draft.UiFontFamily then
+                    Error "UI font family cannot be empty."
+                else
+                    Ok
+                        { ui with
+                            UiFontFamily = draft.UiFontFamily })
+            |> bind (fun ui ->
                 if String.IsNullOrWhiteSpace draft.IconFontFamily then
                     Error "Icon font family cannot be empty."
                 else
@@ -311,6 +324,18 @@ module SettingsDraft =
                 parsePositiveFloat "Welcome title font size" draft.WelcomeTitleFontSize
                 |> Result.map (fun value -> { ui with WelcomeTitleFontSize = value }))
             |> bind (fun ui ->
+                let mutable parsed = 0.0
+
+                if
+                    Double.TryParse(draft.TextMutedOpacity, NumberStyles.Float, CultureInfo.InvariantCulture, &parsed)
+                    && Double.IsFinite parsed
+                    && parsed >= 0.0
+                    && parsed <= 1.0
+                then
+                    Ok { ui with TextMutedOpacity = parsed }
+                else
+                    Error "Text muted opacity must be between 0 and 1.")
+            |> bind (fun ui ->
                 parseNonNegativeFloat "Control corner radius" draft.ControlCornerRadius
                 |> Result.map (fun value -> { ui with ControlCornerRadius = value }))
             |> bind (fun ui ->
@@ -329,6 +354,9 @@ module SettingsDraft =
             |> bind (fun ui ->
                 parseColor "Measurement color" draft.MeasurementColor
                 |> Result.map (fun value -> { ui with MeasurementColor = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Tab close icon size" draft.TabCloseIconSize
+                |> Result.map (fun value -> { ui with TabCloseIconSize = value }))
             |> Result.map (
                 ThemeSettings.fromPaletteWithPresetAndUi draft.ThemePreset palette
                 >> AppSettings.fromTheme

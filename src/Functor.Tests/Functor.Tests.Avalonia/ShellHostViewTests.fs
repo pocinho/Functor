@@ -69,6 +69,10 @@ type ShellHostViewTests() =
         let treePanel = content.Children[2] :?> StackPanel
         let renderedTree = treePanel.Children[0]
 
+        host.FindControl<Button>("SearchToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        host.FindControl<Button>("WorkspaceToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Dispatcher.UIThread.RunJobs()
+
         host.Editor.ActivateDocument(host.SessionState.Workspace.TabOrder.Head)
         Dispatcher.UIThread.RunJobs()
 
@@ -84,6 +88,7 @@ type ShellHostViewTests() =
         window.Show()
 
         let filePath = "C:\\work\\opened.fs"
+
         let closedFile =
             { Key = "file:" + filePath
               Name = "opened.fs"
@@ -93,7 +98,10 @@ type ShellHostViewTests() =
               IsDirty = false
               Children = [] }
 
-        let openFile = { closedFile with DocumentId = Some(Guid.NewGuid()) }
+        let openFile =
+            { closedFile with
+                DocumentId = Some(Guid.NewGuid()) }
+
         let root =
             { Key = "workspace:test"
               Name = "Workspace"
@@ -175,7 +183,9 @@ type ShellHostViewTests() =
         host.Editor.NewDocument()
         Dispatcher.UIThread.RunJobs()
 
-        let workspaceView = host.FindControl<SidePanelControl>("SidePanelHost").PanelContent :?> WorkspaceDocumentControl
+        let workspaceView =
+            host.FindControl<SidePanelControl>("SidePanelHost").PanelContent :?> WorkspaceDocumentControl
+
         let content = workspaceView.FindControl<StackPanel>("ContentPanel")
         let openEditorsContainer = content.Children[1] :?> StackPanel
         let editors = openEditorsContainer.Children[1] :?> StackPanel

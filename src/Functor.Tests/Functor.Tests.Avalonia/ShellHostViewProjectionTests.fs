@@ -10,6 +10,7 @@ open Functor.Avalonia.Controls
 open Functor.Domain.Core
 open Functor.Domain.Editing
 open Functor.Avalonia.Views
+open Functor.Rendering
 open Xunit
 
 module ShellHostViewProjectionTests =
@@ -153,6 +154,29 @@ module ShellHostViewProjectionTests =
             let label = content.Children[0] :?> TextBlock
 
             Assert.Equal("untitled *", label.Text))
+
+    [<AvaloniaFact>]
+    let ``theme changes update existing tab close icon size`` () =
+        withHostedView (fun view ->
+            view.Editor.NewDocument()
+
+            let tabs = view.FindControl<DocumentListView>("TabsPanel")
+            let tabButton = tabs.GetTab(0)
+            let content = tabButton.Content :?> StackPanel
+            let closeButton = content.Children[1] :?> Button
+            let icon = closeButton.Content :?> TextBlock
+
+            let ui =
+                { UiThemeDefaults.defaultTheme with
+                    TabCloseIconSize = 13.0 }
+
+            let settings =
+                ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" Theme.dark ui
+                |> AppSettings.fromTheme
+
+            view.ApplySettings(settings)
+
+            Assert.Equal(13.0, icon.FontSize))
 
     [<AvaloniaFact>]
     let ``agent panel choices are restored independently per tab`` () =

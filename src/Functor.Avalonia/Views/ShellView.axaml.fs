@@ -32,9 +32,12 @@ type ShellView() as this =
                 | ToolPanelReady ->
                     if tool = WorkspaceTool then
                         let workspaceView, isNewView =
-                            match host.PanelContent with
-                            | :? WorkspaceDocumentControl as existing -> existing, false
-                            | _ -> WorkspaceDocumentControl(), true
+                            match host.CachedWorkspaceContent with
+                            | Some(:? WorkspaceDocumentControl as existing) -> existing, false
+                            | _ ->
+                                let created = WorkspaceDocumentControl()
+                                host.CachedWorkspaceContent <- Some(created :> Control)
+                                created, true
 
                         workspaceView.ApplyWorkspace(input.FileTree, input.Tabs)
 

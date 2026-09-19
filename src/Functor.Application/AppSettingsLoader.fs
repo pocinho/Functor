@@ -76,6 +76,7 @@ module AppSettingsLoader =
         let ui = settings.Theme.Ui
         theme["editorFontFamily"] <- ui.EditorFontFamily
         theme["editorFallbackFontFamily"] <- ui.EditorFallbackFontFamily
+        theme["uiFontFamily"] <- ui.UiFontFamily
         theme["iconFontFamily"] <- ui.IconFontFamily
         theme["tabCloseIconSize"] <- ui.TabCloseIconSize
         theme["workspaceFontSize"] <- ui.WorkspaceFontSize
@@ -87,6 +88,7 @@ module AppSettingsLoader =
         theme["gutterMinimumWidth"] <- ui.GutterMinimumWidth
         theme["commandPaletteFontSize"] <- ui.CommandPaletteFontSize
         theme["welcomeTitleFontSize"] <- ui.WelcomeTitleFontSize
+        theme["textMutedOpacity"] <- ui.TextMutedOpacity
         theme["controlCornerRadius"] <- ui.ControlCornerRadius
         theme["resizeHandleColor"] <- colorToHex ui.ResizeHandleColor
         theme["commandPaletteShadowColor"] <- colorToHex ui.CommandPaletteShadowColor

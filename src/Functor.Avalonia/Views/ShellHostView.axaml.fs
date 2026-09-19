@@ -125,16 +125,12 @@ type ShellHostView() as this =
         | :? Window as owner ->
             confirmationOpen <- true
 
-            let dialog =
-                Window(
-                    Title = "Unsaved changes",
-                    Width = 420.0,
-                    Height = 160.0,
-                    CanResize = false,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                )
+            let dialog, setContent =
+                ThemedDialogWindow.create currentSettings "Unsaved changes" 420.0 160.0
 
-            let message = TextBlock(Text = "This document has unsaved changes. Discard them?")
+            let message =
+                TextBlock(Text = "This document has unsaved changes. Discard them?", TextWrapping = TextWrapping.Wrap)
+
             let discardButton = Button(Content = "Discard")
             let cancelButton = Button(Content = "Cancel")
             let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
@@ -144,7 +140,7 @@ type ShellHostView() as this =
             buttons.Children.Add(cancelButton) |> ignore
             content.Children.Add(message) |> ignore
             content.Children.Add(buttons) |> ignore
-            dialog.Content <- content
+            setContent content
 
             discardButton.Click.Add(fun _ ->
                 editor.Value.ConfirmDiscardChanges()
@@ -351,7 +347,8 @@ type ShellHostView() as this =
         tabsPanel.Value.DocumentActivated.Add(fun documentId ->
             settingsOpen <- false
             editor.ActivateDocument(documentId)
-            updateEmptyStateFromProjection editor.SessionState.Workspace.ActiveDocumentId.IsSome)
+            updateEmptyStateFromProjection editor.SessionState.Workspace.ActiveDocumentId.IsSome
+            editor.Focus() |> ignore)
 
         tabsPanel.Value.DocumentCloseRequested.Add(fun documentId ->
             editor.ActivateDocument(documentId)

@@ -14,11 +14,13 @@ module SettingsViewTests =
         view.Configure(AppSettings.defaults)
 
         let background = view.FindControl<TextBox>("Background")
+        let tabCloseIconSize = view.FindControl<TextBox>("TabCloseIconSize")
 
         let expectedBackground =
             (SettingsDraft.fromSettings AppSettings.defaults).Background
 
         Assert.Equal(expectedBackground, background.Text)
+        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).TabCloseIconSize, tabCloseIconSize.Text)
         Assert.Equal(Some(SettingsDraft.fromSettings AppSettings.defaults), view.Draft)
 
     [<AvaloniaFact>]

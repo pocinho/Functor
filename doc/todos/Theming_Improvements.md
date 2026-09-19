@@ -15,18 +15,25 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Added application-level round-trip coverage for non-default UI theme values.
 - [x] Added configuration-page fields and validation for every current `UiThemeDefaults` value.
 - [x] Added configuration-page fields, persistence, and round-trip tests for the six named syntax color roles.
+- [x] Separated the general UI font from the monospace editor font, including settings and persistence.
 - [x] Complete the initial runtime propagation for generated tabs, workspace rows, and the editor renderer so custom `UiThemeDefaults` values update existing controls.
 - [x] Added shared palette brushes for application surfaces, selection, borders, and focus states, with initial Button, TextBox, and ComboBox overrides.
 - [x] Added a validated, persisted cursor-width setting and wired it through the settings page and renderer.
 - [x] Added a validated, persisted gutter-separator-width setting and wired it through the settings page and renderer.
 - [x] Presented settings as a shell tab document with inline Apply, Save, and Close actions; removed the floating settings window.
+- [x] Applied the active theme to the unsaved-changes confirmation window.
+- [x] Added a shared themed dialog-window path with consistent chrome, borders, and title-bar dragging; see [dialog findings](../notes/Dialog_Findings.md).
+- [x] Batched Avalonia theme-resource updates to reduce repeated resource propagation; see [Avalonia optimization findings](../notes/Avalonia_Optimization.md).
+- [x] Matched Avalonia's client-area title-bar hint to the shared 32-pixel custom chrome.
+- [x] Made the editor caret visible only while the editor is focused, with redraws on focus transitions.
+- [x] Added a selected document-tab style so active tabs use the semantic selection and focus colors.
 
 ## Findings
 
 - [ ] Replace the mixed styling sources: FluentTheme defaults, direct F# brush assignments, XAML literals, and renderer-local constants.
 - [ ] Treat the existing Graphite Light and Graphite Dark values as named presets rather than scattered styling literals.
 - [ ] Centralize the existing color defaults in the theme model while preserving their current appearance:
-  - [ ] Side-panel resize handle color `#DCDC3C3C`.
+  - [x] Side-panel resize handle color `#DCDC3C3C`.
   - [x] Command-palette shadow color `#66000000`.
   - [x] Workspace tree separator color `ARGB(110,160,160,160)`.
   - [ ] Transparent backgrounds where theme-controlled surfaces are more appropriate.
@@ -39,6 +46,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [ ] Centralize shape and effect defaults: zero corner radius, remaining border widths, command-palette shadow, and control dimensions.
 - [ ] Centralize layout defaults that may become density settings: padding, margins, spacing, tab height, tree indentation, title-bar height, and control sizes.
 - [ ] Keep purely structural layout values local unless there is a clear user-facing density or accessibility requirement.
+- Remaining literal classification: semantic colors, fonts, control states, and editor metrics are theme values; padding, spacing, control sizes, and title-bar dimensions are density or geometry; menu labels, icon glyphs, and placeholder text are content; platform icon/fallback fonts and native client-area settings are platform behavior.
 - [x] Extend theme persistence to cover the six named syntax colors exposed by the rendering palette.
 
 ## Theme Model
@@ -50,6 +58,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
   - [ ] `InputBackground`.
   - [ ] `TextPrimary`.
   - [ ] `TextMuted`.
+  - [x] `TextMutedOpacity`.
   - [ ] `Border`.
   - [ ] `Separator`.
   - [ ] `Accent`.
@@ -74,17 +83,21 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 - [x] Add an Avalonia-side `ThemeManager` responsible for applying a complete theme snapshot.
 - [x] Convert semantic theme values into shared Avalonia resources (`IBrush`, `FontFamily`, numeric values, and related objects).
-- [ ] Register resource keys such as:
-  - [ ] `Theme.SurfaceBackground`.
-  - [ ] `Theme.PanelBackground`.
-  - [ ] `Theme.InputBackground`.
-  - [ ] `Theme.TextPrimary`.
-  - [ ] `Theme.TextMuted`.
-  - [ ] `Theme.Border`.
-  - [ ] `Theme.Accent`.
-  - [ ] `Theme.Error`.
-  - [ ] `Theme.ControlCornerRadius`.
-  - [ ] `Theme.ControlFontFamily`.
+- [x] Register resource keys such as:
+  - [x] `Theme.SurfaceBackground`.
+  - [x] `Theme.PanelBackground`.
+  - [x] `Theme.InputBackground`.
+  - [x] `Theme.TextPrimary`.
+  - [x] `Theme.TextMuted`.
+  - [x] `Theme.TextMutedOpacity`.
+  - [x] `Theme.Border`.
+  - [x] `Theme.Separator`.
+  - [x] `Theme.Accent`.
+  - [x] `Theme.Error`.
+  - [x] `Theme.ResizeHandle`.
+  - [x] `Theme.Shadow`.
+  - [x] `Theme.ControlCornerRadius`.
+  - [x] `Theme.ControlFontFamily`.
 - [ ] Replace direct XAML colors and dimensions with `DynamicResource` references where they represent theme tokens, using centralized defaults as the initial resource values.
 - [x] Replace direct `SolidColorBrush` construction in view code with shared theme resources or a single theme helper, while preserving the current default brushes.
 - [ ] Keep `FluentTheme` for control templates and behavior, while overriding its visual resources at the application level.
@@ -118,7 +131,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
           -> DynamicResource-bound controls refresh
           -> Renderer invalidates caches and redraws
 
-- [ ] Ensure theme changes update open windows, command palette, tabs, shell panels, settings, and editor surfaces consistently; tabs, workspace panels, and editor surfaces are now covered.
+- [x] Ensure theme changes update open windows, command palette, tabs, shell panels, settings, and editor surfaces consistently; tabs, workspace panels, editor surfaces, and shared dialog chrome are covered.
 - [x] Ensure the selected light/dark preset updates `RequestedThemeVariant` without overriding custom semantic colors.
 - [x] Avoid duplicating theme application logic across `MainWindow`, `ShellHostView`, `SettingsView`, `SettingsWindow`, and `CommandPaletteView`.
 
@@ -128,22 +141,25 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Add persisted schema support and loader tests for versioning and syntax colors.
 - [x] Implement `ThemeManager` and application resources.
 - [x] Migrate `AvaloniaApp.axaml` control styles and Fluent state overrides.
-- [ ] Migrate `MainWindow` and shell-level brushes.
-- [ ] Migrate tabs, workspace tree, panels, status bar, welcome view, settings, and command palette.
-- [ ] Migrate editor renderer fonts, measurements, and geometry-related visual tokens.
+- [x] Migrate `MainWindow` and shell-level brushes.
+- [x] Migrate tabs, workspace tree, panels, status bar, welcome view, settings, and command palette.
+- [x] Migrate editor renderer fonts, measurements, and geometry-related visual tokens.
 - [ ] Remove only duplicate/local definitions after their values have been moved into centralized defaults; retain the existing visual defaults and customization points.
 - [ ] Add live theme application and redraw/cache invalidation.
 - [ ] Review remaining literals and classify each as theme, density, geometry, content, or platform behavior.
+- [x] Review remaining literals and classify each as theme, density, geometry, content, or platform behavior.
 
 ## Verification
 
-- [ ] Test Graphite Light and Graphite Dark preset loading.
-- [ ] Test custom colors and syntax colors round-trip through JSON persistence.
+- [x] Test Graphite Light and Graphite Dark preset loading.
+- [x] Test custom colors and syntax colors round-trip through JSON persistence.
 - [x] Test invalid theme values and rejection of unversioned settings files.
-- [ ] Test runtime light/dark switching.
-- [ ] Test runtime color, font, and corner-radius changes.
-- [ ] Test renderer measurement-cache invalidation after font changes.
-- [ ] Test Fluent control hover, pressed, focused, disabled, popup, and menu states.
+- [x] Test runtime light/dark switching.
+- [x] Test runtime color, font, and corner-radius changes.
+- [x] Test that the semantic control resource contract is published during runtime theme application.
+- [x] Test renderer measurement-cache invalidation after font changes. See [renderer cache findings](../notes/Theming_Renderer_Cache.md).
+- [ ] Test Fluent control hover, pressed, focused, disabled, popup, and menu states. Headless tests do not resolve these template state setters reliably; verify them through desktop smoke testing. Existing tooltips are attached to the workspace and search tool buttons.
 - [ ] Verify all application surfaces use the same semantic tokens.
-- [ ] Search for remaining hardcoded colors, fonts, and visual constants and classify intentional exceptions.
+- [x] Verify that batched theme-resource updates preserve runtime resource and dialog refresh behavior.
+- [x] Search for remaining hardcoded colors, fonts, and visual constants and classify intentional exceptions. Remaining transparent menu chrome is structural; renderer-local brushes are required for canvas drawing.
 - [ ] Build and run the desktop application after each migration stage.

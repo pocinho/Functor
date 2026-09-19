@@ -80,7 +80,13 @@ type SettingsView() as this =
             { current with
                 EditorFallbackFontFamily = value })
 
+        updateTextField "UiFontFamily" (fun value current -> { current with UiFontFamily = value })
+
         updateTextField "IconFontFamily" (fun value current -> { current with IconFontFamily = value })
+
+        updateTextField "TabCloseIconSize" (fun value current ->
+            { current with
+                TabCloseIconSize = value })
 
         updateTextField "WorkspaceFontSize" (fun value current ->
             { current with
@@ -105,6 +111,10 @@ type SettingsView() as this =
         updateTextField "WelcomeTitleFontSize" (fun value current ->
             { current with
                 WelcomeTitleFontSize = value })
+
+        updateTextField "TextMutedOpacity" (fun value current ->
+            { current with
+                TextMutedOpacity = value })
 
         updateTextField "ControlCornerRadius" (fun value current ->
             { current with
@@ -160,7 +170,9 @@ type SettingsView() as this =
             setText (textBox "EditorBorderWidth") value.EditorBorderWidth
             setText (textBox "EditorFontFamily") value.EditorFontFamily
             setText (textBox "EditorFallbackFontFamily") value.EditorFallbackFontFamily
+            setText (textBox "UiFontFamily") value.UiFontFamily
             setText (textBox "IconFontFamily") value.IconFontFamily
+            setText (textBox "TabCloseIconSize") value.TabCloseIconSize
             setText (textBox "WorkspaceFontSize") value.WorkspaceFontSize
             setText (textBox "EditorLineHeight") value.EditorLineHeight
             setText (textBox "EditorTabSize") value.EditorTabSize
@@ -168,6 +180,7 @@ type SettingsView() as this =
             setText (textBox "GutterSeparatorWidth") value.GutterSeparatorWidth
             setText (textBox "CommandPaletteFontSize") value.CommandPaletteFontSize
             setText (textBox "WelcomeTitleFontSize") value.WelcomeTitleFontSize
+            setText (textBox "TextMutedOpacity") value.TextMutedOpacity
             setText (textBox "ControlCornerRadius") value.ControlCornerRadius
             setText (textBox "ResizeHandleColor") value.ResizeHandleColor
             setText (textBox "CommandPaletteShadowColor") value.CommandPaletteShadowColor

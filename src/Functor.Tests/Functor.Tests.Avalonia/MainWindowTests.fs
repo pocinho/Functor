@@ -1,11 +1,16 @@
 namespace Functor.Tests.Avalonia
 
+open Avalonia
 open Avalonia.Controls
 open Avalonia.Headless.XUnit
 open Avalonia.Input
 open Avalonia.Interactivity
+open Avalonia.Media
+open Avalonia.Styling
 open Functor.Application
+open Functor.Avalonia
 open Functor.Avalonia.Views
+open Functor.Rendering
 open Xunit
 
 module MainWindowTests =
@@ -81,3 +86,132 @@ module MainWindowTests =
         Assert.False(settingsTabButton.IsVisible)
 
         window.Close()
+
+    [<AvaloniaFact>]
+    let ``theme manager switches runtime light and dark variants`` () =
+        let window = Window()
+        window.Show()
+
+        let lightSettings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Light" Theme.graphiteLight UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        let darkSettings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" Theme.dark UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        ThemeManager.apply Application.Current window lightSettings
+        Assert.Equal(ThemeVariant.Light, window.RequestedThemeVariant)
+
+        ThemeManager.apply Application.Current window darkSettings
+        Assert.Equal(ThemeVariant.Dark, window.RequestedThemeVariant)
+
+        window.Close()
+
+    [<AvaloniaFact>]
+    let ``theme manager applies runtime visual resources`` () =
+        let window = Window()
+        window.Show()
+
+        let palette =
+            { Theme.dark with
+                Background = 0xFF010203u }
+
+        let ui =
+            { UiThemeDefaults.defaultTheme with
+                WorkspaceFontSize = 17.0
+                ControlCornerRadius = 4.0 }
+
+        let settings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" palette ui
+            |> AppSettings.fromTheme
+
+        ThemeManager.apply Application.Current window settings
+
+        let surfaceBrush =
+            Application.Current.Resources["Theme.SurfaceBackgroundBrush"] :?> SolidColorBrush
+
+        let semanticSurfaceBrush =
+            Application.Current.Resources["Theme.SurfaceBackground"] :?> SolidColorBrush
+
+        let cornerRadius =
+            Application.Current.Resources["Theme.ControlCornerRadius"] :?> CornerRadius
+
+        let workspaceFontSize =
+            Application.Current.Resources["Theme.WorkspaceFontSize"] :?> float
+
+        Assert.Equal(Color.FromArgb(0xFFuy, 0x01uy, 0x02uy, 0x03uy), surfaceBrush.Color)
+        Assert.Equal(surfaceBrush.Color, semanticSurfaceBrush.Color)
+        Assert.Equal(CornerRadius(4.0), cornerRadius)
+        Assert.Equal(17.0, workspaceFontSize)
+
+        window.Close()
+
+    [<AvaloniaFact>]
+    let ``theme manager publishes semantic control resources`` () =
+        let window = Window()
+        window.Show()
+
+        let settings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" Theme.dark UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        ThemeManager.apply Application.Current window settings
+
+        [ "Theme.SurfaceBackground"
+          "Theme.PanelBackground"
+          "Theme.InputBackground"
+          "Theme.TextPrimary"
+          "Theme.TextMuted"
+          "Theme.TextMutedOpacity"
+          "Theme.Border"
+          "Theme.Selection"
+          "Theme.Hover"
+          "Theme.Pressed"
+          "Theme.Disabled"
+          "Theme.Focus"
+          "Theme.Accent"
+          "Theme.Error"
+          "Theme.Warning"
+          "Theme.Information"
+          "Theme.ResizeHandle"
+          "Theme.Shadow"
+          "Theme.ControlFontFamily"
+          "Theme.IconFontFamily"
+          "Theme.EditorFontFamily"
+          "Theme.EditorFallbackFontFamily"
+          "Theme.WorkspaceFontSize"
+          "Theme.CommandPaletteFontSize"
+          "Theme.WelcomeTitleFontSize"
+          "Theme.ControlCornerRadius" ]
+        |> List.iter (fun key -> Assert.NotNull(Application.Current.Resources[key]))
+
+        window.Close()
+
+    [<AvaloniaFact>]
+    let ``themed dialog refreshes chrome when application resources change`` () =
+        let settings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" Theme.dark UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        let dialog, _ = ThemedDialogWindow.create settings "Test dialog" 320.0 120.0
+        dialog.Show()
+
+        let root = dialog.Content :?> Grid
+        let titleBar = root.Children[0] :?> Border
+        let initialColor = (titleBar.Background :?> SolidColorBrush).Color
+
+        let updatedPalette =
+            { Theme.dark with
+                GutterBackground = 0xFF102030u }
+
+        let updatedSettings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" updatedPalette UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        ThemeManager.apply Application.Current dialog updatedSettings
+
+        let updatedColor = (titleBar.Background :?> SolidColorBrush).Color
+
+        Assert.NotEqual(initialColor, updatedColor)
+        dialog.Close()

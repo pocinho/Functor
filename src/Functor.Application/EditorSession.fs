@@ -343,13 +343,7 @@ type EditorSession(initialModel: CoreModel) =
             state <- AppSessionState.withError error state
             publishState ()
             publishStatus ()
-        | NewDocumentRequested ->
-            if isDirty () then
-                setPendingAction
-                    PendingAction.NewDocument
-                    "Unsaved changes must be confirmed before creating a new document."
-            else
-                updateModel (CoreEvent.NewDocument "untitled")
+        | NewDocumentRequested -> updateModel (CoreEvent.NewDocument "untitled")
         | OpenFileRequested -> requestOpenFile ()
         | OpenDocumentRequested path -> requestOpenDocument path
         | OpenFolderRequested -> requestOpenFolder ()

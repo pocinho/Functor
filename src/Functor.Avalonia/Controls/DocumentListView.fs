@@ -47,7 +47,9 @@ type DocumentListView() as this =
                 match content.Children[1] with
                 | :? Button as closeButton ->
                     match closeButton.Content with
-                    | :? TextBlock as icon -> icon.FontFamily <- FontFamily(uiTheme.IconFontFamily)
+                    | :? TextBlock as icon ->
+                        icon.FontFamily <- FontFamily(uiTheme.IconFontFamily)
+                        icon.FontSize <- uiTheme.TabCloseIconSize
                     | _ -> ()
                 | _ -> ()
             | _ -> ())

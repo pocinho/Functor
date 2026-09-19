@@ -10,7 +10,7 @@
               Grid.Column="1"
               Width="4"
               HorizontalAlignment="Right"
-              Background="{DynamicResource Theme.ResizeHandleBrush}"
+              Background="{DynamicResource Theme.ResizeHandle}"
               Cursor="SizeWestEast"
               IsHitTestVisible="True"
               ZIndex="10" />

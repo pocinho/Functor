@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="520"
              x:Class="Functor.Avalonia.Views.SettingsView"
-             Background="{DynamicResource Theme.SurfaceBackgroundBrush}"
-             Foreground="{DynamicResource Theme.TextPrimaryBrush}">
+             Background="{DynamicResource Theme.SurfaceBackground}"
+             Foreground="{DynamicResource Theme.TextPrimary}">
   <ScrollViewer>
     <StackPanel Margin="16" Spacing="4">
       <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -92,8 +92,16 @@
         <TextBox x:Name="EditorFallbackFontFamily" Grid.Column="1" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="UI font" VerticalAlignment="Center" />
+        <TextBox x:Name="UiFontFamily" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Icon font" VerticalAlignment="Center" />
         <TextBox x:Name="IconFontFamily" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Tab close icon size" VerticalAlignment="Center" />
+        <TextBox x:Name="TabCloseIconSize" Grid.Column="1" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Workspace font size" VerticalAlignment="Center" />
@@ -124,6 +132,10 @@
         <TextBox x:Name="WelcomeTitleFontSize" Grid.Column="1" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Muted text opacity" VerticalAlignment="Center" />
+        <TextBox x:Name="TextMutedOpacity" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Control corner radius" VerticalAlignment="Center" />
         <TextBox x:Name="ControlCornerRadius" Grid.Column="1" />
       </Grid>
@@ -145,7 +157,7 @@
       </Grid>
       <TextBlock x:Name="ErrorText"
              TextWrapping="Wrap"
-             Foreground="{DynamicResource Theme.ErrorBrush}" />
+             Foreground="{DynamicResource Theme.Error}" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>
