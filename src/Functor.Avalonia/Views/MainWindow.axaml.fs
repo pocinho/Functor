@@ -184,6 +184,7 @@ type MainWindow() as this =
         commandCenterButton.Value.Click.Add(fun _ -> showCommandPalette ())
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())
         editor.Value.StateChanged.Add(updateRecentDocumentsMenu)
+        this.Activated.Add(fun _ -> shellHostView.Value.InvalidateWorkspaceTree())
         updateRecentDocumentsMenu shellHostView.Value.SessionState
 
         editor.Value.StateChanged.Add(fun state ->

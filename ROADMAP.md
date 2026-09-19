@@ -192,36 +192,36 @@ Compiler-backed accuracy, FSharp.Compiler.Service integration, and LSP semantic 
 - ✅ Wire the shell into the `Functor.Avalonia.Desktop` host
 - ✅ Add automated Avalonia coverage for tab rendering, activation, closing, and auxiliary-panel restoration
 
-### 🚧 Phase 7.0.1 — Left Tool Panel
+### ✅ Phase 7.0.1 — Left Tool Panel
 
 Create a VS Code-style tool workspace on the left side of the editor. Notebook
 and Search are global left tools, while the Agent panel is document-specific and
 opens on the right through the command palette.
 
 #### Tool rail and panel behavior
-- [x] Add a vertical tool rail on the left side of the shell.
-- [x] Represent each available tool with a button containing an icon, accessible name, and tooltip.
-- [x] Provide a stable tool identifier and display metadata for each registered tool.
-- [x] Selecting a tool opens its panel and makes it the active tool.
-- [x] Selecting the active tool toggles the left panel closed without losing the selected tool.
-- [x] Selecting another tool replaces the active tool content in the same panel.
-- [x] Provide an explicit close action and restore the editor to its full-width layout when closed.
-- [x] Keep the panel width bounded, resizable, and shared across tools.
-- [x] Preserve the active tool and panel width while switching document tabs and workspaces where appropriate.
+- ✅ Add a vertical tool rail on the left side of the shell.
+- ✅ Represent each available tool with a button containing an icon, accessible name, and tooltip.
+- ✅ Provide a stable tool identifier and display metadata for each registered tool.
+- ✅ Selecting a tool opens its panel and makes it the active tool.
+- ✅ Selecting the active tool toggles the left panel closed without losing the selected tool.
+- ✅ Selecting another tool replaces the active tool content in the same panel.
+- ✅ Provide an explicit close action and restore the editor to its full-width layout when closed.
+- ✅ Keep the panel width bounded, resizable, and shared across tools.
+- ✅ Preserve the active tool and panel width while switching document tabs and workspaces where appropriate.
 
 #### Architecture and integration
-- [x] Add a platform-neutral tool descriptor and active-tool projection before Avalonia-specific rendering.
-- [x] Keep tool registration separate from tool panel rendering so Notebook, Search, and future plugins can use the same host contract.
-- [x] Adapt `SidePanelView` into a left tool-panel host, or replace it with a directional panel abstraction if that better matches the layout contract.
-- [x] Route tool selection through shell/application messages rather than directly coupling tool buttons to editor state.
-- [x] Keep per-document Agent open state in `WorkspaceModel`; do not duplicate it in global tool selection state.
-- [x] Define behavior for unavailable, loading, and empty tool panels.
+- ✅ Add a platform-neutral tool descriptor and active-tool projection before Avalonia-specific rendering.
+- ✅ Keep tool registration separate from tool panel rendering so Notebook, Search, and future plugins can use the same host contract.
+- ✅ Adapt `SidePanelView` into a left tool-panel host, or replace it with a directional panel abstraction if that better matches the layout contract.
+- ✅ Route tool selection through shell/application messages rather than directly coupling tool buttons to editor state.
+- ✅ Keep per-document Agent open state in `WorkspaceModel`; do not duplicate it in global tool selection state.
+- ✅ Define behavior for unavailable, loading, and empty tool panels.
 
 #### Initial tools and validation
-- [x] Add the Notebook and Search left tools plus the right-side Agent panel command.
-- [x] Add a Search tool entry as the foundation for Phase 7.1 file and document search.
-- [x] Add Avalonia coverage for rail rendering, tool selection, toggling, panel replacement, close behavior, width persistence, and tab/workspace transitions.
-- [x] Verify tooltip/accessibility names and predictable button ordering.
+- ✅ Add the Notebook and Search left tools plus the right-side Agent panel command.
+- ✅ Add a Search tool entry as the foundation for Phase 7.1 file and document search.
+- ✅ Add Avalonia coverage for rail rendering, tool selection, toggling, panel replacement, close behavior, width persistence, and tab/workspace transitions.
+- ✅ Verify tooltip/accessibility names and predictable button ordering.
 
 
 ### Phase 7.1 — Search Implementation

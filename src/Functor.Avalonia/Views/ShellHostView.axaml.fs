@@ -263,6 +263,13 @@ type ShellHostView() as this =
             refreshQueued <- true
             Dispatcher.UIThread.Post(Action refresh) |> ignore
 
+    let invalidateWorkspaceTree () =
+        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
+        pendingWorkspaceTree <- None
+        cachedWorkspace <- None
+        cachedWorkspaceTree <- None
+        refreshOnUiThread ()
+
     let disposeSubscriptions () =
         subscriptions |> List.iter (fun subscription -> subscription.Dispose())
         subscriptions <- []
@@ -273,7 +280,13 @@ type ShellHostView() as this =
         if subscriptions.IsEmpty then
             let editorControl = editor.Value
 
-            subscriptions <- [ editorControl.StateChanged.Subscribe(fun _ -> refreshOnUiThread ()) ]
+            let stateSubscription =
+                editorControl.StateChanged.Subscribe(fun _ -> refreshOnUiThread ())
+
+            let structureSubscription =
+                editorControl.WorkspaceStructureChanged.Subscribe(fun _ -> invalidateWorkspaceTree ())
+
+            subscriptions <- [ stateSubscription; structureSubscription ]
 
             refreshOnUiThread ()
 
@@ -329,6 +342,8 @@ type ShellHostView() as this =
     member _.Editor = editor.Value
 
     member _.SessionState = editor.Value.SessionState
+
+    member _.InvalidateWorkspaceTree() = invalidateWorkspaceTree ()
 
     member _.Layout: WorkspaceLayout =
         { SidePanelWidth = model.Layout.SidePanelWidth

@@ -53,11 +53,30 @@ type EditorControl() as this =
 
     let mutable isPointerSelecting = false
     let scrollStateChanged = Event<unit>()
+    let workspaceStructureChanged = Event<unit>()
+
+    let mutable previousDocumentPaths =
+        session.State.Workspace.Documents
+        |> Map.map (fun _ documentState -> documentState.Document.Metadata.Path)
 
     do
-        session.StateChanged.Add(fun _ ->
+        session.StateChanged.Add(fun state ->
             this.InvalidateVisual()
-            scrollStateChanged.Trigger())
+            scrollStateChanged.Trigger()
+
+            let pathChanged =
+                state.Workspace.Documents
+                |> Map.exists (fun documentId documentState ->
+                    previousDocumentPaths
+                    |> Map.tryFind documentId
+                    |> Option.exists (fun previousPath -> previousPath <> documentState.Document.Metadata.Path))
+
+            if pathChanged then
+                workspaceStructureChanged.Trigger()
+
+            previousDocumentPaths <-
+                state.Workspace.Documents
+                |> Map.map (fun _ documentState -> documentState.Document.Metadata.Path))
 
     let lineHeight = 16.0f
 
@@ -156,6 +175,8 @@ type EditorControl() as this =
     member this.StatusChanged = session.StatusChanged
 
     member this.StateChanged = session.StateChanged
+
+    member this.WorkspaceStructureChanged = workspaceStructureChanged.Publish
 
     member this.SessionState = session.State
 
