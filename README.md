@@ -20,7 +20,7 @@ This keeps the editor core portable while leaving room for a future Skia-specifi
 
 ## Screenshots
 
-![initial project](./doc/img/Screenshot-2026-09-09.png)
+![initial project](./doc/img/Screenshot-2026-09-19.png)
 
 ---
 
