@@ -42,8 +42,15 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
   - [x] Editor font `Consolas`.
   - [x] Windows emoji fallback `Segoe UI Emoji`.
   - [x] Window-control and tab-close icon font `Segoe MDL2 Assets`.
-- [ ] Centralize typography defaults: editor font-size calculation, workspace font size `12`, command-palette font size `14`, welcome-title font size `28`, and bold/semi-bold weights.
+- [ ] Centralize typography defaults:
+  - [x] Independent persisted editor font size with the existing calculated value preserved as the default.
+  - [x] Workspace font size `12`.
+  - [x] Command-palette font size `14`.
+  - [x] Welcome-title font size `28`.
+  - [x] Bold and semi-bold weights.
 - [ ] Centralize shape and effect defaults: zero corner radius, remaining border widths, command-palette shadow, and control dimensions.
+  - [x] Document-tab minimum height and close-button size.
+  - [x] Shared shell separator and border thicknesses.
 - [ ] Centralize layout defaults that may become density settings: padding, margins, spacing, tab height, tree indentation, title-bar height, and control sizes.
 - [ ] Keep purely structural layout values local unless there is a clear user-facing density or accessibility requirement.
 - Remaining literal classification: semantic colors, fonts, control states, and editor metrics are theme values; padding, spacing, control sizes, and title-bar dimensions are density or geometry; menu labels, icon glyphs, and placeholder text are content; platform icon/fallback fonts and native client-area settings are platform behavior.
@@ -109,7 +116,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 ## Renderer Integration
 
 - [ ] Pass a complete theme snapshot into `RenderingSurface`.
-- [ ] Move editor font family, emoji fallback, font size, and tab size into the renderer theme.
+- [x] Move editor font family, emoji fallback, and tab size into the renderer theme.
 - [x] Move gutter padding, minimum width, and line-number positioning into the renderer theme.
 - [x] Replace renderer-local font constants with theme values initialized from the current editor font defaults.
 - [x] Replace renderer-local measurement colors with a theme-independent or theme-provided measurement brush while preserving measurement behavior.

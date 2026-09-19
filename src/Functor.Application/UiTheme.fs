@@ -8,6 +8,7 @@ type UiThemeDefaults =
       IconFontFamily: string
       TabCloseIconSize: float
       WorkspaceFontSize: float
+      EditorFontSize: float
       EditorLineHeight: float
       EditorTabSize: int
       CursorWidth: float
@@ -24,6 +25,12 @@ type UiThemeDefaults =
       MeasurementColor: uint32 }
 
 module UiThemeDefaults =
+    let boldFontWeight = 700
+    let semiBoldFontWeight = 600
+    let documentTabMinHeight = 28.0
+    let documentTabCloseButtonSize = 22.0
+    let separatorWidth = 1.0
+
     let defaultTheme =
         { EditorFontFamily = "Consolas"
           EditorFallbackFontFamily = "Segoe UI Emoji"
@@ -31,6 +38,7 @@ module UiThemeDefaults =
           IconFontFamily = "Segoe MDL2 Assets"
           TabCloseIconSize = 9.0
           WorkspaceFontSize = 12.0
+          EditorFontSize = 16.0 * (5.0 / 6.0)
           EditorLineHeight = 16.0
           EditorTabSize = 4
           CursorWidth = 1.5

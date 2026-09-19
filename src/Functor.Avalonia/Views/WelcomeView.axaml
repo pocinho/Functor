@@ -9,7 +9,7 @@
       <TextBlock x:Name="TitleText"
                  Text="Functor"
                  FontSize="{DynamicResource Theme.WelcomeTitleFontSize}"
-                 FontWeight="Bold"
+                 FontWeight="{DynamicResource Theme.FontWeightBold}"
                  HorizontalAlignment="Center" />
       <TextBlock Text="Start by creating a new file or opening an existing one."
                  TextWrapping="Wrap"

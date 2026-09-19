@@ -141,6 +141,7 @@ type ThemeSettingsLoaderTests() =
             { UiThemeDefaults.defaultTheme with
                 EditorFontFamily = "Cascadia Code"
                 UiFontFamily = "Segoe UI Variable"
+                EditorFontSize = 15.0
                 EditorLineHeight = 18.0
                 EditorTabSize = 2
                 CursorWidth = 2.5
@@ -162,6 +163,7 @@ type ThemeSettingsLoaderTests() =
 
         Assert.Equal("Cascadia Code", loaded.EditorFontFamily)
         Assert.Equal("Segoe UI Variable", loaded.UiFontFamily)
+        Assert.Equal(15.0, loaded.EditorFontSize)
         Assert.Equal(18.0, loaded.EditorLineHeight)
         Assert.Equal(2, loaded.EditorTabSize)
         Assert.Equal(2.5, loaded.CursorWidth)

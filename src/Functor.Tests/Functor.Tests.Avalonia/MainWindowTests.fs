@@ -7,6 +7,7 @@ open Avalonia.Input
 open Avalonia.Interactivity
 open Avalonia.Media
 open Avalonia.Styling
+open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia
 open Functor.Avalonia.Views
@@ -15,7 +16,8 @@ open Xunit
 
 module MainWindowTests =
     let private invokeSettingsCommand (window: MainWindow) =
-        window.FindControl<Button>("CommandCenterButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        let commandBar = window.FindControl<TextBox>("CommandBar")
+        commandBar.Text <- "settings"
 
         let palette = window.FindControl<CommandPaletteView>("CommandPaletteView")
         let commandList = palette.FindControl<ListBox>("CommandList")
@@ -25,6 +27,28 @@ module MainWindowTests =
             |> List.findIndex (fun descriptor -> descriptor.Id = "workbench.settings")
 
         palette.RaiseEvent(KeyEventArgs(RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter))
+
+    [<AvaloniaFact>]
+    let ``command bar is a live textbox that opens fuzzy recommendations`` () =
+        let window = MainWindow()
+        window.Show()
+
+        let commandBar = window.FindControl<TextBox>("CommandBar")
+        commandBar.Text <- "stng"
+        Dispatcher.UIThread.RunJobs()
+
+        let palette = window.FindControl<CommandPaletteView>("CommandPaletteView")
+        let commandList = palette.FindControl<ListBox>("CommandList")
+
+        Assert.True(window.FindControl<Border>("CommandPaletteOverlay").IsVisible)
+        Assert.Equal(1, commandList.ItemCount)
+
+        Assert.Equal(
+            Some "workbench.settings",
+            palette.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id)
+        )
+
+        window.Close()
 
     [<AvaloniaFact>]
     let ``recent document menu follows close and clear lifecycle`` () =
@@ -120,6 +144,7 @@ module MainWindowTests =
         let ui =
             { UiThemeDefaults.defaultTheme with
                 WorkspaceFontSize = 17.0
+                EditorFontSize = 15.0
                 ControlCornerRadius = 4.0 }
 
         let settings =
@@ -140,10 +165,13 @@ module MainWindowTests =
         let workspaceFontSize =
             Application.Current.Resources["Theme.WorkspaceFontSize"] :?> float
 
+        let editorFontSize = Application.Current.Resources["Theme.EditorFontSize"] :?> float
+
         Assert.Equal(Color.FromArgb(0xFFuy, 0x01uy, 0x02uy, 0x03uy), surfaceBrush.Color)
         Assert.Equal(surfaceBrush.Color, semanticSurfaceBrush.Color)
         Assert.Equal(CornerRadius(4.0), cornerRadius)
         Assert.Equal(17.0, workspaceFontSize)
+        Assert.Equal(15.0, editorFontSize)
 
         window.Close()
 
@@ -180,6 +208,7 @@ module MainWindowTests =
           "Theme.IconFontFamily"
           "Theme.EditorFontFamily"
           "Theme.EditorFallbackFontFamily"
+          "Theme.EditorFontSize"
           "Theme.WorkspaceFontSize"
           "Theme.CommandPaletteFontSize"
           "Theme.WelcomeTitleFontSize"

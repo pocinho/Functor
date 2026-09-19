@@ -10,6 +10,13 @@ open Functor.Application
 open Functor.Domain.Document
 open Functor.Workspace
 
+module private WorkspaceDocumentControlTheme =
+    let fontWeight weight =
+        match weight with
+        | 700 -> FontWeight.Bold
+        | 600 -> FontWeight.SemiBold
+        | _ -> FontWeight.Normal
+
 type WorkspaceDocumentControl() as this =
     inherit UserControl()
 
@@ -58,7 +65,7 @@ type WorkspaceDocumentControl() as this =
                 Child =
                     TextBlock(
                         Text = name,
-                        FontWeight = FontWeight.Bold,
+                        FontWeight = WorkspaceDocumentControlTheme.fontWeight UiThemeDefaults.boldFontWeight,
                         FontSize = itemFontSize,
                         HorizontalAlignment = HorizontalAlignment.Stretch
                     )
@@ -175,7 +182,7 @@ type WorkspaceDocumentControl() as this =
                         TextBlock(
                             Text = "EXPLORER",
                             FontSize = itemFontSize,
-                            FontWeight = FontWeight.Bold,
+                            FontWeight = WorkspaceDocumentControlTheme.fontWeight UiThemeDefaults.boldFontWeight,
                             Margin = Thickness(0)
                         )
                     )

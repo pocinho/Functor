@@ -29,7 +29,8 @@ type MainWindow() as this =
     let minimizeButton = lazy (this.FindControl<Button>("MinimizeButton"))
     let maximizeButton = lazy (this.FindControl<Button>("MaximizeButton"))
     let closeButton = lazy (this.FindControl<Button>("CloseButton"))
-    let commandCenterButton = lazy (this.FindControl<Button>("CommandCenterButton"))
+    let commandBar = lazy (this.FindControl<TextBox>("CommandBar"))
+    let mutable updatingCommandBar = false
 
     let recentDocumentsMenuItem =
         lazy (this.FindControl<MenuItem>("RecentDocumentsMenuItem"))
@@ -119,6 +120,9 @@ type MainWindow() as this =
     let hideCommandPalette () =
         shellState <- ShellState.closeCommandPalette shellState
         commandPaletteOverlay.Value.IsVisible <- false
+        updatingCommandBar <- true
+        commandBar.Value.Text <- ""
+        updatingCommandBar <- false
         editor.Value.Focus() |> ignore
 
     let rec showCommandPalette () =
@@ -130,7 +134,8 @@ type MainWindow() as this =
 
         shellState <- ShellState.openCommandPalette shellState
         commandPaletteOverlay.Value.IsVisible <- true
-        commandPaletteView.Value.FocusSearch()
+        commandPaletteView.Value.SetQuery(commandBar.Value.Text)
+        commandBar.Value.Focus() |> ignore
 
     and executeCommand (command: AppCommand) =
         match command with
@@ -200,7 +205,13 @@ type MainWindow() as this =
                 args.Cancel <- true
                 showCloseConfirmation ())
 
-        commandCenterButton.Value.Click.Add(fun _ -> showCommandPalette ())
+        commandBar.Value.TextChanged.Add(fun _ ->
+            if not updatingCommandBar then
+                if not shellState.IsCommandPaletteOpen then
+                    showCommandPalette ()
+                else
+                    commandPaletteView.Value.SetQuery(commandBar.Value.Text))
+
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())
         editor.Value.StateChanged.Add(updateRecentDocumentsMenu)
         this.Activated.Add(fun _ -> shellHostView.Value.InvalidateWorkspaceTree())

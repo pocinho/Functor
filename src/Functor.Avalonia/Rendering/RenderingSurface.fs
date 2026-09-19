@@ -19,6 +19,12 @@ open Functor.Rendering
 /// - It ONLY draws what RenderingModel provides.
 module RenderingSurface =
 
+    let private themedFontWeight weight =
+        match weight with
+        | 700 -> FontWeight.Bold
+        | 600 -> FontWeight.SemiBold
+        | _ -> FontWeight.Normal
+
     let private expandTabs (tabWidth: int) (startColumn: int) (text: string) =
         let builder = StringBuilder()
         let mutable column = startColumn
@@ -71,9 +77,6 @@ module RenderingSurface =
         let b = byte (argb &&& 0xFFu)
         Color.FromArgb(a, r, g, b)
 
-    let private editorFontSize (lineHeight: float32) =
-        max 1.0 (float lineHeight * (5.0 / 6.0))
-
     let measureDefaultAdvance (lineHeight: float32) =
         defaultAdvanceCache.GetOrAdd(
             lineHeight,
@@ -84,7 +87,7 @@ module RenderingSurface =
                         CultureInfo.InvariantCulture,
                         FlowDirection.LeftToRight,
                         editorTypeface,
-                        editorFontSize lineHeight,
+                        uiTheme.EditorFontSize,
                         SolidColorBrush(colorFromArgb uiTheme.MeasurementColor)
                     )
 
@@ -107,7 +110,7 @@ module RenderingSurface =
                             CultureInfo.InvariantCulture,
                             FlowDirection.LeftToRight,
                             editorTypeface,
-                            editorFontSize lineHeight,
+                            uiTheme.EditorFontSize,
                             SolidColorBrush(colorFromArgb uiTheme.MeasurementColor)
                         )
                             .Width
@@ -180,12 +183,7 @@ module RenderingSurface =
                     CultureInfo.InvariantCulture,
                     FlowDirection.LeftToRight,
                     editorTypeface,
-                    editorFontSize (
-                        model.VisibleLines
-                        |> List.tryHead
-                        |> Option.map (fun line -> line.Height)
-                        |> Option.defaultValue 16.0f
-                    ),
+                    uiTheme.EditorFontSize,
                     lineNumberBrush
                 )
 
@@ -207,7 +205,7 @@ module RenderingSurface =
                 )
 
         let drawTextRun (run: VisibleTextRun) =
-            let fontSize = editorFontSize run.Height
+            let fontSize = uiTheme.EditorFontSize
 
             let foreground =
                 SolidColorBrush(colorFromArgb (Theme.resolveTextColor theme run.Style.Foreground))
@@ -215,7 +213,7 @@ module RenderingSurface =
             let fontWeight =
                 match run.Style.Weight with
                 | TextWeight.Normal -> FontWeight.Normal
-                | TextWeight.Bold -> FontWeight.Bold
+                | TextWeight.Bold -> themedFontWeight UiThemeDefaults.boldFontWeight
 
             let fontStyle =
                 match run.Style.Slant with

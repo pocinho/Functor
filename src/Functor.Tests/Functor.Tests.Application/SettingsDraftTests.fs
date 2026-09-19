@@ -78,6 +78,7 @@ type SettingsDraftTests() =
                 { value with
                     EditorFontFamily = "Cascadia Code"
                     UiFontFamily = "Segoe UI Variable"
+                    EditorFontSize = "15"
                     EditorLineHeight = "18"
                     EditorTabSize = "2"
                     CursorWidth = "2.5"
@@ -93,6 +94,7 @@ type SettingsDraftTests() =
         | Ok settings ->
             Assert.Equal("Cascadia Code", settings.Theme.Ui.EditorFontFamily)
             Assert.Equal("Segoe UI Variable", settings.Theme.Ui.UiFontFamily)
+            Assert.Equal(15.0, settings.Theme.Ui.EditorFontSize)
             Assert.Equal(18.0, settings.Theme.Ui.EditorLineHeight)
             Assert.Equal(2, settings.Theme.Ui.EditorTabSize)
             Assert.Equal(2.5, settings.Theme.Ui.CursorWidth)

@@ -11,7 +11,7 @@
                     Grid.Row="0"
                     Grid.Column="2"
                     Grid.ColumnSpan="3"
-                        BorderThickness="0,0,0,1"
+                        BorderThickness="{DynamicResource Theme.SeparatorBottomThickness}"
                         Padding="4,3"
                         Background="{DynamicResource Theme.PanelBackground}"
                         BorderBrush="{DynamicResource Theme.Border}">
@@ -19,8 +19,9 @@
                     <controls:DocumentListView x:Name="TabsPanel" />
                         <Button x:Name="SettingsTabButton"
                             Content="Settings"
+                            IsVisible="False"
                             Padding="10,4"
-                            MinHeight="28"
+                            MinHeight="{DynamicResource Theme.DocumentTabMinHeight}"
                             Background="{DynamicResource Theme.PanelBackground}"
                             BorderBrush="{DynamicResource Theme.Border}"
                             Foreground="{DynamicResource Theme.TextPrimary}" />
@@ -31,7 +32,7 @@
                     Grid.RowSpan="3"
                     Grid.Column="0"
                     Padding="3"
-                    BorderThickness="0,0,1,0"
+                    BorderThickness="{DynamicResource Theme.SeparatorRightThickness}"
                     Background="{DynamicResource Theme.PanelBackground}"
                     BorderBrush="{DynamicResource Theme.Border}">
                 <StackPanel Spacing="4">
@@ -66,7 +67,7 @@
                 <views:SettingsView x:Name="SettingsView" Grid.Row="0" />
                 <Border x:Name="SettingsFooter"
                     Grid.Row="1"
-                    BorderThickness="0,1,0,0"
+                    BorderThickness="{DynamicResource Theme.SeparatorTopThickness}"
                     Padding="12"
                     BorderBrush="{DynamicResource Theme.Border}">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
@@ -100,7 +101,7 @@
             <Border x:Name="StatusBar"
                     Grid.Row="3"
                     Grid.ColumnSpan="5"
-                    BorderThickness="0,1,0,0"
+                    BorderThickness="{DynamicResource Theme.SeparatorTopThickness}"
                     Padding="8,4"
                     Background="{DynamicResource Theme.PanelBackground}"
                     BorderBrush="{DynamicResource Theme.Border}">

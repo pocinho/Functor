@@ -79,7 +79,6 @@ type EditorControl() as this =
                 |> Map.map (fun _ documentState -> documentState.Document.Metadata.Path))
 
     let mutable themeSettings = ThemeSettings.defaultTheme
-    let mutable lineHeight = float32 themeSettings.Ui.EditorLineHeight
 
     let createRenderingConfig (uiTheme: UiThemeDefaults) =
         let lineHeight = float32 uiTheme.EditorLineHeight
@@ -104,7 +103,6 @@ type EditorControl() as this =
         with get () = themeSettings
         and set (value: ThemeSettings) =
             themeSettings <- value
-            lineHeight <- float32 value.Ui.EditorLineHeight
             RenderingSurface.setUiTheme value.Ui
             renderingConfig <- createRenderingConfig value.Ui
             this.InvalidateVisual()
@@ -130,7 +128,7 @@ type EditorControl() as this =
         max 1.0f (float32 this.Bounds.Height - (this.BorderInset * 2.0f))
 
     member private this.VisibleLineCount =
-        max 1 (int (Math.Ceiling(float this.ContentHeight / float lineHeight)))
+        max 1 (int (Math.Ceiling(float this.ContentHeight / themeSettings.Ui.EditorLineHeight)))
 
     member private this.PositionAtPoint(point: Point) =
         LayoutEngine.positionAtPointWithGutter

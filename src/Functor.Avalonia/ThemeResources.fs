@@ -8,6 +8,12 @@ open Functor.Application
 open Functor.Rendering
 
 module ThemeResources =
+    let fontWeight weight =
+        match weight with
+        | 700 -> FontWeight.Bold
+        | 600 -> FontWeight.SemiBold
+        | _ -> FontWeight.Normal
+
     let private colorFromArgb (argb: uint32) =
         Color.FromArgb(byte (argb >>> 24), byte (argb >>> 16), byte (argb >>> 8), byte argb)
 
@@ -36,6 +42,8 @@ module ThemeResources =
               "Theme.ControlFontFamily", box (FontFamily(uiTheme.UiFontFamily))
               "Theme.IconFontFamily", box (FontFamily(uiTheme.IconFontFamily))
               "Theme.TabCloseIconSize", box uiTheme.TabCloseIconSize
+              "Theme.DocumentTabMinHeight", box UiThemeDefaults.documentTabMinHeight
+              "Theme.EditorFontSize", box uiTheme.EditorFontSize
               "Theme.EditorLineHeight", box uiTheme.EditorLineHeight
               "Theme.EditorTabSize", box uiTheme.EditorTabSize
               "Theme.CursorWidth", box uiTheme.CursorWidth
@@ -43,6 +51,12 @@ module ThemeResources =
               "Theme.WorkspaceFontSize", box uiTheme.WorkspaceFontSize
               "Theme.CommandPaletteFontSize", box uiTheme.CommandPaletteFontSize
               "Theme.WelcomeTitleFontSize", box uiTheme.WelcomeTitleFontSize
+              "Theme.FontWeightBold", box (fontWeight UiThemeDefaults.boldFontWeight)
+              "Theme.FontWeightSemiBold", box (fontWeight UiThemeDefaults.semiBoldFontWeight)
+              "Theme.BorderThickness", box (Thickness(UiThemeDefaults.separatorWidth))
+              "Theme.SeparatorBottomThickness", box (Thickness(0, 0, 0, UiThemeDefaults.separatorWidth))
+              "Theme.SeparatorRightThickness", box (Thickness(0, 0, UiThemeDefaults.separatorWidth, 0))
+              "Theme.SeparatorTopThickness", box (Thickness(0, UiThemeDefaults.separatorWidth, 0, 0))
               "Theme.TextMutedOpacity", box uiTheme.TextMutedOpacity
               "Theme.ControlCornerRadius", box (CornerRadius(uiTheme.ControlCornerRadius))
               "Theme.ResizeHandleColor", box uiTheme.ResizeHandleColor

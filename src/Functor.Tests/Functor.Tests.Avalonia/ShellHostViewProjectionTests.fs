@@ -143,6 +143,29 @@ module ShellHostViewProjectionTests =
             Assert.Equal(Some firstDocumentId, view.SessionState.Workspace.ActiveDocumentId))
 
     [<AvaloniaFact>]
+    let ``switching from settings keeps the settings tab available`` () =
+        let view = ShellHostView()
+        let window = Window(Content = view)
+        window.Show()
+
+        view.Editor.NewDocument()
+        let settingsTab = view.FindControl<Button>("SettingsTabButton")
+        let tabs = view.FindControl<DocumentListView>("TabsPanel")
+
+        settingsTab.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Assert.True(view.FindControl<Grid>("SettingsDocument").IsVisible)
+
+        tabs.GetTab(0).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.False(view.FindControl<Grid>("SettingsDocument").IsVisible)
+        Assert.True(settingsTab.IsVisible)
+
+        settingsTab.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Assert.True(view.FindControl<Grid>("SettingsDocument").IsVisible)
+
+        window.Close()
+
+    [<AvaloniaFact>]
     let ``dirty state is reflected in the rendered tab label`` () =
         withHostedView (fun view ->
             view.Editor.NewDocument()

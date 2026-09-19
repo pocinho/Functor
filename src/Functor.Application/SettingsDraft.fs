@@ -27,6 +27,7 @@ type SettingsDraft =
       EditorFallbackFontFamily: string
       IconFontFamily: string
       WorkspaceFontSize: string
+      EditorFontSize: string
       EditorLineHeight: string
       EditorTabSize: string
       CursorWidth: string
@@ -109,6 +110,7 @@ module SettingsDraft =
           UiFontFamily = settings.Theme.Ui.UiFontFamily
           IconFontFamily = settings.Theme.Ui.IconFontFamily
           WorkspaceFontSize = settings.Theme.Ui.WorkspaceFontSize.ToString(CultureInfo.InvariantCulture)
+          EditorFontSize = settings.Theme.Ui.EditorFontSize.ToString(CultureInfo.InvariantCulture)
           EditorLineHeight = settings.Theme.Ui.EditorLineHeight.ToString(CultureInfo.InvariantCulture)
           EditorTabSize = settings.Theme.Ui.EditorTabSize.ToString(CultureInfo.InvariantCulture)
           CursorWidth = settings.Theme.Ui.CursorWidth.ToString(CultureInfo.InvariantCulture)
@@ -297,6 +299,9 @@ module SettingsDraft =
             |> bind (fun ui ->
                 parsePositiveFloat "Workspace font size" draft.WorkspaceFontSize
                 |> Result.map (fun value -> { ui with WorkspaceFontSize = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Editor font size" draft.EditorFontSize
+                |> Result.map (fun value -> { ui with EditorFontSize = value }))
             |> bind (fun ui ->
                 parsePositiveFloat "Editor line height" draft.EditorLineHeight
                 |> Result.map (fun value -> { ui with EditorLineHeight = value }))

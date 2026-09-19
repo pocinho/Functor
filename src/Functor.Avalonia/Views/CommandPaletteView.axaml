@@ -7,7 +7,7 @@
              x:Class="Functor.Avalonia.Views.CommandPaletteView"
              Foreground="{DynamicResource Theme.TextPrimary}">
   <Border x:Name="PaletteBorder"
-          BorderThickness="1"
+          BorderThickness="{DynamicResource Theme.BorderThickness}"
            Background="{DynamicResource Theme.SurfaceBackground}"
            BorderBrush="{DynamicResource Theme.Border}"
            CornerRadius="{DynamicResource Theme.ControlCornerRadius}"
@@ -16,6 +16,7 @@
     <Grid RowDefinitions="Auto,*">
       <TextBox x:Name="SearchBox"
                Grid.Row="0"
+               IsVisible="False"
                PlaceholderText="Type a command"
                FontSize="{DynamicResource Theme.CommandPaletteFontSize}"
                Background="{DynamicResource Theme.InputBackground}"

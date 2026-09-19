@@ -53,7 +53,7 @@ type WorkspaceTests() =
                             Editing = changedFirst }
                     ) }
 
-        Assert.Equal(Some first.Id, workspace.ActiveDocumentId)
+        Assert.Equal(Some second.Id, workspace.ActiveDocumentId)
         Assert.Equal<string list>([ "first" ], firstState.Editing.Buffer)
         Assert.Equal<string list>([ "second" ], secondState.Editing.Buffer)
 

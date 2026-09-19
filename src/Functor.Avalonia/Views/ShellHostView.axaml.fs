@@ -61,7 +61,6 @@ type ShellHostView() as this =
         editor.Value.IsVisible <- not settingsOpen && hasActiveDocument
         welcomeView.Value.IsVisible <- not settingsOpen && not hasActiveDocument
         settingsDocument.Value.IsVisible <- settingsOpen
-        settingsTabButton.Value.IsVisible <- settingsOpen
         settingsTabButton.Value.Classes.Set("selected", settingsOpen)
 
     let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
@@ -346,6 +345,8 @@ type ShellHostView() as this =
 
         tabsPanel.Value.DocumentActivated.Add(fun documentId ->
             settingsOpen <- false
+            settingsDocument.Value.IsVisible <- false
+            settingsTabButton.Value.Classes.Set("selected", false)
             editor.ActivateDocument(documentId)
             updateEmptyStateFromProjection editor.SessionState.Workspace.ActiveDocumentId.IsSome
             editor.Focus() |> ignore)

@@ -73,6 +73,10 @@ type CommandPaletteView() as this =
         refreshItems ""
         executeSelected <- execute
 
+    member _.SetQuery(query: string) =
+        searchBox.Value.Text <- query
+        refreshItems query
+
     member _.SelectedDescriptor = paletteState |> Option.bind CommandPaletteState.selected
 
     member _.FocusSearch() = searchBox.Value.Focus() |> ignore

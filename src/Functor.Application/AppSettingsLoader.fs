@@ -80,6 +80,7 @@ module AppSettingsLoader =
         theme["iconFontFamily"] <- ui.IconFontFamily
         theme["tabCloseIconSize"] <- ui.TabCloseIconSize
         theme["workspaceFontSize"] <- ui.WorkspaceFontSize
+        theme["editorFontSize"] <- ui.EditorFontSize
         theme["editorLineHeight"] <- ui.EditorLineHeight
         theme["editorTabSize"] <- ui.EditorTabSize
         theme["cursorWidth"] <- ui.CursorWidth

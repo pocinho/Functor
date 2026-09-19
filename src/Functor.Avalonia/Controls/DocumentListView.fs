@@ -66,7 +66,7 @@ type DocumentListView() as this =
                     let tabButton =
                         Button(
                             Padding = Thickness(10, 4),
-                            MinHeight = 28.0,
+                            MinHeight = UiThemeDefaults.documentTabMinHeight,
                             BorderThickness = Thickness(1),
                             HorizontalContentAlignment = HorizontalAlignment.Stretch
                         )
@@ -85,8 +85,8 @@ type DocumentListView() as this =
                                     VerticalAlignment = VerticalAlignment.Center,
                                     HorizontalAlignment = HorizontalAlignment.Center
                                 ),
-                            Width = 22.0,
-                            Height = 22.0,
+                            Width = UiThemeDefaults.documentTabCloseButtonSize,
+                            Height = UiThemeDefaults.documentTabCloseButtonSize,
                             Padding = Thickness(0)
                         )
 

@@ -237,6 +237,10 @@ module ThemeSettingsLoader =
                                 WorkspaceFontSize = float value })
                     )
                     |> Result.bind (
+                        applyUiPositiveFloat theme "editorFontSize" (fun value ui ->
+                            { ui with EditorFontSize = float value })
+                    )
+                    |> Result.bind (
                         applyUiFloat theme "editorLineHeight" (fun value ui ->
                             { ui with
                                 EditorLineHeight = float value })

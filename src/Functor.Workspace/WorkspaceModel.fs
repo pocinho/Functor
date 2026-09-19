@@ -146,6 +146,6 @@ module WorkspaceModel =
                 workspace.Documents |> Map.add document.Id (sessionForDocument document)
 
             { workspace with
-                ActiveDocumentId = Option.orElse (Some document.Id) workspace.ActiveDocumentId
+                ActiveDocumentId = Some document.Id
                 Documents = documents
                 TabOrder = workspace.TabOrder @ [ document.Id ] }

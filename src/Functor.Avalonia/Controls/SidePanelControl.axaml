@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Functor.Avalonia.Controls.SidePanelControl">
   <Border x:Name="PanelBorder"
-          BorderThickness="1,0,0,0"
+          BorderThickness="{DynamicResource Theme.SeparatorRightThickness}"
           Padding="0,0,8,0">
     <Grid ColumnDefinitions="*,4">
       <ContentControl x:Name="PanelContentControl" Grid.Column="0" />

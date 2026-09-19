@@ -8,96 +8,112 @@
              Foreground="{DynamicResource Theme.TextPrimary}">
   <ScrollViewer>
     <StackPanel Margin="16" Spacing="4">
-      <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,0,0,8" />
+      <TextBlock Text="Theme" FontWeight="{DynamicResource Theme.FontWeightSemiBold}" Margin="0,0,0,8" />
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Preset" VerticalAlignment="Center" />
         <ComboBox x:Name="ThemePreset" Grid.Column="1" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Background" VerticalAlignment="Center" />
-        <TextBox x:Name="Background" Grid.Column="1" />
+        <ColorPicker x:Name="BackgroundPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="Background" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Foreground" VerticalAlignment="Center" />
-        <TextBox x:Name="Foreground" Grid.Column="1" />
+        <ColorPicker x:Name="ForegroundPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="Foreground" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Selection" VerticalAlignment="Center" />
-        <TextBox x:Name="Selection" Grid.Column="1" />
+        <ColorPicker x:Name="SelectionPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="Selection" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Cursor" VerticalAlignment="Center" />
-        <TextBox x:Name="Cursor" Grid.Column="1" />
+        <ColorPicker x:Name="CursorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="Cursor" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Line number" VerticalAlignment="Center" />
-        <TextBox x:Name="LineNumber" Grid.Column="1" />
+        <ColorPicker x:Name="LineNumberPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="LineNumber" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Gutter background" VerticalAlignment="Center" />
-        <TextBox x:Name="GutterBackground" Grid.Column="1" />
+        <ColorPicker x:Name="GutterBackgroundPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="GutterBackground" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Diagnostic error" VerticalAlignment="Center" />
-        <TextBox x:Name="DiagnosticError" Grid.Column="1" />
+        <ColorPicker x:Name="DiagnosticErrorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="DiagnosticError" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Diagnostic warning" VerticalAlignment="Center" />
-        <TextBox x:Name="DiagnosticWarning" Grid.Column="1" />
+        <ColorPicker x:Name="DiagnosticWarningPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="DiagnosticWarning" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Diagnostic info" VerticalAlignment="Center" />
-        <TextBox x:Name="DiagnosticInfo" Grid.Column="1" />
+        <ColorPicker x:Name="DiagnosticInfoPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="DiagnosticInfo" Grid.Column="2" />
       </Grid>
-      <TextBlock Text="Syntax colors" FontWeight="SemiBold" Margin="0,12,0,8" />
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <TextBlock Text="Syntax colors" FontWeight="{DynamicResource Theme.FontWeightSemiBold}" Margin="0,12,0,8" />
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Keyword" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxKeyword" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxKeywordPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxKeyword" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="String" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxString" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxStringPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxString" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Comment" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxComment" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxCommentPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxComment" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Number" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxNumber" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxNumberPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxNumber" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Type" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxType" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxTypePicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxType" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Function" VerticalAlignment="Center" />
-        <TextBox x:Name="SyntaxFunction" Grid.Column="1" />
+        <ColorPicker x:Name="SyntaxFunctionPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="SyntaxFunction" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Editor border" VerticalAlignment="Center" />
-        <TextBox x:Name="EditorBorder" Grid.Column="1" />
+        <ColorPicker x:Name="EditorBorderPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="EditorBorder" Grid.Column="2" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Border width" VerticalAlignment="Center" />
         <TextBox x:Name="EditorBorderWidth" Grid.Column="1" />
       </Grid>
-      <TextBlock Text="Editor and UI" FontWeight="SemiBold" Margin="0,12,0,8" />
+      <TextBlock Text="Editor and UI" FontWeight="{DynamicResource Theme.FontWeightSemiBold}" Margin="0,12,0,8" />
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Editor font" VerticalAlignment="Center" />
-        <TextBox x:Name="EditorFontFamily" Grid.Column="1" />
+        <ComboBox x:Name="EditorFontFamily" Grid.Column="1" IsEditable="True" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Editor fallback font" VerticalAlignment="Center" />
-        <TextBox x:Name="EditorFallbackFontFamily" Grid.Column="1" />
+        <ComboBox x:Name="EditorFallbackFontFamily" Grid.Column="1" IsEditable="True" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="UI font" VerticalAlignment="Center" />
-        <TextBox x:Name="UiFontFamily" Grid.Column="1" />
+        <ComboBox x:Name="UiFontFamily" Grid.Column="1" IsEditable="True" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Icon font" VerticalAlignment="Center" />
-        <TextBox x:Name="IconFontFamily" Grid.Column="1" />
+        <ComboBox x:Name="IconFontFamily" Grid.Column="1" IsEditable="True" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Tab close icon size" VerticalAlignment="Center" />
@@ -106,6 +122,10 @@
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Workspace font size" VerticalAlignment="Center" />
         <TextBox x:Name="WorkspaceFontSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Editor font size" VerticalAlignment="Center" />
+        <TextBox x:Name="EditorFontSize" Grid.Column="1" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Editor line height" VerticalAlignment="Center" />
@@ -139,21 +159,25 @@
         <TextBlock Text="Control corner radius" VerticalAlignment="Center" />
         <TextBox x:Name="ControlCornerRadius" Grid.Column="1" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Resize handle color" VerticalAlignment="Center" />
-        <TextBox x:Name="ResizeHandleColor" Grid.Column="1" />
+        <ColorPicker x:Name="ResizeHandleColorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="ResizeHandleColor" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Command palette shadow" VerticalAlignment="Center" />
-        <TextBox x:Name="CommandPaletteShadowColor" Grid.Column="1" />
+        <ColorPicker x:Name="CommandPaletteShadowColorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="CommandPaletteShadowColor" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Workspace separator" VerticalAlignment="Center" />
-        <TextBox x:Name="WorkspaceSeparatorColor" Grid.Column="1" />
+        <ColorPicker x:Name="WorkspaceSeparatorColorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="WorkspaceSeparatorColor" Grid.Column="2" />
       </Grid>
-      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="160,72,*" Margin="0,0,0,8">
         <TextBlock Text="Measurement color" VerticalAlignment="Center" />
-        <TextBox x:Name="MeasurementColor" Grid.Column="1" />
+        <ColorPicker x:Name="MeasurementColorPicker" Grid.Column="1" Width="64" Height="32" IsAlphaEnabled="True" IsAlphaVisible="True" />
+        <TextBox x:Name="MeasurementColor" Grid.Column="2" />
       </Grid>
       <TextBlock x:Name="ErrorText"
              TextWrapping="Wrap"

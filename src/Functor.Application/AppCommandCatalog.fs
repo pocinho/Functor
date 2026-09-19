@@ -87,17 +87,43 @@ module AppCommandCatalog =
     let tryFindById id =
         all |> List.tryFind (fun descriptor -> descriptor.Id = id)
 
+    let private fuzzyScore (query: string) (value: string) =
+        let normalizedQuery = query.Trim().ToLowerInvariant()
+        let normalizedValue = value.ToLowerInvariant()
+
+        if normalizedValue = normalizedQuery then
+            Some 0
+        elif normalizedValue.StartsWith(normalizedQuery, System.StringComparison.Ordinal) then
+            Some 1
+        elif normalizedValue.Contains(normalizedQuery, System.StringComparison.Ordinal) then
+            Some 2
+        else
+            let rec matchCharacters queryIndex valueIndex score =
+                if queryIndex = normalizedQuery.Length then
+                    Some(score + 10)
+                elif valueIndex = normalizedValue.Length then
+                    None
+                elif normalizedQuery[queryIndex] = normalizedValue[valueIndex] then
+                    matchCharacters (queryIndex + 1) (valueIndex + 1) (score + valueIndex)
+                else
+                    matchCharacters queryIndex (valueIndex + 1) score
+
+            matchCharacters 0 0 0
+
     let filter (query: string) (commands: AppCommandDescriptor list) =
         let normalized = query.Trim()
 
         if System.String.IsNullOrWhiteSpace normalized then
             commands
         else
-            let contains (value: string) =
-                value.Contains(normalized, System.StringComparison.OrdinalIgnoreCase)
-
             commands
-            |> List.filter (fun command ->
-                contains command.Title
-                || contains command.Category
-                || (command.GestureText |> Option.exists contains))
+        |> List.choose (fun command ->
+            [ fuzzyScore normalized command.Title
+              fuzzyScore normalized command.Category
+              command.GestureText |> Option.bind (fuzzyScore normalized) ]
+            |> List.choose id
+            |> List.sort
+            |> List.tryHead
+            |> Option.map (fun score -> score, command))
+        |> List.sortBy fst
+        |> List.map snd
