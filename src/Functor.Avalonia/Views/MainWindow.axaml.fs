@@ -8,6 +8,7 @@ open Avalonia.Layout
 open Avalonia.Media
 open Avalonia.Markup.Xaml
 open Avalonia.Threading
+open Avalonia.VisualTree
 open Functor.Avalonia
 open Functor.Application
 open Functor.Platform
@@ -30,7 +31,12 @@ type MainWindow() as this =
     let maximizeButton = lazy (this.FindControl<Button>("MaximizeButton"))
     let closeButton = lazy (this.FindControl<Button>("CloseButton"))
     let commandBar = lazy (this.FindControl<TextBox>("CommandBar"))
+    let commandBarWatermark = lazy (this.FindControl<TextBlock>("CommandBarWatermark"))
     let mutable updatingCommandBar = false
+    let commandRequested = Event<AppCommand>()
+
+    let updateCommandBarWatermark () =
+        commandBarWatermark.Value.IsVisible <- String.IsNullOrWhiteSpace commandBar.Value.Text
 
     let recentDocumentsMenuItem =
         lazy (this.FindControl<MenuItem>("RecentDocumentsMenuItem"))
@@ -75,6 +81,8 @@ type MainWindow() as this =
             let dialog, setContent =
                 ThemedDialogWindow.create shellState.AppSettings "Unsaved changes" 420.0 160.0
 
+            let layout = ThemeLayoutDensity.fromUiTheme shellState.AppSettings.Theme.Ui
+
             let message =
                 TextBlock(
                     Text = "There are unsaved changes. Discard them and close Functor?",
@@ -83,8 +91,12 @@ type MainWindow() as this =
 
             let discardButton = Button(Content = "Discard and Close")
             let cancelButton = Button(Content = "Cancel")
-            let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
-            let content = StackPanel(Spacing = 16.0, Margin = Thickness(16.0))
+
+            let buttons =
+                StackPanel(Orientation = Orientation.Horizontal, Spacing = layout.DialogButtonSpacing)
+
+            let content =
+                StackPanel(Spacing = layout.DialogContentSpacing, Margin = Thickness(layout.DialogContentPadding))
 
             buttons.Children.Add(discardButton) |> ignore
             buttons.Children.Add(cancelButton) |> ignore
@@ -109,8 +121,7 @@ type MainWindow() as this =
         |> List.iter (fun closed ->
             let item = MenuItem(Header = sprintf "%s (%s)" closed.Name closed.Path)
 
-            item.Click.Add(fun _ ->
-                editor.Value.DispatchApplicationCommand(AppCommand.reopenRecentDocument closed.Path))
+            item.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.reopenRecentDocument closed.Path))
 
             recentMenu.Items.Add(item) |> ignore)
 
@@ -123,6 +134,7 @@ type MainWindow() as this =
         updatingCommandBar <- true
         commandBar.Value.Text <- ""
         updatingCommandBar <- false
+        updateCommandBarWatermark ()
         editor.Value.Focus() |> ignore
 
     let rec showCommandPalette () =
@@ -141,9 +153,16 @@ type MainWindow() as this =
         match command with
         | OpenCommandPaletteRequested -> showCommandPalette ()
         | OpenSettingsRequested -> showSettingsDialog ()
+        | NewDocumentRequested
+        | OpenFileRequested
+        | OpenDocumentRequested _
+        | OpenFolderRequested ->
+            shellHostView.Value.PrepareForDocumentNavigation()
+            editor.Value.DispatchApplicationCommand(command)
         | other -> editor.Value.DispatchApplicationCommand(other)
 
-    and executeDescriptor (descriptor: AppCommandDescriptor) = executeCommand descriptor.Command
+    and executeDescriptor (descriptor: AppCommandDescriptor) =
+        commandRequested.Trigger(descriptor.Command)
 
     and executeSelectedCommand () =
         match commandPaletteView.Value.SelectedDescriptor with
@@ -157,6 +176,15 @@ type MainWindow() as this =
 
     let executeCommandById id =
         AppCommandCatalog.tryFindById id |> Option.iter executeDescriptor
+
+    let handleCommandBarTextChanged _ =
+        updateCommandBarWatermark ()
+
+        if not updatingCommandBar then
+            if not shellState.IsCommandPaletteOpen then
+                showCommandPalette ()
+            else
+                commandPaletteView.Value.SetQuery(commandBar.Value.Text)
 
     let toggleMaximize () =
         this.WindowState <-
@@ -176,6 +204,8 @@ type MainWindow() as this =
         this.InitializeComponent()
 
         shellHostView.Value.SetSettingsActions(applySettings, saveSettings)
+        commandRequested.Publish.Add(executeCommand)
+        shellHostView.Value.CommandRequested.Add(commandRequested.Trigger)
         loadSettings ()
 
         this.FindControl<MenuItem>("NewMenuItem").Click.Add(fun _ -> executeCommandById "file.new")
@@ -205,12 +235,33 @@ type MainWindow() as this =
                 args.Cancel <- true
                 showCloseConfirmation ())
 
-        commandBar.Value.TextChanged.Add(fun _ ->
-            if not updatingCommandBar then
-                if not shellState.IsCommandPaletteOpen then
-                    showCommandPalette ()
-                else
-                    commandPaletteView.Value.SetQuery(commandBar.Value.Text))
+        commandBar.Value.TextChanged.Add(handleCommandBarTextChanged)
+
+        commandBar.Value.GotFocus.Add(fun _ ->
+            if not shellState.IsCommandPaletteOpen then
+                showCommandPalette ())
+
+        commandBar.Value.LostFocus.Add(fun args ->
+            match args.NewFocusedElement with
+            | :? Visual as focusedVisual when commandPaletteOverlay.Value.IsVisualAncestorOf(focusedVisual) -> ()
+            | _ when shellState.IsCommandPaletteOpen -> hideCommandPalette ()
+            | _ -> ())
+
+        commandBar.Value.KeyDown.Add(fun args ->
+            if shellState.IsCommandPaletteOpen then
+                match args.Key with
+                | Key.Enter ->
+                    executeSelectedCommand ()
+                    args.Handled <- true
+                | Key.Up ->
+                    commandPaletteView.Value.MoveSelection(-1)
+                    args.Handled <- true
+                | Key.Down ->
+                    commandPaletteView.Value.MoveSelection(1)
+                    args.Handled <- true
+                | _ -> ())
+
+        updateCommandBarWatermark ()
 
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())
         editor.Value.StateChanged.Add(updateRecentDocumentsMenu)

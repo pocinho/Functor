@@ -22,6 +22,12 @@ type AppCommandCatalogTests() =
         Assert.Equal("workbench.settings", matches |> List.head |> (fun command -> command.Id))
 
     [<Fact>]
+    member _.``null query returns the full command catalog``() =
+        let matches = AppCommandCatalog.filter null AppCommandCatalog.all
+
+        Assert.Equal(List.length AppCommandCatalog.all, List.length matches)
+
+    [<Fact>]
     member _.``save command is disabled without an active document``() =
         let saveCommand =
             AppCommandCatalog.tryFindById "file.save"

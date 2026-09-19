@@ -30,6 +30,14 @@ module EditorControlTests =
             RenderingSurface.setUiTheme UiThemeDefaults.defaultTheme
 
     [<AvaloniaFact>]
+    let ``unicode graphemes remain measurable as source text`` () =
+        let lineHeight = 16.0f
+        let graphemes = [ "\u2011"; "😀"; "界"; "e\u0301"; "∑" ]
+
+        for grapheme in graphemes do
+            Assert.True(RenderingSurface.measureGraphemeAdvance lineHeight 0 grapheme > 0.0f, grapheme)
+
+    [<AvaloniaFact>]
     let ``shifted cursor movement updates the keyboard selection`` () =
         let editor = EditorControl()
         editor.NewDocument()

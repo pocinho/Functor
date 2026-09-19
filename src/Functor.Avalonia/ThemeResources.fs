@@ -31,62 +31,95 @@ module ThemeResources =
         | _ -> items |> Seq.iter (fun (key, value) -> resources[key] <- value)
 
     let applyUi (resources: IResourceDictionary) (uiTheme: UiThemeDefaults) =
+        let typography = ThemeTypography.fromUiTheme uiTheme
+        let shape = ThemeShapeDensity.fromUiTheme uiTheme
+        let layout = ThemeLayoutDensity.fromUiTheme uiTheme
         let resizeHandleBrush = brushFromArgb uiTheme.ResizeHandleColor
         let workspaceSeparatorBrush = brushFromArgb uiTheme.WorkspaceSeparatorColor
         let shadow = commandPaletteShadow uiTheme.CommandPaletteShadowColor
 
         setItems
             resources
-            [ "Theme.EditorFontFamily", box uiTheme.EditorFontFamily
-              "Theme.EditorFallbackFontFamily", box uiTheme.EditorFallbackFontFamily
-              "Theme.ControlFontFamily", box (FontFamily(uiTheme.UiFontFamily))
-              "Theme.IconFontFamily", box (FontFamily(uiTheme.IconFontFamily))
-              "Theme.TabCloseIconSize", box uiTheme.TabCloseIconSize
-              "Theme.DocumentTabMinHeight", box UiThemeDefaults.documentTabMinHeight
-              "Theme.EditorFontSize", box uiTheme.EditorFontSize
-              "Theme.EditorLineHeight", box uiTheme.EditorLineHeight
-              "Theme.EditorTabSize", box uiTheme.EditorTabSize
-              "Theme.CursorWidth", box uiTheme.CursorWidth
-              "Theme.GutterSeparatorWidth", box uiTheme.GutterSeparatorWidth
-              "Theme.WorkspaceFontSize", box uiTheme.WorkspaceFontSize
-              "Theme.CommandPaletteFontSize", box uiTheme.CommandPaletteFontSize
-              "Theme.WelcomeTitleFontSize", box uiTheme.WelcomeTitleFontSize
-              "Theme.FontWeightBold", box (fontWeight UiThemeDefaults.boldFontWeight)
-              "Theme.FontWeightSemiBold", box (fontWeight UiThemeDefaults.semiBoldFontWeight)
-              "Theme.BorderThickness", box (Thickness(UiThemeDefaults.separatorWidth))
-              "Theme.SeparatorBottomThickness", box (Thickness(0, 0, 0, UiThemeDefaults.separatorWidth))
-              "Theme.SeparatorRightThickness", box (Thickness(0, 0, UiThemeDefaults.separatorWidth, 0))
-              "Theme.SeparatorTopThickness", box (Thickness(0, UiThemeDefaults.separatorWidth, 0, 0))
-              "Theme.TextMutedOpacity", box uiTheme.TextMutedOpacity
-              "Theme.ControlCornerRadius", box (CornerRadius(uiTheme.ControlCornerRadius))
-              "Theme.ResizeHandleColor", box uiTheme.ResizeHandleColor
-              "Theme.ResizeHandleBrush", box resizeHandleBrush
-              "Theme.CommandPaletteShadowColor", box uiTheme.CommandPaletteShadowColor
-              "Theme.CommandPaletteShadow", box shadow
-              "Theme.WorkspaceSeparatorColor", box uiTheme.WorkspaceSeparatorColor
-              "Theme.WorkspaceSeparatorBrush", box workspaceSeparatorBrush
-              "Theme.MeasurementColor", box uiTheme.MeasurementColor ]
+            [ ("Theme.EditorFontFamily", box typography.EditorFontFamily)
+              ("Theme.EditorFallbackFontFamily", box typography.EditorFallbackFontFamily)
+              ("Theme.ControlFontFamily", box (FontFamily(typography.UiFontFamily)))
+              ("Theme.IconFontFamily", box (FontFamily(typography.IconFontFamily)))
+              ("Theme.TabCloseIconSize", box uiTheme.TabCloseIconSize)
+              ("Theme.DocumentTabMinHeight", box shape.DocumentTabMinHeight)
+              ("Theme.DocumentTabPadding",
+               box (Thickness(shape.DocumentTabPaddingHorizontal, shape.DocumentTabPaddingVertical)))
+              ("Theme.DocumentTabSpacing", box shape.DocumentTabSpacing)
+              ("Theme.TabNavigationButtonWidth", box shape.TabNavigationButtonWidth)
+              ("Theme.TitleBarHeight", box shape.TitleBarHeight)
+              ("Theme.WindowControlWidth", box shape.WindowControlWidth)
+              ("Theme.WindowControlPadding", box (Thickness(shape.WindowControlPadding)))
+              ("Theme.CommandBarWidth", box shape.CommandBarWidth)
+              ("Theme.MinimumWindowWidth", box shape.MinimumWindowWidth)
+              ("Theme.CommandBarHeight", box shape.CommandBarHeight)
+              ("Theme.TitleBarHorizontalPadding", box (Thickness(shape.TitleBarHorizontalPadding, 0.0)))
+              ("Theme.CommandPaletteWidth", box shape.CommandPaletteWidth)
+              ("Theme.CommandPaletteOverlayMargin", box (Thickness(0.0, shape.CommandPaletteTopMargin, 0.0, 0.0)))
+              ("Theme.CommandPalettePadding", box (Thickness(shape.CommandPalettePadding)))
+              ("Theme.CommandPaletteMaxHeight", box shape.CommandPaletteMaxHeight)
+              ("Theme.CommandPaletteItemMargin",
+               box (Thickness(shape.CommandPaletteItemMarginHorizontal, shape.CommandPaletteItemMarginVertical)))
+              ("Theme.CommandPaletteGestureMargin", box (Thickness(shape.CommandPaletteGestureMargin, 0.0, 0.0, 0.0)))
+              ("Theme.SidePanelResizeHandleWidth", box shape.SidePanelResizeHandleWidth)
+              ("Theme.SidePanelRightPadding", box (Thickness(0.0, 0.0, shape.SidePanelRightPadding, 0.0)))
+              ("Theme.TabBarPadding", box (Thickness(layout.TabBarPaddingHorizontal, layout.TabBarPaddingVertical)))
+              ("Theme.ToolRailPadding", box (Thickness(layout.ToolRailPadding)))
+              ("Theme.ToolRailSpacing", box layout.ToolRailSpacing)
+              ("Theme.SettingsFooterPadding", box (Thickness(layout.SettingsFooterPadding)))
+              ("Theme.SettingsFooterSpacing", box layout.SettingsFooterSpacing)
+              ("Theme.StatusBarPadding",
+               box (Thickness(layout.StatusBarPaddingHorizontal, layout.StatusBarPaddingVertical)))
+              ("Theme.StatusTextGap", box (Thickness(layout.StatusTextGap, 0.0, 0.0, 0.0)))
+              ("Theme.StatusDirtyGap", box (Thickness(layout.StatusDirtyGap, 0.0, 0.0, 0.0)))
+              ("Theme.WelcomeWidth", box layout.WelcomeWidth)
+              ("Theme.WelcomeSectionSpacing", box layout.WelcomeSectionSpacing)
+              ("Theme.WelcomeActionSpacing", box layout.WelcomeActionSpacing)
+              ("Theme.EditorFontSize", box typography.EditorFontSize)
+              ("Theme.EditorLineHeight", box typography.EditorLineHeight)
+              ("Theme.EditorTabSize", box uiTheme.EditorTabSize)
+              ("Theme.CursorWidth", box uiTheme.CursorWidth)
+              ("Theme.GutterSeparatorWidth", box uiTheme.GutterSeparatorWidth)
+              ("Theme.WorkspaceFontSize", box typography.WorkspaceFontSize)
+              ("Theme.CommandPaletteFontSize", box typography.CommandPaletteFontSize)
+              ("Theme.WelcomeTitleFontSize", box typography.WelcomeTitleFontSize)
+              ("Theme.FontWeightBold", box (fontWeight typography.BoldFontWeight))
+              ("Theme.FontWeightSemiBold", box (fontWeight typography.SemiBoldFontWeight))
+              ("Theme.BorderThickness", box (Thickness(shape.BorderWidth)))
+              ("Theme.SeparatorBottomThickness", box (Thickness(0, 0, 0, shape.SeparatorWidth)))
+              ("Theme.SeparatorRightThickness", box (Thickness(0, 0, shape.SeparatorWidth, 0)))
+              ("Theme.SeparatorTopThickness", box (Thickness(0, shape.SeparatorWidth, 0, 0)))
+              ("Theme.TextMutedOpacity", box uiTheme.TextMutedOpacity)
+              ("Theme.ControlCornerRadius", box (CornerRadius(shape.ControlCornerRadius)))
+              ("Theme.ResizeHandleColor", box uiTheme.ResizeHandleColor)
+              ("Theme.ResizeHandleBrush", box resizeHandleBrush)
+              ("Theme.CommandPaletteShadowColor", box uiTheme.CommandPaletteShadowColor)
+              ("Theme.CommandPaletteShadow", box shadow)
+              ("Theme.WorkspaceSeparatorColor", box uiTheme.WorkspaceSeparatorColor)
+              ("Theme.WorkspaceSeparatorBrush", box workspaceSeparatorBrush)
+              ("Theme.MeasurementColor", box uiTheme.MeasurementColor) ]
 
-    let applyPalette (resources: IResourceDictionary) (palette: ThemePalette) =
-        let surfaceBackground = brushFromArgb palette.Background
-        let panelBackground = brushFromArgb palette.GutterBackground
-        let inputBackground = brushFromArgb palette.GutterBackground
-        let textPrimary = brushFromArgb palette.Foreground
-        let textMuted = brushFromArgb palette.LineNumber
-        let selection = brushFromArgb palette.Selection
-        let hover = brushFromArgb palette.Selection
-        let pressed = brushFromArgb palette.Cursor
-        let disabled = brushFromArgb palette.LineNumber
-        let error = brushFromArgb palette.DiagnosticError
-        let warning = brushFromArgb palette.DiagnosticWarning
-        let information = brushFromArgb palette.DiagnosticInfo
-
-        let separator = palette.GutterSeparator |> Option.defaultValue palette.Foreground
-        let separatorBrush = brushFromArgb separator
-        let focus = brushFromArgb palette.Cursor
-
-        let resizeHandleBrush = resources["Theme.ResizeHandleBrush"]
-        let shadow = resources["Theme.CommandPaletteShadow"]
+    let applyPalette (resources: IResourceDictionary) (uiTheme: UiThemeDefaults) (palette: ThemePalette) =
+        let semantic = ThemeSemanticColors.fromPalette uiTheme palette
+        let surfaceBackground = brushFromArgb semantic.SurfaceBackground
+        let panelBackground = brushFromArgb semantic.PanelBackground
+        let inputBackground = brushFromArgb semantic.InputBackground
+        let textPrimary = brushFromArgb semantic.TextPrimary
+        let textMuted = brushFromArgb semantic.TextMuted
+        let selection = brushFromArgb semantic.Selection
+        let hover = brushFromArgb semantic.Hover
+        let pressed = brushFromArgb semantic.Pressed
+        let disabled = brushFromArgb semantic.Disabled
+        let error = brushFromArgb semantic.Error
+        let warning = brushFromArgb semantic.Warning
+        let information = brushFromArgb semantic.Information
+        let separatorBrush = brushFromArgb semantic.Separator
+        let focus = brushFromArgb semantic.Focus
+        let resizeHandleBrush = brushFromArgb semantic.ResizeHandle
+        let shadow = commandPaletteShadow semantic.Shadow
 
         setItems
             resources

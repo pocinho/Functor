@@ -1,7 +1,9 @@
 namespace Functor.Tests.Avalonia
 
+open Avalonia
 open Avalonia.Controls
 open Avalonia.Headless.XUnit
+open Avalonia.Interactivity
 open Avalonia.Threading
 open Functor.Application
 open Functor.Domain.Core
@@ -27,11 +29,33 @@ module CommandPaletteViewTests =
         Assert.Equal(Some "file.new", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))
 
     [<AvaloniaFact>]
+    let ``selection moves with arrow offsets and clamps at the list boundaries`` () =
+        let view = CommandPaletteView()
+        view.Configure(AppCommandCatalog.all, state, ignore)
+
+        view.MoveSelection(1)
+        Assert.Equal(Some "file.open", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))
+
+        view.MoveSelection(-1)
+        view.MoveSelection(-1)
+        Assert.Equal(Some "file.new", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))
+
+    [<AvaloniaFact>]
+    let ``tapping the command list executes the selected command`` () =
+        let mutable executionCount = 0
+        let view = CommandPaletteView()
+        view.Configure(AppCommandCatalog.all, state, fun () -> executionCount <- executionCount + 1)
+
+        let commandList = view.FindControl<ListBox>("CommandList")
+        commandList.RaiseEvent(RoutedEventArgs(Avalonia.Input.InputElement.TappedEvent))
+
+        Assert.Equal(1, executionCount)
+
+    [<AvaloniaFact>]
     let ``search filters commands and preserves the selected descriptor`` () =
         let view = CommandPaletteView()
         view.Configure(AppCommandCatalog.all, state, ignore)
-        let searchBox = view.FindControl<TextBox>("SearchBox")
-        searchBox.Text <- "settings"
+        view.SetQuery("settings")
         Dispatcher.UIThread.RunJobs()
 
         let commandList = view.FindControl<ListBox>("CommandList")
@@ -43,13 +67,10 @@ module CommandPaletteViewTests =
     let ``reconfiguring clears a previous search query`` () =
         let view = CommandPaletteView()
         view.Configure(AppCommandCatalog.all, state, ignore)
-        let searchBox = view.FindControl<TextBox>("SearchBox")
-        searchBox.Text <- "settings"
+        view.SetQuery("settings")
         Dispatcher.UIThread.RunJobs()
 
         view.Configure(AppCommandCatalog.all, state, ignore)
-
-        Assert.Equal("", searchBox.Text)
 
         let enabledCommandCount =
             AppCommandCatalog.all
@@ -65,8 +86,7 @@ module CommandPaletteViewTests =
         view.CloseRequested.Add(fun _ -> closeCount <- closeCount + 1)
         view.Configure(AppCommandCatalog.all, state, ignore)
 
-        let searchBox = view.FindControl<TextBox>("SearchBox")
-        searchBox.Text <- "no matching command"
+        view.SetQuery("no matching command")
         Dispatcher.UIThread.RunJobs()
 
         Assert.Equal(0, view.FindControl<ListBox>("CommandList").ItemCount)
@@ -83,5 +103,4 @@ module CommandPaletteViewTests =
 
         view.Configure(AppCommandCatalog.all, state, ignore)
 
-        Assert.Equal("", searchBox.Text)
         Assert.Equal(Some "file.new", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))

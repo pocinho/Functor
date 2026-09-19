@@ -96,7 +96,7 @@ type EditorControl() as this =
 
     let mutable renderingConfig = createRenderingConfig themeSettings.Ui
 
-    let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> =
+    let renderBackend: IRenderBackend<DrawingContext, Avalonia.Rect, RenderingSurface.ThemeSnapshot> =
         AvaloniaRenderBackend()
 
     member this.ThemeSettings
@@ -465,6 +465,9 @@ type EditorControl() as this =
                     { frame with Cursors = [] }
 
         let bounds = Avalonia.Rect(0.0, 0.0, this.Bounds.Width, this.Bounds.Height)
-        let theme = themeSettings.ThemeSource.Resolve()
+
+        let theme: RenderingSurface.ThemeSnapshot =
+            { Ui = themeSettings.Ui
+              Palette = themeSettings.ThemeSource.Resolve() }
 
         RenderBackend.drawFrame renderBackend context bounds frame theme

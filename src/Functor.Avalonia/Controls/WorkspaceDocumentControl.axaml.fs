@@ -33,7 +33,9 @@ type WorkspaceDocumentControl() as this =
     let mutable uiTheme = UiThemeDefaults.defaultTheme
     let mutable itemFontSize = uiTheme.WorkspaceFontSize
 
-    let indentation depth = Thickness(float (depth * 14), 0, 0, 0)
+    let indentation depth =
+        let shape = ThemeShapeDensity.fromUiTheme uiTheme
+        Thickness(float depth * shape.WorkspaceTreeIndent, 0, 0, 0)
 
     let fileButton depth name path isDirty documentId =
         let file =
@@ -74,8 +76,8 @@ type WorkspaceDocumentControl() as this =
         let collapseButton =
             Button(
                 Content = arrow,
-                Width = 18.0,
-                MinWidth = 18.0,
+                Width = (ThemeShapeDensity.fromUiTheme uiTheme).WorkspaceTreeCollapseButtonSize,
+                MinWidth = (ThemeShapeDensity.fromUiTheme uiTheme).WorkspaceTreeCollapseButtonSize,
                 Padding = Thickness(0),
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,

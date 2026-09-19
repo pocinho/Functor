@@ -43,13 +43,18 @@ type SettingsDraft =
       WorkspaceSeparatorColor: string
       MeasurementColor: string
       TabCloseIconSize: string
-      UiFontFamily: string }
+      UiFontFamily: string
+      DocumentTabMinHeight: string
+      DocumentTabCloseButtonSize: string
+      DocumentTabPaddingHorizontal: string
+      DocumentTabPaddingVertical: string
+      DocumentTabSpacing: string }
 
 module SettingsDraft =
     let private colorText color = sprintf "#%08X" color
 
     let paletteForPreset preset =
-        if preset = "Graphite Light" then
+        if preset = ThemePreset.GraphiteLight then
             Theme.graphiteLight
         else
             Theme.defaultPalette
@@ -117,6 +122,14 @@ module SettingsDraft =
           GutterSeparatorWidth = settings.Theme.Ui.GutterSeparatorWidth.ToString(CultureInfo.InvariantCulture)
           GutterPadding = settings.Theme.Ui.GutterPadding.ToString(CultureInfo.InvariantCulture)
           GutterMinimumWidth = settings.Theme.Ui.GutterMinimumWidth.ToString(CultureInfo.InvariantCulture)
+          DocumentTabMinHeight = settings.Theme.Ui.DocumentTabMinHeight.ToString(CultureInfo.InvariantCulture)
+          DocumentTabCloseButtonSize =
+            settings.Theme.Ui.DocumentTabCloseButtonSize.ToString(CultureInfo.InvariantCulture)
+          DocumentTabPaddingHorizontal =
+            settings.Theme.Ui.DocumentTabPaddingHorizontal.ToString(CultureInfo.InvariantCulture)
+          DocumentTabPaddingVertical =
+            settings.Theme.Ui.DocumentTabPaddingVertical.ToString(CultureInfo.InvariantCulture)
+          DocumentTabSpacing = settings.Theme.Ui.DocumentTabSpacing.ToString(CultureInfo.InvariantCulture)
           CommandPaletteFontSize = settings.Theme.Ui.CommandPaletteFontSize.ToString(CultureInfo.InvariantCulture)
           WelcomeTitleFontSize = settings.Theme.Ui.WelcomeTitleFontSize.ToString(CultureInfo.InvariantCulture)
           TextMutedOpacity = settings.Theme.Ui.TextMutedOpacity.ToString(CultureInfo.InvariantCulture)
@@ -320,6 +333,27 @@ module SettingsDraft =
             |> bind (fun ui ->
                 parsePositiveFloat "Gutter minimum width" draft.GutterMinimumWidth
                 |> Result.map (fun value -> { ui with GutterMinimumWidth = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Document tab minimum height" draft.DocumentTabMinHeight
+                |> Result.map (fun value -> { ui with DocumentTabMinHeight = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Document tab close button size" draft.DocumentTabCloseButtonSize
+                |> Result.map (fun value ->
+                    { ui with
+                        DocumentTabCloseButtonSize = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Document tab horizontal padding" draft.DocumentTabPaddingHorizontal
+                |> Result.map (fun value ->
+                    { ui with
+                        DocumentTabPaddingHorizontal = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Document tab vertical padding" draft.DocumentTabPaddingVertical
+                |> Result.map (fun value ->
+                    { ui with
+                        DocumentTabPaddingVertical = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Document tab spacing" draft.DocumentTabSpacing
+                |> Result.map (fun value -> { ui with DocumentTabSpacing = value }))
             |> bind (fun ui ->
                 parsePositiveFloat "Command palette font size" draft.CommandPaletteFontSize
                 |> Result.map (fun value ->

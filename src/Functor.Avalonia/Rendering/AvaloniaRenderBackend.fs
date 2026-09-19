@@ -5,6 +5,6 @@ open Avalonia.Media
 open Functor.Rendering
 
 type AvaloniaRenderBackend() =
-    interface IRenderBackend<DrawingContext, Avalonia.Rect, ThemePalette> with
+    interface IRenderBackend<DrawingContext, Avalonia.Rect, RenderingSurface.ThemeSnapshot> with
         member _.DrawFrame(context, bounds, model, theme) =
             RenderingSurface.draw context bounds model theme

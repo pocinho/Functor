@@ -12,28 +12,18 @@
            BorderBrush="{DynamicResource Theme.Border}"
            CornerRadius="{DynamicResource Theme.ControlCornerRadius}"
           BoxShadow="{DynamicResource Theme.CommandPaletteShadow}"
-          Padding="10">
-    <Grid RowDefinitions="Auto,*">
-      <TextBox x:Name="SearchBox"
-               Grid.Row="0"
-               IsVisible="False"
-               PlaceholderText="Type a command"
-               FontSize="{DynamicResource Theme.CommandPaletteFontSize}"
-               Background="{DynamicResource Theme.InputBackground}"
-               Foreground="{DynamicResource Theme.TextPrimary}"
-               Padding="10,8"
-               Margin="0,0,0,8" />
+          Padding="{DynamicResource Theme.CommandPalettePadding}">
+    <Grid>
       <ListBox x:Name="CommandList"
-               Grid.Row="1"
                Background="{DynamicResource Theme.SurfaceBackground}"
                Foreground="{DynamicResource Theme.TextPrimary}"
-               MaxHeight="260">
+               MaxHeight="{DynamicResource Theme.CommandPaletteMaxHeight}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="views:CommandPaletteItem">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,6">
-              <TextBlock Grid.Column="0" Text="{Binding Category}" Opacity="{DynamicResource Theme.TextMutedOpacity}" Width="92" />
-              <TextBlock Grid.Column="1" Text="{Binding Title}" />
-              <TextBlock Grid.Column="2" Text="{Binding GestureText}" Opacity="{DynamicResource Theme.TextMutedOpacity}" Margin="16,0,0,0" />
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="{DynamicResource Theme.CommandPaletteItemMargin}">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Title}" FontWeight="{DynamicResource Theme.FontWeightSemiBold}" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Description}" Opacity="{DynamicResource Theme.TextMutedOpacity}" />
+              <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Text="{Binding GestureText}" Opacity="{DynamicResource Theme.TextMutedOpacity}" Margin="{DynamicResource Theme.CommandPaletteGestureMargin}" VerticalAlignment="Center" />
             </Grid>
           </DataTemplate>
         </ListBox.ItemTemplate>

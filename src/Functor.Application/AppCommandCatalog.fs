@@ -3,6 +3,7 @@ namespace Functor.Application
 type AppCommandDescriptor =
     { Id: string
       Title: string
+      Description: string
       Category: string
       GestureText: string option
       Command: AppCommand
@@ -19,66 +20,77 @@ module AppCommandCatalog =
     let all =
         [ { Id = "file.new"
             Title = "New File"
+            Description = "Create a new untitled document"
             Category = "File"
             GestureText = Some "Ctrl+N"
             Command = AppCommand.newDocument
             IsEnabled = alwaysEnabled }
           { Id = "file.open"
             Title = "Open File"
+            Description = "Open a document from disk"
             Category = "File"
             GestureText = Some "Ctrl+O"
             Command = AppCommand.openFile
             IsEnabled = alwaysEnabled }
           { Id = "workspace.openFolder"
             Title = "Open Folder"
+            Description = "Open a folder as the workspace root"
             Category = "Workspace"
             GestureText = None
             Command = AppCommand.openFolder
             IsEnabled = alwaysEnabled }
           { Id = "file.save"
             Title = "Save File"
+            Description = "Save the active document"
             Category = "File"
             GestureText = Some "Ctrl+S"
             Command = AppCommand.saveFile
             IsEnabled = hasActiveDocument }
           { Id = "file.saveAs"
             Title = "Save File As"
+            Description = "Save the active document to a new path"
             Category = "File"
             GestureText = Some "Ctrl+Shift+S"
             Command = AppCommand.saveFileAs
             IsEnabled = alwaysEnabled }
           { Id = "file.close"
             Title = "Close File"
+            Description = "Close the active document"
             Category = "File"
             GestureText = None
             Command = AppCommand.closeDocument
             IsEnabled = hasActiveDocument }
           { Id = "file.reopenClosedTab"
             Title = "Reopen Closed Tab"
+            Description = "Restore the most recently closed document"
             Category = "File"
             GestureText = None
             Command = AppCommand.reopenClosedTab
             IsEnabled = hasRecentlyClosedDocument }
           { Id = "file.clearRecentDocuments"
             Title = "Clear Recent Documents"
+            Description = "Remove the recent document history"
             Category = "File"
             GestureText = None
             Command = AppCommand.clearRecentDocuments
             IsEnabled = hasRecentlyClosedDocument }
           { Id = "workbench.commandPalette"
             Title = "Open Command Palette"
+            Description = "Browse and run available commands"
             Category = "Workbench"
             GestureText = Some "Ctrl+Shift+P"
             Command = AppCommand.openCommandPalette
             IsEnabled = alwaysEnabled }
           { Id = "workbench.settings"
             Title = "Open Settings"
+            Description = "Configure Functor preferences"
             Category = "Preferences"
             GestureText = Some "Ctrl+,"
             Command = AppCommand.openSettings
             IsEnabled = alwaysEnabled }
           { Id = "workbench.toggleAgentPanel"
             Title = "Toggle Agent Panel"
+            Description = "Show or hide the agent panel"
             Category = "Workbench"
             GestureText = None
             Command = AppCommand.toggleAgentPanel
@@ -111,7 +123,7 @@ module AppCommandCatalog =
             matchCharacters 0 0 0
 
     let filter (query: string) (commands: AppCommandDescriptor list) =
-        let normalized = query.Trim()
+        let normalized = if isNull query then "" else query.Trim()
 
         if System.String.IsNullOrWhiteSpace normalized then
             commands

@@ -25,13 +25,14 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Added a shared themed dialog-window path with consistent chrome, borders, and title-bar dragging; see [dialog findings](../notes/Dialog_Findings.md).
 - [x] Batched Avalonia theme-resource updates to reduce repeated resource propagation; see [Avalonia optimization findings](../notes/Avalonia_Optimization.md).
 - [x] Matched Avalonia's client-area title-bar hint to the shared 32-pixel custom chrome.
+- [x] Bound the native client-area title-bar hint to the shared dynamic title-bar resource.
 - [x] Made the editor caret visible only while the editor is focused, with redraws on focus transitions.
 - [x] Added a selected document-tab style so active tabs use the semantic selection and focus colors.
 
 ## Findings
 
 - [ ] Replace the mixed styling sources: FluentTheme defaults, direct F# brush assignments, XAML literals, and renderer-local constants.
-- [ ] Treat the existing Graphite Light and Graphite Dark values as named presets rather than scattered styling literals.
+- [x] Treat the existing Graphite Light and Graphite Dark values as named presets rather than scattered styling literals.
 - [ ] Centralize the existing color defaults in the theme model while preserving their current appearance:
   - [x] Side-panel resize handle color `#DCDC3C3C`.
   - [x] Command-palette shadow color `#66000000`.
@@ -43,7 +44,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
   - [x] Windows emoji fallback `Segoe UI Emoji`.
   - [x] Window-control and tab-close icon font `Segoe MDL2 Assets`.
 - [ ] Centralize typography defaults:
-  - [x] Independent persisted editor font size with the existing calculated value preserved as the default.
+  - [x] Persisted editor font size and line height synchronized through the existing 5/6 equation, with the calculated defaults preserved.
   - [x] Workspace font size `12`.
   - [x] Command-palette font size `14`.
   - [x] Welcome-title font size `28`.
@@ -60,27 +61,41 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 - [ ] Introduce a complete semantic theme model, separate from view-specific control code.
 - [ ] Define semantic color tokens:
-  - [ ] `SurfaceBackground`.
-  - [ ] `PanelBackground`.
-  - [ ] `InputBackground`.
-  - [ ] `TextPrimary`.
-  - [ ] `TextMuted`.
+  - [x] `SurfaceBackground`.
+  - [x] `PanelBackground`.
+  - [x] `InputBackground`.
+  - [x] `TextPrimary`.
+  - [x] `TextMuted`.
   - [x] `TextMutedOpacity`.
-  - [ ] `Border`.
-  - [ ] `Separator`.
-  - [ ] `Accent`.
-  - [ ] `Selection`.
-  - [ ] `Hover`.
-  - [ ] `Pressed`.
-  - [ ] `Disabled`.
-  - [ ] `Focus`.
-  - [ ] `Error`.
-  - [ ] `Warning`.
-  - [ ] `Information`.
-  - [ ] `ResizeHandle`.
-  - [ ] `Shadow`.
-- [ ] Define semantic typography tokens for UI and editor fonts, fallback fonts, sizes, and weights.
+  - [x] `Border`.
+  - [x] `Separator`.
+  - [x] `Accent`.
+  - [x] `Selection`.
+  - [x] `Hover`.
+  - [x] `Pressed`.
+  - [x] `Disabled`.
+  - [x] `Focus`.
+  - [x] `Error`.
+  - [x] `Warning`.
+  - [x] `Information`.
+  - [x] `ResizeHandle`.
+  - [x] `Shadow`.
+- [x] Define semantic typography tokens for UI and editor fonts, fallback fonts, sizes, and weights through `ThemeTypography` resource projection.
 - [ ] Define shape and density tokens for corner radius, border thickness, control height, spacing, and padding.
+- [x] Project existing document-tab geometry, separator thickness, and corner radius through `ThemeShapeDensity`; spacing and padding remain separate density work.
+- [x] Project document-tab padding, spacing, and border width through `ThemeShapeDensity` and dynamic resources.
+- [x] Project document-tab label/close-button content spacing through `ThemeShapeDensity`.
+- [x] Project tab overflow navigation button width through `ThemeShapeDensity` and dynamic resources.
+- [x] Keep document-tab overflow arrows at the visible edges of the constrained tab viewport.
+- [x] Project workspace-tree indentation and collapse-button size through `ThemeShapeDensity`.
+- [x] Project shared title-bar, window-control, and command-bar geometry through `ThemeShapeDensity` and dynamic resources.
+- [x] Project title-bar window-control padding through `ThemeShapeDensity` and dynamic resources.
+- [x] Keep the main window and title-bar center column wide enough for the command bar and window controls.
+- [x] Project side-panel resize-handle width and padding through `ThemeShapeDensity` and dynamic resources.
+- [x] Project command-palette sizing, overlay offset, padding, item spacing, and gesture-column gap through `ThemeShapeDensity`.
+- [x] Project shell tab-bar, tool-rail, settings-footer, and status-bar spacing through `ThemeLayoutDensity`.
+- [x] Project confirmation-dialog content and button spacing through `ThemeLayoutDensity`.
+- [x] Project welcome-view width, section spacing, action spacing, and muted text opacity through shared resources.
 - [ ] Preserve Graphite Light and Graphite Dark as complete preset definitions, including the current custom fonts, colors, sharp corners, and sizing defaults.
 - [ ] Support custom themes by overlaying user-supplied values on a selected preset without losing unspecified defaults.
 - [ ] Preserve platform-specific defaults, such as the Windows icon font and emoji fallback, while allowing them to be overridden.
@@ -115,7 +130,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 ## Renderer Integration
 
-- [ ] Pass a complete theme snapshot into `RenderingSurface`.
+- [x] Pass a complete theme snapshot into `RenderingSurface`.
 - [x] Move editor font family, emoji fallback, and tab size into the renderer theme.
 - [x] Move gutter padding, minimum width, and line-number positioning into the renderer theme.
 - [x] Replace renderer-local font constants with theme values initialized from the current editor font defaults.
@@ -128,6 +143,8 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 - [ ] Extend `ThemeSettingsLoader` and `AppSettingsLoader` to load and save all theme tokens.
 - [ ] Add settings UI for future density values; current UI colors, syntax colors, fonts, and corner radius are exposed.
+- [x] Expose the persisted editor gutter padding and minimum-width settings in the configuration page.
+- [x] Expose persisted document-tab height, close-button size, padding, and spacing settings in the configuration page.
 - [ ] Validate color, font, numeric, and enum values with clear errors.
 - [ ] Define the update flow:
 

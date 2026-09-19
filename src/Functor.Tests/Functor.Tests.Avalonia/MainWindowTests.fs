@@ -10,6 +10,7 @@ open Avalonia.Styling
 open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia
+open Functor.Avalonia.Controls
 open Functor.Avalonia.Views
 open Functor.Rendering
 open Xunit
@@ -34,8 +35,11 @@ module MainWindowTests =
         window.Show()
 
         let commandBar = window.FindControl<TextBox>("CommandBar")
+        let watermark = window.FindControl<TextBlock>("CommandBarWatermark")
+        Assert.True(watermark.IsVisible)
         commandBar.Text <- "stng"
         Dispatcher.UIThread.RunJobs()
+        Assert.False(watermark.IsVisible)
 
         let palette = window.FindControl<CommandPaletteView>("CommandPaletteView")
         let commandList = palette.FindControl<ListBox>("CommandList")
@@ -47,6 +51,10 @@ module MainWindowTests =
             Some "workbench.settings",
             palette.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id)
         )
+
+        commandBar.Text <- ""
+        Dispatcher.UIThread.RunJobs()
+        Assert.True(watermark.IsVisible)
 
         window.Close()
 
@@ -101,6 +109,21 @@ module MainWindowTests =
         settingsMenu.RaiseEvent(RoutedEventArgs(MenuItem.ClickEvent))
         Assert.False(settingsDocument.IsVisible)
         Assert.False(settingsTabButton.IsVisible)
+
+        settingsMenu.RaiseEvent(RoutedEventArgs(MenuItem.ClickEvent))
+        Assert.True(settingsDocument.IsVisible)
+
+        let welcomeView = shellHost.FindControl<WelcomeView>("WelcomeView")
+        let newFileButton = welcomeView.FindControl<Button>("NewFileButton")
+        newFileButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Assert.False(settingsDocument.IsVisible)
+        Assert.True(settingsTabButton.IsVisible)
+
+        let tabsPanel = shellHost.FindControl<DocumentListView>("TabsPanel")
+        Assert.Equal(2, tabsPanel.TabCount)
+        Assert.False(tabsPanel.GetTab(0).Classes.Contains("selected"))
+        Assert.True(tabsPanel.GetTab(1).Classes.Contains("selected"))
+        Assert.False(settingsTabButton.Classes.Contains("selected"))
 
         settingsMenu.RaiseEvent(RoutedEventArgs(MenuItem.ClickEvent))
         Assert.True(settingsDocument.IsVisible)
@@ -212,7 +235,17 @@ module MainWindowTests =
           "Theme.WorkspaceFontSize"
           "Theme.CommandPaletteFontSize"
           "Theme.WelcomeTitleFontSize"
-          "Theme.ControlCornerRadius" ]
+          "Theme.ControlCornerRadius"
+          "Theme.DocumentTabMinHeight"
+          "Theme.DocumentTabPadding"
+          "Theme.DocumentTabSpacing"
+          "Theme.TabNavigationButtonWidth"
+          "Theme.TitleBarHeight"
+          "Theme.WindowControlWidth"
+          "Theme.WindowControlPadding"
+          "Theme.CommandBarWidth"
+          "Theme.MinimumWindowWidth"
+          "Theme.TitleBarHorizontalPadding" ]
         |> List.iter (fun key -> Assert.NotNull(Application.Current.Resources[key]))
 
         window.Close()

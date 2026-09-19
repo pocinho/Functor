@@ -10,6 +10,8 @@ open Functor.Avalonia
 
 module ThemedDialogWindow =
     let create (settings: AppSettings) title width height =
+        let shape = ThemeShapeDensity.fromUiTheme settings.Theme.Ui
+
         let dialog =
             Window(
                 Title = title,
@@ -19,15 +21,15 @@ module ThemedDialogWindow =
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 WindowDecorations = WindowDecorations.BorderOnly,
                 ExtendClientAreaToDecorationsHint = true,
-                ExtendClientAreaTitleBarHeightHint = 32.0
+                ExtendClientAreaTitleBarHeightHint = shape.TitleBarHeight
             )
 
         ThemeManager.apply Application.Current dialog settings
 
         let titleBar = Border()
-        titleBar.Height <- 32.0
-        titleBar.Padding <- Thickness(12.0, 0.0)
-        titleBar.BorderThickness <- Thickness(0.0, 0.0, 0.0, 1.0)
+        titleBar.Height <- shape.TitleBarHeight
+        titleBar.Padding <- Thickness(shape.TitleBarHorizontalPadding, 0.0)
+        titleBar.BorderThickness <- Thickness(0.0, 0.0, 0.0, shape.SeparatorWidth)
 
         let titleText = TextBlock()
         titleText.Text <- title
@@ -40,7 +42,7 @@ module ThemedDialogWindow =
                 dialog.BeginMoveDrag(args))
 
         let contentHost = Border()
-        contentHost.BorderThickness <- Thickness(1.0)
+        contentHost.BorderThickness <- Thickness(shape.BorderWidth)
 
         let applyChromeResources () =
             titleBar.Background <- Application.Current.Resources["Theme.PanelBackground"] :?> IBrush

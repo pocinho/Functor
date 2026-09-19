@@ -3,12 +3,12 @@
              x:Class="Functor.Avalonia.Controls.SidePanelControl">
   <Border x:Name="PanelBorder"
           BorderThickness="{DynamicResource Theme.SeparatorRightThickness}"
-          Padding="0,0,8,0">
-    <Grid ColumnDefinitions="*,4">
+        Padding="{DynamicResource Theme.SidePanelRightPadding}">
+      <Grid ColumnDefinitions="*,Auto">
       <ContentControl x:Name="PanelContentControl" Grid.Column="0" />
       <Border x:Name="ResizeHandle"
               Grid.Column="1"
-              Width="4"
+        Width="{DynamicResource Theme.SidePanelResizeHandleWidth}"
               HorizontalAlignment="Right"
               Background="{DynamicResource Theme.ResizeHandle}"
               Cursor="SizeWestEast"

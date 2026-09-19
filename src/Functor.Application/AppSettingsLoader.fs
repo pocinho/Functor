@@ -87,6 +87,11 @@ module AppSettingsLoader =
         theme["gutterSeparatorWidth"] <- ui.GutterSeparatorWidth
         theme["gutterPadding"] <- ui.GutterPadding
         theme["gutterMinimumWidth"] <- ui.GutterMinimumWidth
+        theme["documentTabMinHeight"] <- ui.DocumentTabMinHeight
+        theme["documentTabCloseButtonSize"] <- ui.DocumentTabCloseButtonSize
+        theme["documentTabPaddingHorizontal"] <- ui.DocumentTabPaddingHorizontal
+        theme["documentTabPaddingVertical"] <- ui.DocumentTabPaddingVertical
+        theme["documentTabSpacing"] <- ui.DocumentTabSpacing
         theme["commandPaletteFontSize"] <- ui.CommandPaletteFontSize
         theme["welcomeTitleFontSize"] <- ui.WelcomeTitleFontSize
         theme["textMutedOpacity"] <- ui.TextMutedOpacity

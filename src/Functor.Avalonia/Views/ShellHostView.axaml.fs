@@ -51,17 +51,19 @@ type ShellHostView() as this =
     let mutable workspaceTreeGeneration = 0L
     let mutable requestRefresh: unit -> unit = ignore
     let mutable settingsOpen = false
+    let mutable settingsActive = false
     let mutable currentSettings = AppSettings.defaults
     let mutable applySettingsCallback: AppSettings -> unit = ignore
+    let commandRequested = Event<AppCommand>()
 
     let mutable saveSettingsCallback: AppSettings -> Result<unit, string> =
         fun _ -> Ok()
 
     let updateEmptyStateFromProjection hasActiveDocument =
-        editor.Value.IsVisible <- not settingsOpen && hasActiveDocument
-        welcomeView.Value.IsVisible <- not settingsOpen && not hasActiveDocument
-        settingsDocument.Value.IsVisible <- settingsOpen
-        settingsTabButton.Value.Classes.Set("selected", settingsOpen)
+        editor.Value.IsVisible <- not settingsActive && hasActiveDocument
+        welcomeView.Value.IsVisible <- not settingsActive && not hasActiveDocument
+        settingsDocument.Value.IsVisible <- settingsActive
+        settingsTabButton.Value.Classes.Set("selected", settingsActive)
 
     let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
         let verticalScrollBar = verticalScrollBar.Value
@@ -127,13 +129,19 @@ type ShellHostView() as this =
             let dialog, setContent =
                 ThemedDialogWindow.create currentSettings "Unsaved changes" 420.0 160.0
 
+            let layout = ThemeLayoutDensity.fromUiTheme currentSettings.Theme.Ui
+
             let message =
                 TextBlock(Text = "This document has unsaved changes. Discard them?", TextWrapping = TextWrapping.Wrap)
 
             let discardButton = Button(Content = "Discard")
             let cancelButton = Button(Content = "Cancel")
-            let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 8.0)
-            let content = StackPanel(Spacing = 16.0, Margin = Thickness(16.0))
+
+            let buttons =
+                StackPanel(Orientation = Orientation.Horizontal, Spacing = layout.DialogButtonSpacing)
+
+            let content =
+                StackPanel(Spacing = layout.DialogContentSpacing, Margin = Thickness(layout.DialogContentPadding))
 
             buttons.Children.Add(discardButton) |> ignore
             buttons.Children.Add(cancelButton) |> ignore
@@ -155,14 +163,22 @@ type ShellHostView() as this =
 
     let closeSettingsTab () =
         settingsOpen <- false
+        settingsActive <- false
         settingsDocument.Value.IsVisible <- false
         settingsTabButton.Value.IsVisible <- false
         updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
         editor.Value.Focus() |> ignore
 
+    let closeSettingsForDocumentNavigation () =
+        if settingsActive then
+            settingsActive <- false
+            settingsDocument.Value.IsVisible <- false
+            updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
+
     let openSettingsTab () =
         settingsView.Value.Configure(currentSettings)
         settingsOpen <- true
+        settingsActive <- true
         settingsTabButton.Value.IsVisible <- true
         updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
 
@@ -265,8 +281,10 @@ type ShellHostView() as this =
             auxiliaryPanelHost.Value
             model
             input
-            (fun documentId -> editor.Value.ActivateDocument(documentId))
-            (fun path -> editor.Value.DispatchApplicationCommand(AppCommand.openDocument path))
+            (fun documentId ->
+                closeSettingsForDocumentNavigation ()
+                editor.Value.ActivateDocument(documentId))
+            (fun path -> commandRequested.Trigger(AppCommand.openDocument path))
         |> ignore
 
         updateToolRail ()
@@ -329,9 +347,11 @@ type ShellHostView() as this =
             if offset <> editor.HorizontalOffset then
                 editor.ScrollHorizontalTo(offset))
 
-        welcomeView.Value.NewFileRequested.Add(fun _ -> editor.NewDocument())
-        welcomeView.Value.OpenFileRequested.Add(fun _ -> editor.OpenFile())
-        welcomeView.Value.OpenFolderRequested.Add(fun _ -> editor.DispatchApplicationCommand(AppCommand.openFolder))
+        welcomeView.Value.NewFileRequested.Add(fun _ -> commandRequested.Trigger(AppCommand.newDocument))
+
+        welcomeView.Value.OpenFileRequested.Add(fun _ -> commandRequested.Trigger(AppCommand.openFile))
+
+        welcomeView.Value.OpenFolderRequested.Add(fun _ -> commandRequested.Trigger(AppCommand.openFolder))
 
         updateScrollBar ()
         updateEditorStatus editor.EditorStatus
@@ -344,9 +364,7 @@ type ShellHostView() as this =
         this.FindControl<Button>("SearchToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool SearchTool))
 
         tabsPanel.Value.DocumentActivated.Add(fun documentId ->
-            settingsOpen <- false
-            settingsDocument.Value.IsVisible <- false
-            settingsTabButton.Value.Classes.Set("selected", false)
+            closeSettingsForDocumentNavigation ()
             editor.ActivateDocument(documentId)
             updateEmptyStateFromProjection editor.SessionState.Workspace.ActiveDocumentId.IsSome
             editor.Focus() |> ignore)
@@ -416,7 +434,7 @@ type ShellHostView() as this =
     member _.ToggleSettings
         (settings: AppSettings, applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>)
         =
-        if settingsOpen then
+        if settingsActive then
             closeSettingsTab ()
         else
             applySettingsCallback <- applySettings
@@ -427,6 +445,10 @@ type ShellHostView() as this =
     member _.SetSettingsActions(applySettings: AppSettings -> unit, saveSettings: AppSettings -> Result<unit, string>) =
         applySettingsCallback <- applySettings
         saveSettingsCallback <- saveSettings
+
+    member _.CommandRequested = commandRequested.Publish
+
+    member _.PrepareForDocumentNavigation() = closeSettingsForDocumentNavigation ()
 
     interface IShellProjectionTarget with
         member _.ApplyShellInput(input) =
@@ -444,7 +466,7 @@ type ShellHostView() as this =
         effects
         |> List.iter (fun effect ->
             match effect with
-            | DispatchAppCommand command -> editor.Value.DispatchApplicationCommand(command))
+            | DispatchAppCommand command -> commandRequested.Trigger(command))
 
         refreshOnUiThread ()
 

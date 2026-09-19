@@ -144,6 +144,34 @@
         <TextBox x:Name="GutterSeparatorWidth" Grid.Column="1" />
       </Grid>
       <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Gutter padding" VerticalAlignment="Center" />
+        <TextBox x:Name="GutterPadding" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Gutter minimum width" VerticalAlignment="Center" />
+        <TextBox x:Name="GutterMinimumWidth" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Document tab minimum height" VerticalAlignment="Center" />
+        <TextBox x:Name="DocumentTabMinHeight" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Document tab close-button size" VerticalAlignment="Center" />
+        <TextBox x:Name="DocumentTabCloseButtonSize" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Document tab horizontal padding" VerticalAlignment="Center" />
+        <TextBox x:Name="DocumentTabPaddingHorizontal" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Document tab vertical padding" VerticalAlignment="Center" />
+        <TextBox x:Name="DocumentTabPaddingVertical" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
+        <TextBlock Text="Document tab spacing" VerticalAlignment="Center" />
+        <TextBox x:Name="DocumentTabSpacing" Grid.Column="1" />
+      </Grid>
+      <Grid ColumnDefinitions="160,*" Margin="0,0,0,8">
         <TextBlock Text="Command palette size" VerticalAlignment="Center" />
         <TextBox x:Name="CommandPaletteFontSize" Grid.Column="1" />
       </Grid>

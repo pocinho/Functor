@@ -13,13 +13,13 @@ open Functor.Rendering
 type CommandPaletteItem(descriptor: AppCommandDescriptor) =
     member _.Descriptor = descriptor
     member _.Title = descriptor.Title
+    member _.Description = descriptor.Description
     member _.Category = descriptor.Category
     member _.GestureText = descriptor.GestureText |> Option.defaultValue ""
 
 type CommandPaletteView() as this =
     inherit UserControl()
 
-    let searchBox = lazy (this.FindControl<TextBox>("SearchBox"))
     let commandList = lazy (this.FindControl<ListBox>("CommandList"))
     let paletteBorder = lazy (this.FindControl<Border>("PaletteBorder"))
     let mutable executeSelected: unit -> unit = ignore
@@ -45,8 +45,9 @@ type CommandPaletteView() as this =
     do
         this.InitializeComponent()
 
-        commandList.Value.DoubleTapped.Add(fun _ -> executeSelected ())
-        searchBox.Value.TextChanged.Add(fun _ -> refreshItems searchBox.Value.Text)
+        commandList.Value.Tapped.Add(fun _ ->
+            if commandList.Value.SelectedIndex >= 0 then
+                executeSelected ())
 
         commandList.Value.SelectionChanged.Add(fun _ ->
             match paletteState, commandList.Value.SelectedIndex with
@@ -69,16 +70,20 @@ type CommandPaletteView() as this =
         commands <- availableCommands
         sessionState <- Some state
         paletteState <- Some(CommandPaletteState.create commands state)
-        searchBox.Value.Text <- ""
         refreshItems ""
         executeSelected <- execute
 
-    member _.SetQuery(query: string) =
-        searchBox.Value.Text <- query
-        refreshItems query
+    member _.SetQuery(query: string) = refreshItems query
+
+    member _.MoveSelection(offset: int) =
+        match paletteState with
+        | Some state ->
+            let currentIndex = state.SelectedIndex |> Option.defaultValue 0
+            let updated = CommandPaletteState.select (currentIndex + offset) state
+            paletteState <- Some updated
+            commandList.Value.SelectedIndex <- updated.SelectedIndex |> Option.defaultValue -1
+        | None -> ()
 
     member _.SelectedDescriptor = paletteState |> Option.bind CommandPaletteState.selected
-
-    member _.FocusSearch() = searchBox.Value.Focus() |> ignore
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)

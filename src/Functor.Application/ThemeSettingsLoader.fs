@@ -128,10 +128,11 @@ module ThemeSettingsLoader =
                 failwith (sprintf "Unsupported theme schema version: %d" version)
             | true, _ -> ()
 
-            let preset = tryString theme "preset" |> Option.defaultValue "Graphite Dark"
+            let preset =
+                tryString theme "preset" |> Option.defaultValue ThemePreset.GraphiteDark
 
             let basePalette =
-                if preset = "Graphite Light" then
+                if preset = ThemePreset.GraphiteLight then
                     Theme.graphiteLight
                 else
                     Theme.defaultPalette
@@ -267,6 +268,31 @@ module ThemeSettingsLoader =
                         applyUiPositiveFloat theme "gutterMinimumWidth" (fun value ui ->
                             { ui with
                                 GutterMinimumWidth = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "documentTabMinHeight" (fun value ui ->
+                            { ui with
+                                DocumentTabMinHeight = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "documentTabCloseButtonSize" (fun value ui ->
+                            { ui with
+                                DocumentTabCloseButtonSize = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "documentTabPaddingHorizontal" (fun value ui ->
+                            { ui with
+                                DocumentTabPaddingHorizontal = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "documentTabPaddingVertical" (fun value ui ->
+                            { ui with
+                                DocumentTabPaddingVertical = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "documentTabSpacing" (fun value ui ->
+                            { ui with
+                                DocumentTabSpacing = float value })
                     )
                     |> Result.bind (
                         applyUiFloat theme "commandPaletteFontSize" (fun value ui ->

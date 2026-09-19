@@ -10,13 +10,20 @@
         Title="Functor"
         WindowDecorations="BorderOnly"
 		ExtendClientAreaToDecorationsHint="True"
-		ExtendClientAreaTitleBarHeightHint="32">
-	<Grid x:Name="ApplicationRoot" RowDefinitions="32,*" Background="{DynamicResource Theme.SurfaceBackground}">
+		ExtendClientAreaTitleBarHeightHint="{DynamicResource Theme.TitleBarHeight}"
+		MinWidth="{DynamicResource Theme.MinimumWindowWidth}">
+	<Grid x:Name="ApplicationRoot" RowDefinitions="Auto,*" Background="{DynamicResource Theme.SurfaceBackground}">
 		<Border x:Name="TitleBar"
 				Grid.Row="0"
+				Height="{DynamicResource Theme.TitleBarHeight}"
 				Background="{DynamicResource Theme.PanelBackground}"
 				BorderBrush="{DynamicResource Theme.Border}">
-			<Grid ColumnDefinitions="Auto,*,Auto" Height="32">
+			<Grid Height="{DynamicResource Theme.TitleBarHeight}">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto" />
+					<ColumnDefinition Width="*" MinWidth="{DynamicResource Theme.CommandBarWidth}" />
+					<ColumnDefinition Width="Auto" />
+				</Grid.ColumnDefinitions>
 				<Menu Grid.Column="0" Background="Transparent" VerticalAlignment="Center">
 					<MenuItem Header="_File">
 						<MenuItem x:Name="NewMenuItem" Header="_New" InputGesture="Ctrl+N" />
@@ -40,26 +47,37 @@
 				<Border x:Name="TitleBarDragSurface"
 						Grid.Column="1"
 						Background="Transparent" />
-				<TextBox x:Name="CommandBar"
+				<TextBlock x:Name="CommandBarWatermark"
 						Grid.Column="1"
-						Width="360"
-						Height="24"
+						Width="{DynamicResource Theme.CommandBarWidth}"
+						Height="{DynamicResource Theme.CommandBarHeight}"
 						HorizontalAlignment="Center"
 						VerticalAlignment="Center"
-						PlaceholderText="Functor"
+						Text="Functor"
+						TextAlignment="Center"
 						FontSize="{DynamicResource Theme.CommandPaletteFontSize}"
 						FontWeight="{DynamicResource Theme.FontWeightSemiBold}"
-						TextAlignment="Center"
-						HorizontalContentAlignment="Center"
+						Foreground="{DynamicResource Theme.TextPrimary}"
+						IsHitTestVisible="False" />
+				<TextBox x:Name="CommandBar"
+						Grid.Column="1"
+						Width="{DynamicResource Theme.CommandBarWidth}"
+						Height="{DynamicResource Theme.CommandBarHeight}"
+						HorizontalAlignment="Center"
+						VerticalAlignment="Center"
+						FontSize="{DynamicResource Theme.CommandPaletteFontSize}"
+						FontWeight="{DynamicResource Theme.FontWeightSemiBold}"
+						TextAlignment="Left"
+						HorizontalContentAlignment="Left"
 						VerticalContentAlignment="Center"
-						Padding="12,0"
-						Background="{DynamicResource Theme.Selection}"
+						Padding="{DynamicResource Theme.TitleBarHorizontalPadding}"
+						Background="Transparent"
 						BorderBrush="{DynamicResource Theme.Border}"
 						Foreground="{DynamicResource Theme.TextPrimary}" />
 				<StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
-					<Button x:Name="MinimizeButton" Width="46" Height="32" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE921;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
-					<Button x:Name="MaximizeButton" Width="46" Height="32" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE922;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
-					<Button x:Name="CloseButton" Width="46" Height="32" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE8BB;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="2" />
+					<Button x:Name="MinimizeButton" Width="{DynamicResource Theme.WindowControlWidth}" Height="{DynamicResource Theme.TitleBarHeight}" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE921;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="{DynamicResource Theme.WindowControlPadding}" />
+					<Button x:Name="MaximizeButton" Width="{DynamicResource Theme.WindowControlWidth}" Height="{DynamicResource Theme.TitleBarHeight}" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE922;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="{DynamicResource Theme.WindowControlPadding}" />
+					<Button x:Name="CloseButton" Width="{DynamicResource Theme.WindowControlWidth}" Height="{DynamicResource Theme.TitleBarHeight}" FontFamily="{DynamicResource Theme.IconFontFamily}" Content="&#xE8BB;" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Padding="{DynamicResource Theme.WindowControlPadding}" />
 				</StackPanel>
 			</Grid>
 		</Border>
@@ -69,8 +87,8 @@
 					IsVisible="False"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Top"
-					Width="560"
-					Margin="0,8,0,0">
+					Width="{DynamicResource Theme.CommandPaletteWidth}"
+					Margin="{DynamicResource Theme.CommandPaletteOverlayMargin}">
 				<views:CommandPaletteView x:Name="CommandPaletteView" />
 			</Border>
 		</Grid>

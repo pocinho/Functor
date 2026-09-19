@@ -12,30 +12,31 @@
                     Grid.Column="2"
                     Grid.ColumnSpan="3"
                         BorderThickness="{DynamicResource Theme.SeparatorBottomThickness}"
-                        Padding="4,3"
+                        Padding="{DynamicResource Theme.TabBarPadding}"
                         Background="{DynamicResource Theme.PanelBackground}"
                         BorderBrush="{DynamicResource Theme.Border}">
-                <StackPanel Orientation="Horizontal" Spacing="2">
-                    <controls:DocumentListView x:Name="TabsPanel" />
-                        <Button x:Name="SettingsTabButton"
+                <Grid ColumnDefinitions="*,Auto">
+                    <controls:DocumentListView x:Name="TabsPanel" Grid.Column="0" HorizontalAlignment="Stretch" />
+                    <Button x:Name="SettingsTabButton"
+                            Grid.Column="1"
                             Content="Settings"
                             IsVisible="False"
-                            Padding="10,4"
+                            Padding="{DynamicResource Theme.DocumentTabPadding}"
                             MinHeight="{DynamicResource Theme.DocumentTabMinHeight}"
                             Background="{DynamicResource Theme.PanelBackground}"
                             BorderBrush="{DynamicResource Theme.Border}"
                             Foreground="{DynamicResource Theme.TextPrimary}" />
-                </StackPanel>
+                </Grid>
             </Border>
             <Border x:Name="ToolRail"
                     Grid.Row="0"
                     Grid.RowSpan="3"
                     Grid.Column="0"
-                    Padding="3"
+                    Padding="{DynamicResource Theme.ToolRailPadding}"
                     BorderThickness="{DynamicResource Theme.SeparatorRightThickness}"
                     Background="{DynamicResource Theme.PanelBackground}"
                     BorderBrush="{DynamicResource Theme.Border}">
-                <StackPanel Spacing="4">
+                <StackPanel Spacing="{DynamicResource Theme.ToolRailSpacing}">
                     <Button x:Name="WorkspaceToolButton" Content="W" ToolTip.Tip="Workspace" />
                     <Button x:Name="SearchToolButton" Content="S" ToolTip.Tip="Search" />
                 </StackPanel>
@@ -68,9 +69,9 @@
                 <Border x:Name="SettingsFooter"
                     Grid.Row="1"
                     BorderThickness="{DynamicResource Theme.SeparatorTopThickness}"
-                    Padding="12"
+                    Padding="{DynamicResource Theme.SettingsFooterPadding}"
                     BorderBrush="{DynamicResource Theme.Border}">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="{DynamicResource Theme.SettingsFooterSpacing}">
                         <Button x:Name="ApplySettingsButton" Content="Apply" />
                         <Button x:Name="SaveSettingsButton" Content="Save" />
                         <Button x:Name="CloseSettingsButton" Content="Close" />
@@ -102,15 +103,15 @@
                     Grid.Row="3"
                     Grid.ColumnSpan="5"
                     BorderThickness="{DynamicResource Theme.SeparatorTopThickness}"
-                    Padding="8,4"
+                    Padding="{DynamicResource Theme.StatusBarPadding}"
                     Background="{DynamicResource Theme.PanelBackground}"
                     BorderBrush="{DynamicResource Theme.Border}">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                     <TextBlock x:Name="PositionText" Grid.Column="0" />
-                    <TextBlock x:Name="FileTypeText" Grid.Column="1" Margin="20,0,0,0" />
-                    <TextBlock x:Name="MessageText" Grid.Column="2" Margin="20,0,0,0" />
-                    <TextBlock x:Name="FileNameText" Grid.Column="3" Margin="20,0,0,0" />
-                    <TextBlock x:Name="DirtyText" Grid.Column="4" Margin="12,0,0,0" />
+                    <TextBlock x:Name="FileTypeText" Grid.Column="1" Margin="{DynamicResource Theme.StatusTextGap}" />
+                    <TextBlock x:Name="MessageText" Grid.Column="2" Margin="{DynamicResource Theme.StatusTextGap}" />
+                    <TextBlock x:Name="FileNameText" Grid.Column="3" Margin="{DynamicResource Theme.StatusTextGap}" />
+                    <TextBlock x:Name="DirtyText" Grid.Column="4" Margin="{DynamicResource Theme.StatusDirtyGap}" />
                 </Grid>
             </Border>
         </Grid>

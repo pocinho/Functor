@@ -49,6 +49,20 @@
             <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
         </Style>
 
+        <Style Selector="Button.tab-scroll-button">
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
+        </Style>
+
+        <Style Selector="Button.tab-scroll-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource Theme.Hover}" />
+        </Style>
+
+        <Style Selector="Button.tab-scroll-button:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Disabled}" />
+        </Style>
+
         <Style Selector="Button:disabled">
             <Setter Property="Foreground" Value="{DynamicResource Theme.Disabled}" />
             <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />

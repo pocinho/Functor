@@ -66,11 +66,31 @@ type SettingsView() as this =
         let control = textBox name
         control.TextChanged.Add(fun _ -> updateDraft (fun current -> update control.Text current))
 
+    let tryPositiveFloat (value: string) =
+        let mutable parsed = 0.0
+
+        if
+            not (String.IsNullOrWhiteSpace value)
+            && Double.TryParse(
+                value,
+                Globalization.NumberStyles.Any,
+                Globalization.CultureInfo.InvariantCulture,
+                &parsed
+            )
+            && parsed > 0.0
+        then
+            Some parsed
+        else
+            None
+
+    let formatFloat (value: float) =
+        value.ToString(Globalization.CultureInfo.InvariantCulture)
+
     do
         this.InitializeComponent()
 
         let preset = this.FindControl<ComboBox>("ThemePreset")
-        preset.ItemsSource <- [ "Graphite Dark"; "Graphite Light"; "Custom" ]
+        preset.ItemsSource <- ThemePreset.all
 
         let fontFamilies =
             FontManager.Current.SystemFonts
@@ -89,7 +109,7 @@ type SettingsView() as this =
         preset.SelectionChanged.Add(fun _ ->
             if not updatingControls then
                 match preset.SelectedItem with
-                | :? string as value when value <> "Custom" ->
+                | :? string as value when value <> ThemePreset.Custom ->
                     draft <- draft |> Option.map (SettingsDraft.applyPreset value)
                     this.RefreshControls()
                 | :? string as value -> updateDraft (fun current -> { current with ThemePreset = value })
@@ -220,11 +240,47 @@ type SettingsView() as this =
             { current with
                 WorkspaceFontSize = value })
 
-        updateTextField "EditorFontSize" (fun value current -> { current with EditorFontSize = value })
+        let editorFontSize = textBox "EditorFontSize"
+        let editorLineHeight = textBox "EditorLineHeight"
 
-        updateTextField "EditorLineHeight" (fun value current ->
-            { current with
-                EditorLineHeight = value })
+        editorFontSize.TextChanged.Add(fun _ ->
+            if not updatingControls then
+                match tryPositiveFloat editorFontSize.Text with
+                | Some fontSize ->
+                    let lineHeightText = formatFloat (fontSize * (6.0 / 5.0))
+                    updatingControls <- true
+                    editorLineHeight.Text <- lineHeightText
+                    updatingControls <- false
+
+                    updateDraft (fun current ->
+                        { current with
+                            EditorFontSize = editorFontSize.Text
+                            EditorLineHeight = lineHeightText })
+                | None ->
+                    updateDraft (fun current ->
+                        { current with
+                            EditorFontSize = editorFontSize.Text }))
+
+        editorLineHeight
+            .GetObservable(TextBox.TextProperty)
+            .Subscribe(fun _ ->
+                if not updatingControls then
+                    match tryPositiveFloat editorLineHeight.Text with
+                    | Some lineHeight ->
+                        let fontSizeText = formatFloat (lineHeight * (5.0 / 6.0))
+                        updatingControls <- true
+                        editorFontSize.Text <- fontSizeText
+                        updatingControls <- false
+
+                        updateDraft (fun current ->
+                            { current with
+                                EditorFontSize = fontSizeText
+                                EditorLineHeight = editorLineHeight.Text })
+                    | None ->
+                        updateDraft (fun current ->
+                            { current with
+                                EditorLineHeight = editorLineHeight.Text }))
+        |> ignore
 
         updateTextField "EditorTabSize" (fun value current -> { current with EditorTabSize = value })
 
@@ -233,6 +289,32 @@ type SettingsView() as this =
         updateTextField "GutterSeparatorWidth" (fun value current ->
             { current with
                 GutterSeparatorWidth = value })
+
+        updateTextField "GutterPadding" (fun value current -> { current with GutterPadding = value })
+
+        updateTextField "GutterMinimumWidth" (fun value current ->
+            { current with
+                GutterMinimumWidth = value })
+
+        updateTextField "DocumentTabMinHeight" (fun value current ->
+            { current with
+                DocumentTabMinHeight = value })
+
+        updateTextField "DocumentTabCloseButtonSize" (fun value current ->
+            { current with
+                DocumentTabCloseButtonSize = value })
+
+        updateTextField "DocumentTabPaddingHorizontal" (fun value current ->
+            { current with
+                DocumentTabPaddingHorizontal = value })
+
+        updateTextField "DocumentTabPaddingVertical" (fun value current ->
+            { current with
+                DocumentTabPaddingVertical = value })
+
+        updateTextField "DocumentTabSpacing" (fun value current ->
+            { current with
+                DocumentTabSpacing = value })
 
         updateTextField "CommandPaletteFontSize" (fun value current ->
             { current with
@@ -325,6 +407,13 @@ type SettingsView() as this =
             setText (textBox "EditorTabSize") value.EditorTabSize
             setText (textBox "CursorWidth") value.CursorWidth
             setText (textBox "GutterSeparatorWidth") value.GutterSeparatorWidth
+            setText (textBox "GutterPadding") value.GutterPadding
+            setText (textBox "GutterMinimumWidth") value.GutterMinimumWidth
+            setText (textBox "DocumentTabMinHeight") value.DocumentTabMinHeight
+            setText (textBox "DocumentTabCloseButtonSize") value.DocumentTabCloseButtonSize
+            setText (textBox "DocumentTabPaddingHorizontal") value.DocumentTabPaddingHorizontal
+            setText (textBox "DocumentTabPaddingVertical") value.DocumentTabPaddingVertical
+            setText (textBox "DocumentTabSpacing") value.DocumentTabSpacing
             setText (textBox "CommandPaletteFontSize") value.CommandPaletteFontSize
             setText (textBox "WelcomeTitleFontSize") value.WelcomeTitleFontSize
             setText (textBox "TextMutedOpacity") value.TextMutedOpacity

@@ -19,6 +19,10 @@ open Functor.Rendering
 /// - It ONLY draws what RenderingModel provides.
 module RenderingSurface =
 
+    type ThemeSnapshot =
+        { Ui: UiThemeDefaults
+          Palette: ThemePalette }
+
     let private themedFontWeight weight =
         match weight with
         | 700 -> FontWeight.Bold
@@ -47,7 +51,12 @@ module RenderingSurface =
 
     let private editorFontFamily () =
         if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
-            sprintf "%s, %s" uiTheme.EditorFontFamily uiTheme.EditorFallbackFontFamily
+            let families: string array =
+                [ uiTheme.EditorFontFamily; "Segoe UI"; uiTheme.EditorFallbackFontFamily ]
+                |> List.distinct
+                |> List.toArray
+
+            System.String.Join(", ", families)
         else
             uiTheme.EditorFontFamily
 
@@ -118,7 +127,7 @@ module RenderingSurface =
                     float32 (formatted ("x" + grapheme + "x") - formatted "xx")
             )
 
-    let private resolvedGutterWidth (model: RenderingModel) =
+    let private resolvedGutterWidth (uiTheme: UiThemeDefaults) (model: RenderingModel) =
         let textRightEdge (lineNumber: LineNumber) =
             float lineNumber.X
             + float (measureDefaultAdvance (float32 uiTheme.EditorLineHeight))
@@ -132,12 +141,15 @@ module RenderingSurface =
 
     /// Draws a single frame using the provided RenderingModel.
     /// This is called by EditorSurface during OnRender.
-    let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) (theme: ThemePalette) =
+    let draw (context: DrawingContext) (bounds: Avalonia.Rect) (model: RenderingModel) (theme: ThemeSnapshot) =
+        let uiTheme = theme.Ui
+        let palette = theme.Palette
+
         use clip = context.PushClip(bounds)
 
         let borderWidth =
-            match theme.EditorBorder with
-            | Some _ -> max 0.0f theme.EditorBorderWidth
+            match palette.EditorBorder with
+            | Some _ -> max 0.0f palette.EditorBorderWidth
             | None -> 0.0f
 
         let contentBounds = bounds.Deflate(float borderWidth)
@@ -145,10 +157,10 @@ module RenderingSurface =
         // ------------------------------------------------------------
         // 1. Draw background
         // ------------------------------------------------------------
-        let background = SolidColorBrush(colorFromArgb theme.Background)
+        let background = SolidColorBrush(colorFromArgb palette.Background)
         context.FillRectangle(background, bounds)
 
-        match theme.EditorBorder with
+        match palette.EditorBorder with
         | Some color when borderWidth > 0.0f ->
             let borderPen = Pen(SolidColorBrush(colorFromArgb color), float borderWidth)
             let borderRect = bounds.Deflate(float borderWidth / 2.0)
@@ -161,12 +173,12 @@ module RenderingSurface =
         use contentClip =
             context.PushClip(Rect(0.0, 0.0, contentBounds.Width, contentBounds.Height))
 
-        let gutterWidth = resolvedGutterWidth model
+        let gutterWidth = resolvedGutterWidth uiTheme model
 
-        let gutterBrush = SolidColorBrush(colorFromArgb theme.GutterBackground)
+        let gutterBrush = SolidColorBrush(colorFromArgb palette.GutterBackground)
         context.FillRectangle(gutterBrush, Rect(0.0, 0.0, gutterWidth, contentBounds.Height))
 
-        match theme.GutterSeparator with
+        match palette.GutterSeparator with
         | Some color ->
             let separatorPen =
                 Pen(SolidColorBrush(colorFromArgb color), uiTheme.GutterSeparatorWidth)
@@ -174,7 +186,7 @@ module RenderingSurface =
             context.DrawLine(separatorPen, Point(gutterWidth, 0.0), Point(gutterWidth, contentBounds.Height))
         | None -> ()
 
-        let lineNumberBrush = SolidColorBrush(colorFromArgb theme.LineNumber)
+        let lineNumberBrush = SolidColorBrush(colorFromArgb palette.LineNumber)
 
         for lineNumber in model.LineNumbers do
             let text =
@@ -195,7 +207,7 @@ module RenderingSurface =
         // ------------------------------------------------------------
         // 2. Selection(s)
         // ------------------------------------------------------------
-        let selectionBrush = SolidColorBrush(colorFromArgb theme.Selection)
+        let selectionBrush = SolidColorBrush(colorFromArgb palette.Selection)
 
         for selection in model.Selections do
             for rect in selection.Rects do
@@ -208,7 +220,7 @@ module RenderingSurface =
             let fontSize = uiTheme.EditorFontSize
 
             let foreground =
-                SolidColorBrush(colorFromArgb (Theme.resolveTextColor theme run.Style.Foreground))
+                SolidColorBrush(colorFromArgb (Theme.resolveTextColor palette run.Style.Foreground))
 
             let fontWeight =
                 match run.Style.Weight with
@@ -234,7 +246,18 @@ module RenderingSurface =
                     foreground
                 )
 
-            context.DrawText(text, Point(float run.X, float run.Y))
+            let baselineReference =
+                FormattedText(
+                    "M",
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    editorTypeface,
+                    fontSize,
+                    foreground
+                )
+
+            let baselineOffset = baselineReference.Baseline - text.Baseline
+            context.DrawText(text, Point(float run.X, float run.Y + baselineOffset))
 
         for run in model.TextRuns do
             drawTextRun run
@@ -243,7 +266,7 @@ module RenderingSurface =
         // 3. Cursor(s)
         // ------------------------------------------------------------
         let cursorPen =
-            Pen(SolidColorBrush(colorFromArgb theme.Cursor), uiTheme.CursorWidth)
+            Pen(SolidColorBrush(colorFromArgb palette.Cursor), uiTheme.CursorWidth)
 
         for cursor in model.Cursors do
             let x = float cursor.X
