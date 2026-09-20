@@ -47,7 +47,7 @@ module CommandPaletteViewTests =
         view.Configure(AppCommandCatalog.all, state, fun () -> executionCount <- executionCount + 1)
 
         let commandList = view.FindControl<ListBox>("CommandList")
-        commandList.RaiseEvent(RoutedEventArgs(Avalonia.Input.InputElement.TappedEvent))
+        commandList.RaiseEvent(Avalonia.Input.TappedEventArgs(Avalonia.Input.InputElement.TappedEvent, null))
 
         Assert.Equal(1, executionCount)
 

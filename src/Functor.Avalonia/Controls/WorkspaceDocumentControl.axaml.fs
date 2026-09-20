@@ -58,11 +58,12 @@ type WorkspaceDocumentControl() as this =
 
     let collapsibleControl depth name isExpanded onExpanded onCollapsed (children: Control) =
         let arrow = TextBlock(Text = ">", FontSize = itemFontSize)
+        let shape = ThemeShapeDensity.fromUiTheme uiTheme
 
         let header =
             Border(
                 BorderBrush = (Application.Current.Resources["Theme.Separator"] :?> IBrush),
-                BorderThickness = Thickness(0, 0, 0, 1),
+                BorderThickness = Thickness(0, 0, 0, shape.SeparatorWidth),
                 Padding = Thickness(0),
                 Child =
                     TextBlock(
@@ -110,14 +111,19 @@ type WorkspaceDocumentControl() as this =
 
         updateVisualState ()
 
-        let container = StackPanel(Spacing = 0.0, Margin = Thickness(0))
+        let container =
+            StackPanel(Spacing = shape.WorkspaceRowSpacing, Margin = Thickness(0))
+
         container.Children.Add(row) |> ignore
         container.Children.Add(children) |> ignore
         container :> Control
 
     let rec nodeControl depth (node: WorkspaceFileTreeNode) : Control =
         if node.IsDirectory then
-            let children = StackPanel(Spacing = 0.0, Margin = Thickness(0))
+            let shape = ThemeShapeDensity.fromUiTheme uiTheme
+
+            let children =
+                StackPanel(Spacing = shape.WorkspaceRowSpacing, Margin = Thickness(0))
 
             node.Children
             |> List.iter (fun child -> children.Children.Add(nodeControl (depth + 1) child) |> ignore)
@@ -190,12 +196,14 @@ type WorkspaceDocumentControl() as this =
                     )
                     |> ignore
 
-                    let editors = StackPanel(Spacing = 0.0, Margin = Thickness(0))
+                    let shape = ThemeShapeDensity.fromUiTheme uiTheme
+                    let editors = StackPanel(Spacing = shape.WorkspaceRowSpacing, Margin = Thickness(0))
 
                     content.Children.Add(collapsibleControl 0 "OPEN EDITORS" true ignore ignore (editors :> Control))
                     |> ignore
 
-                    let tree = StackPanel(Spacing = 0.0, Margin = Thickness(0))
+                    let shape = ThemeShapeDensity.fromUiTheme uiTheme
+                    let tree = StackPanel(Spacing = shape.WorkspaceRowSpacing, Margin = Thickness(0))
                     content.Children.Add(tree) |> ignore
                     openEditorsPanel <- Some editors
                     treePanel <- Some tree

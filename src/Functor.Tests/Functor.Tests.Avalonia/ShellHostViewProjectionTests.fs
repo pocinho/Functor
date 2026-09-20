@@ -67,6 +67,11 @@ module ShellHostViewProjectionTests =
             let welcome = view.FindControl<WelcomeView>("WelcomeView")
             let newFileButton = welcome.FindControl<Button>("NewFileButton")
 
+            view.CommandRequested.Add(fun command ->
+                match command with
+                | AppCommand.NewDocumentRequested -> view.Editor.NewDocument()
+                | _ -> ())
+
             newFileButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
 
             Assert.True(view.SessionState.Model.ActiveDocument.IsSome)

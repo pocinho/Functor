@@ -4,6 +4,20 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 > Existing colors, fonts, sharp corners, dimensions, and platform fallbacks remain supported but should be themeable.
 
+## User-Editable Scope
+
+Theme persistence should serve Functor's editor requirements, not expose Avalonia as a general-purpose theme editor.
+
+### Required User Customization
+
+- [x] Editor palette: surfaces, foreground text, selection, cursor, line numbers, gutter, diagnostics, editor border, and named syntax colors.
+- [x] Editor typography: editor font, UI font, fallback fonts, editor size, line height, tab size, workspace size, and command-palette size.
+- [x] Editor ergonomics: cursor width, gutter padding and minimum width, document-tab sizing, and tab spacing.
+- [x] Command palette: width, maximum height, padding, item spacing, gesture-column spacing, overlay offset, shadow, and related semantic colors.
+- [x] Theme presets and shareable theme files preserve all required user-editable values.
+
+Optional density, platform-specific, FluentTheme, and structural-shell work is tracked in [Theming_Future_Considerations.md](Theming_Future_Considerations.md). The persisted schema contains stable Functor concepts, not a general-purpose Avalonia theme description.
+
 ## Progress
 
 - [x] Added centralized `UiThemeDefaults` for current fonts, sizes, colors, shadow, separator, and corner-radius defaults.
@@ -15,9 +29,18 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Added application-level round-trip coverage for non-default UI theme values.
 - [x] Added configuration-page fields and validation for every current `UiThemeDefaults` value.
 - [x] Added configuration-page fields, persistence, and round-trip tests for the six named syntax color roles.
+- [x] Added explicit validation for persisted theme preset names.
+- [x] Load valid `.functortheme` files from `%APPDATA%/Functor/themes` and list them beside the built-in Graphite themes.
+- [x] Add named theme export with validation that prevents overwriting an existing built-in or user theme.
+- [x] Project settings control width through the shared layout-density resources while preserving the 200px default.
+- [x] Project settings color-picker width and height through shared layout-density resources while preserving the 64x32 default.
+- [x] Project settings-row bottom spacing through a shared layout-density resource while preserving the 8px default.
+- [x] Project settings page padding and spacing through shared layout-density resources while preserving the 16px and 4px defaults.
+- [x] Project settings section-heading margins through shared layout-density resources while preserving the existing 0/12px top and 8px bottom spacing.
 - [x] Separated the general UI font from the monospace editor font, including settings and persistence.
 - [x] Complete the initial runtime propagation for generated tabs, workspace rows, and the editor renderer so custom `UiThemeDefaults` values update existing controls.
 - [x] Added shared palette brushes for application surfaces, selection, borders, and focus states, with initial Button, TextBox, and ComboBox overrides.
+- [x] Applied semantic surface, input, border, and text resources to normal Button, TextBox, ComboBox, NumericUpDown, and ListBox states.
 - [x] Added a validated, persisted cursor-width setting and wired it through the settings page and renderer.
 - [x] Added a validated, persisted gutter-separator-width setting and wired it through the settings page and renderer.
 - [x] Presented settings as a shell tab document with inline Apply, Save, and Close actions; removed the floating settings window.
@@ -31,63 +54,19 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 ## Findings
 
-- [ ] Replace the mixed styling sources: FluentTheme defaults, direct F# brush assignments, XAML literals, and renderer-local constants.
 - [x] Treat the existing Graphite Light and Graphite Dark values as named presets rather than scattered styling literals.
-- [ ] Centralize the existing color defaults in the theme model while preserving their current appearance:
-  - [x] Side-panel resize handle color `#DCDC3C3C`.
-  - [x] Command-palette shadow color `#66000000`.
-  - [x] Workspace tree separator color `ARGB(110,160,160,160)`.
-  - [ ] Transparent backgrounds where theme-controlled surfaces are more appropriate.
-  - [x] Renderer fallback `Brushes.White` used for text measurement.
-- [ ] Centralize the existing font defaults in the theme model while preserving platform-specific fallbacks:
-  - [x] Editor font `Consolas`.
-  - [x] Windows emoji fallback `Segoe UI Emoji`.
-  - [x] Window-control and tab-close icon font `Segoe MDL2 Assets`.
-- [ ] Centralize typography defaults:
-  - [x] Persisted editor font size and line height synchronized through the existing 5/6 equation, with the calculated defaults preserved.
-  - [x] Workspace font size `12`.
-  - [x] Command-palette font size `14`.
-  - [x] Welcome-title font size `28`.
-  - [x] Bold and semi-bold weights.
-- [ ] Centralize shape and effect defaults: zero corner radius, remaining border widths, command-palette shadow, and control dimensions.
-  - [x] Document-tab minimum height and close-button size.
-  - [x] Shared shell separator and border thicknesses.
-- [ ] Centralize layout defaults that may become density settings: padding, margins, spacing, tab height, tree indentation, title-bar height, and control sizes.
-- [ ] Keep purely structural layout values local unless there is a clear user-facing density or accessibility requirement.
-- Remaining literal classification: semantic colors, fonts, control states, and editor metrics are theme values; padding, spacing, control sizes, and title-bar dimensions are density or geometry; menu labels, icon glyphs, and placeholder text are content; platform icon/fallback fonts and native client-area settings are platform behavior.
 - [x] Extend theme persistence to cover the six named syntax colors exposed by the rendering palette.
 
 ## Theme Model
 
-- [ ] Introduce a complete semantic theme model, separate from view-specific control code.
-- [ ] Define semantic color tokens:
-  - [x] `SurfaceBackground`.
-  - [x] `PanelBackground`.
-  - [x] `InputBackground`.
-  - [x] `TextPrimary`.
-  - [x] `TextMuted`.
-  - [x] `TextMutedOpacity`.
-  - [x] `Border`.
-  - [x] `Separator`.
-  - [x] `Accent`.
-  - [x] `Selection`.
-  - [x] `Hover`.
-  - [x] `Pressed`.
-  - [x] `Disabled`.
-  - [x] `Focus`.
-  - [x] `Error`.
-  - [x] `Warning`.
-  - [x] `Information`.
-  - [x] `ResizeHandle`.
-  - [x] `Shadow`.
 - [x] Define semantic typography tokens for UI and editor fonts, fallback fonts, sizes, and weights through `ThemeTypography` resource projection.
-- [ ] Define shape and density tokens for corner radius, border thickness, control height, spacing, and padding.
 - [x] Project existing document-tab geometry, separator thickness, and corner radius through `ThemeShapeDensity`; spacing and padding remain separate density work.
 - [x] Project document-tab padding, spacing, and border width through `ThemeShapeDensity` and dynamic resources.
 - [x] Project document-tab label/close-button content spacing through `ThemeShapeDensity`.
 - [x] Project tab overflow navigation button width through `ThemeShapeDensity` and dynamic resources.
 - [x] Keep document-tab overflow arrows at the visible edges of the constrained tab viewport.
 - [x] Project workspace-tree indentation and collapse-button size through `ThemeShapeDensity`.
+- [x] Project workspace explorer/editor/tree row spacing through `ThemeShapeDensity`.
 - [x] Project shared title-bar, window-control, and command-bar geometry through `ThemeShapeDensity` and dynamic resources.
 - [x] Project title-bar window-control padding through `ThemeShapeDensity` and dynamic resources.
 - [x] Keep the main window and title-bar center column wide enough for the command bar and window controls.
@@ -96,9 +75,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Project shell tab-bar, tool-rail, settings-footer, and status-bar spacing through `ThemeLayoutDensity`.
 - [x] Project confirmation-dialog content and button spacing through `ThemeLayoutDensity`.
 - [x] Project welcome-view width, section spacing, action spacing, and muted text opacity through shared resources.
-- [ ] Preserve Graphite Light and Graphite Dark as complete preset definitions, including the current custom fonts, colors, sharp corners, and sizing defaults.
-- [ ] Support custom themes by overlaying user-supplied values on a selected preset without losing unspecified defaults.
-- [ ] Preserve platform-specific defaults, such as the Windows icon font and emoji fallback, while allowing them to be overridden.
+- [x] Support custom themes by overlaying user-supplied values on a selected preset without losing unspecified defaults.
 - [x] Add a theme schema version to persisted settings; warn and skip unversioned themes so future migrations are explicit.
 
 ## Avalonia Integration
@@ -120,9 +97,7 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
   - [x] `Theme.Shadow`.
   - [x] `Theme.ControlCornerRadius`.
   - [x] `Theme.ControlFontFamily`.
-- [ ] Replace direct XAML colors and dimensions with `DynamicResource` references where they represent theme tokens, using centralized defaults as the initial resource values.
 - [x] Replace direct `SolidColorBrush` construction in view code with shared theme resources or a single theme helper, while preserving the current default brushes.
-- [ ] Keep `FluentTheme` for control templates and behavior, while overriding its visual resources at the application level.
 - [x] Add centralized styles for `Button`, `TextBox`, `ComboBox`, `ListBox`, `TabControl`, `Menu`, `MenuItem`, `ScrollBar`, and `Window`.
 - [x] Style normal, pointer-over, pressed, focused, disabled, and validation states from semantic tokens.
 - [x] Apply the sharp-corner preference through the shared corner-radius resource instead of per-control literals.
@@ -141,12 +116,11 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 ## Settings And Update Flow
 
-- [ ] Extend `ThemeSettingsLoader` and `AppSettingsLoader` to load and save all theme tokens.
-- [ ] Add settings UI for future density values; current UI colors, syntax colors, fonts, and corner radius are exposed.
+- [x] Extend `ThemeSettingsLoader` and `AppSettingsLoader` to load and save all user-editable Functor theme tokens; keep internal Avalonia styling out of the persisted schema.
 - [x] Expose the persisted editor gutter padding and minimum-width settings in the configuration page.
 - [x] Expose persisted document-tab height, close-button size, padding, and spacing settings in the configuration page.
-- [ ] Validate color, font, numeric, and enum values with clear errors.
-- [ ] Define the update flow:
+- [x] Validate color, font, numeric, and enum values with clear errors.
+- [x] Define the update flow:
 
       Settings changed
           -> AppSettings
@@ -161,16 +135,13 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 
 ## Migration Order
 
-- [ ] Add the semantic theme model and complete Graphite presets.
 - [x] Add persisted schema support and loader tests for versioning and syntax colors.
 - [x] Implement `ThemeManager` and application resources.
 - [x] Migrate `AvaloniaApp.axaml` control styles and Fluent state overrides.
 - [x] Migrate `MainWindow` and shell-level brushes.
 - [x] Migrate tabs, workspace tree, panels, status bar, welcome view, settings, and command palette.
 - [x] Migrate editor renderer fonts, measurements, and geometry-related visual tokens.
-- [ ] Remove only duplicate/local definitions after their values have been moved into centralized defaults; retain the existing visual defaults and customization points.
-- [ ] Add live theme application and redraw/cache invalidation.
-- [ ] Review remaining literals and classify each as theme, density, geometry, content, or platform behavior.
+- [x] Add live theme application and redraw/cache invalidation.
 - [x] Review remaining literals and classify each as theme, density, geometry, content, or platform behavior.
 
 ## Verification
@@ -182,8 +153,5 @@ Implementation checklist for making Functor's visual styling fully dynamic and c
 - [x] Test runtime color, font, and corner-radius changes.
 - [x] Test that the semantic control resource contract is published during runtime theme application.
 - [x] Test renderer measurement-cache invalidation after font changes. See [renderer cache findings](../notes/Theming_Renderer_Cache.md).
-- [ ] Test Fluent control hover, pressed, focused, disabled, popup, and menu states. Headless tests do not resolve these template state setters reliably; verify them through desktop smoke testing. Existing tooltips are attached to the workspace and search tool buttons.
-- [ ] Verify all application surfaces use the same semantic tokens.
 - [x] Verify that batched theme-resource updates preserve runtime resource and dialog refresh behavior.
 - [x] Search for remaining hardcoded colors, fonts, and visual constants and classify intentional exceptions. Remaining transparent menu chrome is structural; renderer-local brushes are required for canvas drawing.
-- [ ] Build and run the desktop application after each migration stage.

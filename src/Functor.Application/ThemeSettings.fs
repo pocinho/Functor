@@ -12,7 +12,14 @@ module ThemePreset =
     [<Literal>]
     let Custom = "Custom"
 
-    let all = [ GraphiteDark; GraphiteLight; Custom ]
+    let all = [ GraphiteDark; GraphiteLight ]
+    let valid = GraphiteDark :: GraphiteLight :: [ Custom ]
+
+    let palette preset =
+        if preset = GraphiteLight then
+            Theme.graphiteLight
+        else
+            Theme.defaultPalette
 
 /// Application-level editor theme settings.
 /// This keeps theme selection outside the rendering pipeline but still makes the

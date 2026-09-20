@@ -1,25 +1,40 @@
 namespace Functor.Avalonia.Views
 
 open System
+open System.Globalization
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Primitives
 open Avalonia.Media
 open Avalonia.Markup.Xaml
 open Functor.Application
+open Functor.Platform
 open Functor.Rendering
 
 type SettingsView() as this =
     inherit UserControl()
 
     let mutable draft = None
+    let mutable themeFiles: ThemeFile list = []
+    let mutable selectedThemeName: string option = None
+    let mutable themeName = ThemePreset.GraphiteDark
     let mutable updatingControls = false
 
     let textBox name = this.FindControl<TextBox>(name)
+    let numericUpDown name = this.FindControl<NumericUpDown>(name)
     let fontCombo name = this.FindControl<ComboBox>(name)
     let colorPicker name = this.FindControl<ColorPicker>(name)
 
     let setText (control: TextBox) value = control.Text <- value
+
+    let setNumericText (control: NumericUpDown) (value: string) =
+        let mutable parsed = 0M
+
+        if Decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, &parsed) then
+            control.Value <- Nullable parsed
+        else
+            control.Value <- Nullable()
+
     let setFontText (control: ComboBox) value = control.Text <- value
 
     let tryParseColor (value: string) =
@@ -66,6 +81,22 @@ type SettingsView() as this =
         let control = textBox name
         control.TextChanged.Add(fun _ -> updateDraft (fun current -> update control.Text current))
 
+    let updateNumericField name update =
+        let control = numericUpDown name
+
+        control
+            .GetObservable(NumericUpDown.ValueProperty)
+            .Subscribe(fun value ->
+                if not updatingControls then
+                    let text =
+                        if value.HasValue then
+                            value.Value.ToString(CultureInfo.InvariantCulture)
+                        else
+                            ""
+
+                    updateDraft (fun current -> update text current))
+        |> ignore
+
     let tryPositiveFloat (value: string) =
         let mutable parsed = 0.0
 
@@ -92,6 +123,12 @@ type SettingsView() as this =
         let preset = this.FindControl<ComboBox>("ThemePreset")
         preset.ItemsSource <- ThemePreset.all
 
+        let themeNameControl = textBox "ThemeName"
+
+        themeNameControl.TextChanged.Add(fun _ ->
+            if not updatingControls then
+                themeName <- themeNameControl.Text)
+
         let fontFamilies =
             FontManager.Current.SystemFonts
             |> Seq.map (fun family -> family.Name)
@@ -109,10 +146,18 @@ type SettingsView() as this =
         preset.SelectionChanged.Add(fun _ ->
             if not updatingControls then
                 match preset.SelectedItem with
-                | :? string as value when value <> ThemePreset.Custom ->
-                    draft <- draft |> Option.map (SettingsDraft.applyPreset value)
-                    this.RefreshControls()
-                | :? string as value -> updateDraft (fun current -> { current with ThemePreset = value })
+                | :? string as value ->
+                    match themeFiles |> List.tryFind (fun theme -> theme.Name = value) with
+                    | Some theme ->
+                        selectedThemeName <- Some value
+                        themeName <- value
+                        draft <- Some(SettingsDraft.fromSettingsWithPreset theme.Settings.Theme.Preset theme.Settings)
+                        this.RefreshControls()
+                    | None ->
+                        selectedThemeName <- None
+                        themeName <- value
+                        draft <- draft |> Option.map (SettingsDraft.applyPreset value)
+                        this.RefreshControls()
                 | _ -> ())
 
         updateTextField "Background" (fun value current -> { current with Background = value })
@@ -208,7 +253,7 @@ type SettingsView() as this =
             { current with
                 MeasurementColor = value })
 
-        updateTextField "EditorBorderWidth" (fun value current ->
+        updateNumericField "EditorBorderWidth" (fun value current ->
             { current with
                 EditorBorderWidth = value })
 
@@ -232,103 +277,130 @@ type SettingsView() as this =
 
         updateFontField "IconFontFamily" (fun value current -> { current with IconFontFamily = value })
 
-        updateTextField "TabCloseIconSize" (fun value current ->
+        updateNumericField "TabCloseIconSize" (fun value current ->
             { current with
                 TabCloseIconSize = value })
 
-        updateTextField "WorkspaceFontSize" (fun value current ->
+        updateNumericField "WorkspaceFontSize" (fun value current ->
             { current with
                 WorkspaceFontSize = value })
 
-        let editorFontSize = textBox "EditorFontSize"
-        let editorLineHeight = textBox "EditorLineHeight"
+        let editorFontSize = numericUpDown "EditorFontSize"
+        let editorLineHeight = numericUpDown "EditorLineHeight"
 
-        editorFontSize.TextChanged.Add(fun _ ->
-            if not updatingControls then
-                match tryPositiveFloat editorFontSize.Text with
-                | Some fontSize ->
-                    let lineHeightText = formatFloat (fontSize * (6.0 / 5.0))
-                    updatingControls <- true
-                    editorLineHeight.Text <- lineHeightText
-                    updatingControls <- false
+        editorFontSize
+            .GetObservable(NumericUpDown.ValueProperty)
+            .Subscribe(fun value ->
+                if not updatingControls then
+                    if value.HasValue then
+                        let fontSize = value.Value
+                        let lineHeightText = formatFloat (float fontSize * (6.0 / 5.0))
+                        updatingControls <- true
+                        editorLineHeight.Value <- Nullable(Decimal.Parse(lineHeightText, CultureInfo.InvariantCulture))
+                        updatingControls <- false
 
-                    updateDraft (fun current ->
-                        { current with
-                            EditorFontSize = editorFontSize.Text
-                            EditorLineHeight = lineHeightText })
-                | None ->
-                    updateDraft (fun current ->
-                        { current with
-                            EditorFontSize = editorFontSize.Text }))
+                        updateDraft (fun current ->
+                            { current with
+                                EditorFontSize = fontSize.ToString(CultureInfo.InvariantCulture)
+                                EditorLineHeight = lineHeightText })
+                    else
+                        updateDraft (fun current -> { current with EditorFontSize = "" }))
+        |> ignore
 
         editorLineHeight
-            .GetObservable(TextBox.TextProperty)
-            .Subscribe(fun _ ->
+            .GetObservable(NumericUpDown.ValueProperty)
+            .Subscribe(fun value ->
                 if not updatingControls then
-                    match tryPositiveFloat editorLineHeight.Text with
-                    | Some lineHeight ->
-                        let fontSizeText = formatFloat (lineHeight * (5.0 / 6.0))
+                    if value.HasValue then
+                        let lineHeight = value.Value
+                        let fontSizeText = formatFloat (float lineHeight * (5.0 / 6.0))
                         updatingControls <- true
-                        editorFontSize.Text <- fontSizeText
+                        editorFontSize.Value <- Nullable(Decimal.Parse(fontSizeText, CultureInfo.InvariantCulture))
                         updatingControls <- false
 
                         updateDraft (fun current ->
                             { current with
                                 EditorFontSize = fontSizeText
-                                EditorLineHeight = editorLineHeight.Text })
-                    | None ->
-                        updateDraft (fun current ->
-                            { current with
-                                EditorLineHeight = editorLineHeight.Text }))
+                                EditorLineHeight = lineHeight.ToString(CultureInfo.InvariantCulture) })
+                    else
+                        updateDraft (fun current -> { current with EditorLineHeight = "" }))
         |> ignore
 
-        updateTextField "EditorTabSize" (fun value current -> { current with EditorTabSize = value })
+        updateNumericField "EditorTabSize" (fun value current -> { current with EditorTabSize = value })
 
-        updateTextField "CursorWidth" (fun value current -> { current with CursorWidth = value })
+        updateNumericField "CursorWidth" (fun value current -> { current with CursorWidth = value })
 
-        updateTextField "GutterSeparatorWidth" (fun value current ->
+        updateNumericField "GutterSeparatorWidth" (fun value current ->
             { current with
                 GutterSeparatorWidth = value })
 
-        updateTextField "GutterPadding" (fun value current -> { current with GutterPadding = value })
+        updateNumericField "GutterPadding" (fun value current -> { current with GutterPadding = value })
 
-        updateTextField "GutterMinimumWidth" (fun value current ->
+        updateNumericField "GutterMinimumWidth" (fun value current ->
             { current with
                 GutterMinimumWidth = value })
 
-        updateTextField "DocumentTabMinHeight" (fun value current ->
+        updateNumericField "DocumentTabMinHeight" (fun value current ->
             { current with
                 DocumentTabMinHeight = value })
 
-        updateTextField "DocumentTabCloseButtonSize" (fun value current ->
+        updateNumericField "DocumentTabCloseButtonSize" (fun value current ->
             { current with
                 DocumentTabCloseButtonSize = value })
 
-        updateTextField "DocumentTabPaddingHorizontal" (fun value current ->
+        updateNumericField "DocumentTabPaddingHorizontal" (fun value current ->
             { current with
                 DocumentTabPaddingHorizontal = value })
 
-        updateTextField "DocumentTabPaddingVertical" (fun value current ->
+        updateNumericField "DocumentTabPaddingVertical" (fun value current ->
             { current with
                 DocumentTabPaddingVertical = value })
 
-        updateTextField "DocumentTabSpacing" (fun value current ->
+        updateNumericField "DocumentTabSpacing" (fun value current ->
             { current with
                 DocumentTabSpacing = value })
 
-        updateTextField "CommandPaletteFontSize" (fun value current ->
+        updateNumericField "CommandPaletteFontSize" (fun value current ->
             { current with
                 CommandPaletteFontSize = value })
 
-        updateTextField "WelcomeTitleFontSize" (fun value current ->
+        updateNumericField "CommandPaletteWidth" (fun value current ->
+            { current with
+                CommandPaletteWidth = value })
+
+        updateNumericField "CommandPaletteTopMargin" (fun value current ->
+            { current with
+                CommandPaletteTopMargin = value })
+
+        updateNumericField "CommandPalettePadding" (fun value current ->
+            { current with
+                CommandPalettePadding = value })
+
+        updateNumericField "CommandPaletteMaxHeight" (fun value current ->
+            { current with
+                CommandPaletteMaxHeight = value })
+
+        updateNumericField "CommandPaletteItemMarginHorizontal" (fun value current ->
+            { current with
+                CommandPaletteItemMarginHorizontal = value })
+
+        updateNumericField "CommandPaletteItemMarginVertical" (fun value current ->
+            { current with
+                CommandPaletteItemMarginVertical = value })
+
+        updateNumericField "CommandPaletteGestureMargin" (fun value current ->
+            { current with
+                CommandPaletteGestureMargin = value })
+
+        updateNumericField "WelcomeTitleFontSize" (fun value current ->
             { current with
                 WelcomeTitleFontSize = value })
 
-        updateTextField "TextMutedOpacity" (fun value current ->
+        updateNumericField "TextMutedOpacity" (fun value current ->
             { current with
                 TextMutedOpacity = value })
 
-        updateTextField "ControlCornerRadius" (fun value current ->
+        updateNumericField "ControlCornerRadius" (fun value current ->
             { current with
                 ControlCornerRadius = value })
 
@@ -348,11 +420,25 @@ type SettingsView() as this =
             { current with
                 MeasurementColor = value })
 
-    member this.Configure(settings: AppSettings) =
+    member this.Configure(settings: AppSettings, loadedThemes: ThemeFile list) =
+        themeFiles <- loadedThemes
+        let preset = this.FindControl<ComboBox>("ThemePreset")
+        preset.ItemsSource <- ThemePreset.all @ (loadedThemes |> List.map (fun theme -> theme.Name))
+        selectedThemeName <- None
+        themeName <- settings.Theme.Preset
         draft <- Some(SettingsDraft.fromSettings settings)
         this.RefreshControls()
 
+    member this.Configure(settings: AppSettings) = this.Configure(settings, [])
+
     member _.Draft = draft
+
+    member _.ThemeName = themeName
+
+    member this.UpdateThemes(loadedThemes: ThemeFile list) =
+        themeFiles <- loadedThemes
+        let preset = this.FindControl<ComboBox>("ThemePreset")
+        preset.ItemsSource <- ThemePreset.all @ (loadedThemes |> List.map (fun theme -> theme.Name))
 
     member this.SetError(error: string) =
         this.FindControl<TextBlock>("ErrorText").Text <- error
@@ -362,7 +448,8 @@ type SettingsView() as this =
         | Some value ->
             updatingControls <- true
             let preset = this.FindControl<ComboBox>("ThemePreset")
-            preset.SelectedItem <- value.ThemePreset
+            preset.SelectedItem <- selectedThemeName |> Option.defaultValue value.ThemePreset
+            setText (textBox "ThemeName") themeName
             setText (textBox "Background") value.Background
             setColorPicker (colorPicker "BackgroundPicker") value.Background
             setText (textBox "Foreground") value.Foreground
@@ -395,29 +482,36 @@ type SettingsView() as this =
             setColorPicker (colorPicker "SyntaxFunctionPicker") value.SyntaxFunction
             setText (textBox "EditorBorder") value.EditorBorder
             setColorPicker (colorPicker "EditorBorderPicker") value.EditorBorder
-            setText (textBox "EditorBorderWidth") value.EditorBorderWidth
+            setNumericText (numericUpDown "EditorBorderWidth") value.EditorBorderWidth
             setFontText (fontCombo "EditorFontFamily") value.EditorFontFamily
             setFontText (fontCombo "EditorFallbackFontFamily") value.EditorFallbackFontFamily
             setFontText (fontCombo "UiFontFamily") value.UiFontFamily
             setFontText (fontCombo "IconFontFamily") value.IconFontFamily
-            setText (textBox "TabCloseIconSize") value.TabCloseIconSize
-            setText (textBox "WorkspaceFontSize") value.WorkspaceFontSize
-            setText (textBox "EditorFontSize") value.EditorFontSize
-            setText (textBox "EditorLineHeight") value.EditorLineHeight
-            setText (textBox "EditorTabSize") value.EditorTabSize
-            setText (textBox "CursorWidth") value.CursorWidth
-            setText (textBox "GutterSeparatorWidth") value.GutterSeparatorWidth
-            setText (textBox "GutterPadding") value.GutterPadding
-            setText (textBox "GutterMinimumWidth") value.GutterMinimumWidth
-            setText (textBox "DocumentTabMinHeight") value.DocumentTabMinHeight
-            setText (textBox "DocumentTabCloseButtonSize") value.DocumentTabCloseButtonSize
-            setText (textBox "DocumentTabPaddingHorizontal") value.DocumentTabPaddingHorizontal
-            setText (textBox "DocumentTabPaddingVertical") value.DocumentTabPaddingVertical
-            setText (textBox "DocumentTabSpacing") value.DocumentTabSpacing
-            setText (textBox "CommandPaletteFontSize") value.CommandPaletteFontSize
-            setText (textBox "WelcomeTitleFontSize") value.WelcomeTitleFontSize
-            setText (textBox "TextMutedOpacity") value.TextMutedOpacity
-            setText (textBox "ControlCornerRadius") value.ControlCornerRadius
+            setNumericText (numericUpDown "TabCloseIconSize") value.TabCloseIconSize
+            setNumericText (numericUpDown "WorkspaceFontSize") value.WorkspaceFontSize
+            setNumericText (numericUpDown "EditorFontSize") value.EditorFontSize
+            setNumericText (numericUpDown "EditorLineHeight") value.EditorLineHeight
+            setNumericText (numericUpDown "EditorTabSize") value.EditorTabSize
+            setNumericText (numericUpDown "CursorWidth") value.CursorWidth
+            setNumericText (numericUpDown "GutterSeparatorWidth") value.GutterSeparatorWidth
+            setNumericText (numericUpDown "GutterPadding") value.GutterPadding
+            setNumericText (numericUpDown "GutterMinimumWidth") value.GutterMinimumWidth
+            setNumericText (numericUpDown "DocumentTabMinHeight") value.DocumentTabMinHeight
+            setNumericText (numericUpDown "DocumentTabCloseButtonSize") value.DocumentTabCloseButtonSize
+            setNumericText (numericUpDown "DocumentTabPaddingHorizontal") value.DocumentTabPaddingHorizontal
+            setNumericText (numericUpDown "DocumentTabPaddingVertical") value.DocumentTabPaddingVertical
+            setNumericText (numericUpDown "DocumentTabSpacing") value.DocumentTabSpacing
+            setNumericText (numericUpDown "CommandPaletteFontSize") value.CommandPaletteFontSize
+            setNumericText (numericUpDown "CommandPaletteWidth") value.CommandPaletteWidth
+            setNumericText (numericUpDown "CommandPaletteTopMargin") value.CommandPaletteTopMargin
+            setNumericText (numericUpDown "CommandPalettePadding") value.CommandPalettePadding
+            setNumericText (numericUpDown "CommandPaletteMaxHeight") value.CommandPaletteMaxHeight
+            setNumericText (numericUpDown "CommandPaletteItemMarginHorizontal") value.CommandPaletteItemMarginHorizontal
+            setNumericText (numericUpDown "CommandPaletteItemMarginVertical") value.CommandPaletteItemMarginVertical
+            setNumericText (numericUpDown "CommandPaletteGestureMargin") value.CommandPaletteGestureMargin
+            setNumericText (numericUpDown "WelcomeTitleFontSize") value.WelcomeTitleFontSize
+            setNumericText (numericUpDown "TextMutedOpacity") value.TextMutedOpacity
+            setNumericText (numericUpDown "ControlCornerRadius") value.ControlCornerRadius
             setText (textBox "ResizeHandleColor") value.ResizeHandleColor
             setColorPicker (colorPicker "ResizeHandleColorPicker") value.ResizeHandleColor
             setText (textBox "CommandPaletteShadowColor") value.CommandPaletteShadowColor

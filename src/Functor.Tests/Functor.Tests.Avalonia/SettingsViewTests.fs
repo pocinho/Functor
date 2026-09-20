@@ -1,11 +1,15 @@
 namespace Functor.Tests.Avalonia
 
+open System
+open System.Globalization
+open System.IO
 open Avalonia.Controls
 open Avalonia.Headless.XUnit
 open Avalonia.Media
 open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia.Views
+open Functor.Platform
 open Xunit
 
 module SettingsViewTests =
@@ -15,49 +19,65 @@ module SettingsViewTests =
         view.Configure(AppSettings.defaults)
 
         let background = view.FindControl<TextBox>("Background")
-        let tabCloseIconSize = view.FindControl<TextBox>("TabCloseIconSize")
-        let editorFontSize = view.FindControl<TextBox>("EditorFontSize")
-        let gutterPadding = view.FindControl<TextBox>("GutterPadding")
-        let gutterMinimumWidth = view.FindControl<TextBox>("GutterMinimumWidth")
-        let documentTabMinHeight = view.FindControl<TextBox>("DocumentTabMinHeight")
+        let tabCloseIconSize = view.FindControl<NumericUpDown>("TabCloseIconSize")
+        let editorFontSize = view.FindControl<NumericUpDown>("EditorFontSize")
+        let gutterPadding = view.FindControl<NumericUpDown>("GutterPadding")
+        let gutterMinimumWidth = view.FindControl<NumericUpDown>("GutterMinimumWidth")
+        let documentTabMinHeight = view.FindControl<NumericUpDown>("DocumentTabMinHeight")
 
         let documentTabCloseButtonSize =
-            view.FindControl<TextBox>("DocumentTabCloseButtonSize")
+            view.FindControl<NumericUpDown>("DocumentTabCloseButtonSize")
 
         let documentTabPaddingHorizontal =
-            view.FindControl<TextBox>("DocumentTabPaddingHorizontal")
+            view.FindControl<NumericUpDown>("DocumentTabPaddingHorizontal")
 
         let documentTabPaddingVertical =
-            view.FindControl<TextBox>("DocumentTabPaddingVertical")
+            view.FindControl<NumericUpDown>("DocumentTabPaddingVertical")
 
-        let documentTabSpacing = view.FindControl<TextBox>("DocumentTabSpacing")
+        let documentTabSpacing = view.FindControl<NumericUpDown>("DocumentTabSpacing")
 
         let expectedBackground =
             (SettingsDraft.fromSettings AppSettings.defaults).Background
 
         Assert.Equal(expectedBackground, background.Text)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).TabCloseIconSize, tabCloseIconSize.Text)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).EditorFontSize, editorFontSize.Text)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).GutterPadding, gutterPadding.Text)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).GutterMinimumWidth, gutterMinimumWidth.Text)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).DocumentTabMinHeight, documentTabMinHeight.Text)
+
+        let numericValue (control: NumericUpDown) =
+            control.Value.Value.ToString(CultureInfo.InvariantCulture)
+
+        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).TabCloseIconSize, numericValue tabCloseIconSize)
+        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).EditorFontSize, numericValue editorFontSize)
+        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).GutterPadding, numericValue gutterPadding)
+
+        Assert.Equal(
+            (SettingsDraft.fromSettings AppSettings.defaults).GutterMinimumWidth,
+            numericValue gutterMinimumWidth
+        )
+
+        Assert.Equal(
+            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabMinHeight,
+            numericValue documentTabMinHeight
+        )
 
         Assert.Equal(
             (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabCloseButtonSize,
-            documentTabCloseButtonSize.Text
+            numericValue documentTabCloseButtonSize
         )
 
         Assert.Equal(
             (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabPaddingHorizontal,
-            documentTabPaddingHorizontal.Text
+            numericValue documentTabPaddingHorizontal
         )
 
         Assert.Equal(
             (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabPaddingVertical,
-            documentTabPaddingVertical.Text
+            numericValue documentTabPaddingVertical
         )
 
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).DocumentTabSpacing, documentTabSpacing.Text)
+        Assert.Equal(
+            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabSpacing,
+            numericValue documentTabSpacing
+        )
+
         Assert.Equal(Some(SettingsDraft.fromSettings AppSettings.defaults), view.Draft)
 
     [<AvaloniaFact>]
@@ -74,32 +94,32 @@ module SettingsViewTests =
 
         Assert.Equal(Some expectedBackground, view.Draft |> Option.map (fun draft -> draft.Background))
 
-        let gutterPadding = view.FindControl<TextBox>("GutterPadding")
-        let gutterMinimumWidth = view.FindControl<TextBox>("GutterMinimumWidth")
-        gutterPadding.Text <- "6"
-        gutterMinimumWidth.Text <- "20"
+        let gutterPadding = view.FindControl<NumericUpDown>("GutterPadding")
+        let gutterMinimumWidth = view.FindControl<NumericUpDown>("GutterMinimumWidth")
+        gutterPadding.Value <- Nullable 6M
+        gutterMinimumWidth.Value <- Nullable 20M
         Dispatcher.UIThread.RunJobs()
 
         Assert.Equal(Some "6", view.Draft |> Option.map (fun draft -> draft.GutterPadding))
         Assert.Equal(Some "20", view.Draft |> Option.map (fun draft -> draft.GutterMinimumWidth))
 
-        let documentTabMinHeight = view.FindControl<TextBox>("DocumentTabMinHeight")
+        let documentTabMinHeight = view.FindControl<NumericUpDown>("DocumentTabMinHeight")
 
         let documentTabCloseButtonSize =
-            view.FindControl<TextBox>("DocumentTabCloseButtonSize")
+            view.FindControl<NumericUpDown>("DocumentTabCloseButtonSize")
 
         let documentTabPaddingHorizontal =
-            view.FindControl<TextBox>("DocumentTabPaddingHorizontal")
+            view.FindControl<NumericUpDown>("DocumentTabPaddingHorizontal")
 
         let documentTabPaddingVertical =
-            view.FindControl<TextBox>("DocumentTabPaddingVertical")
+            view.FindControl<NumericUpDown>("DocumentTabPaddingVertical")
 
-        let documentTabSpacing = view.FindControl<TextBox>("DocumentTabSpacing")
-        documentTabMinHeight.Text <- "30"
-        documentTabCloseButtonSize.Text <- "24"
-        documentTabPaddingHorizontal.Text <- "12"
-        documentTabPaddingVertical.Text <- "5"
-        documentTabSpacing.Text <- "3"
+        let documentTabSpacing = view.FindControl<NumericUpDown>("DocumentTabSpacing")
+        documentTabMinHeight.Value <- Nullable 30M
+        documentTabCloseButtonSize.Value <- Nullable 24M
+        documentTabPaddingHorizontal.Value <- Nullable 12M
+        documentTabPaddingVertical.Value <- Nullable 5M
+        documentTabSpacing.Value <- Nullable 3M
         Dispatcher.UIThread.RunJobs()
 
         let draft = view.Draft.Value
@@ -116,10 +136,10 @@ module SettingsViewTests =
         window.Show()
         view.Configure(AppSettings.defaults)
 
-        view.FindControl<TextBox>("EditorLineHeight").Text <- "18"
+        view.FindControl<NumericUpDown>("EditorLineHeight").Value <- Nullable 18M
         Dispatcher.UIThread.RunJobs()
 
-        Assert.Equal("15", view.FindControl<TextBox>("EditorFontSize").Text)
+        Assert.Equal(15M, view.FindControl<NumericUpDown>("EditorFontSize").Value.Value)
         Assert.Equal(Some "15", view.Draft |> Option.map (fun draft -> draft.EditorFontSize))
 
     [<AvaloniaFact>]
@@ -129,10 +149,10 @@ module SettingsViewTests =
         window.Show()
         view.Configure(AppSettings.defaults)
 
-        view.FindControl<TextBox>("EditorFontSize").Text <- "15"
+        view.FindControl<NumericUpDown>("EditorFontSize").Value <- Nullable 15M
         Dispatcher.UIThread.RunJobs()
 
-        Assert.Equal("18", view.FindControl<TextBox>("EditorLineHeight").Text)
+        Assert.Equal(18M, view.FindControl<NumericUpDown>("EditorLineHeight").Value.Value)
         Assert.Equal(Some "18", view.Draft |> Option.map (fun draft -> draft.EditorLineHeight))
 
     [<AvaloniaFact>]
@@ -185,3 +205,42 @@ module SettingsViewTests =
 
         Assert.Equal(Some(SettingsDraft.fromSettings AppSettings.defaults), view.Draft)
         Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).Background, background.Text)
+
+    [<Fact>]
+    let ``theme catalog loads only valid functortheme files`` () =
+        let directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))
+        Directory.CreateDirectory(directory) |> ignore
+
+        try
+            let validTheme =
+                "{ \"theme\": { \"schemaVersion\": 1, \"preset\": \"Graphite Light\", \"foreground\": \"#FF010203\" } }"
+
+            File.WriteAllText(Path.Combine(directory, "Ocean.functortheme"), validTheme)
+            File.WriteAllText(Path.Combine(directory, "Ignored.json"), validTheme)
+            File.WriteAllText(Path.Combine(directory, "Broken.functortheme"), "{ invalid")
+
+            let themes = ThemeCatalog.loadFromDirectory directory
+
+            Assert.Single(themes) |> ignore
+            Assert.Equal("Ocean", themes.Head.Name)
+            Assert.Equal(0xFF010203u, themes.Head.Settings.Theme.ThemeSource.Resolve().Foreground)
+        finally
+            Directory.Delete(directory, true)
+
+    [<Fact>]
+    let ``theme catalog exports new names and rejects duplicates`` () =
+        let directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))
+        Directory.CreateDirectory(directory) |> ignore
+
+        try
+            match ThemeCatalog.exportToDirectory directory "Ocean" AppSettings.defaults with
+            | Ok() -> ()
+            | Error error -> Assert.Fail(error)
+
+            match ThemeCatalog.exportToDirectory directory "ocean" AppSettings.defaults with
+            | Error error -> Assert.Equal("A theme named 'ocean' already exists.", error)
+            | Ok() -> Assert.Fail("Duplicate theme export unexpectedly succeeded.")
+
+            Assert.True(File.Exists(Path.Combine(directory, "Ocean.functortheme")))
+        finally
+            Directory.Delete(directory, true)

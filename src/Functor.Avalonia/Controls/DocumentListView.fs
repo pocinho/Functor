@@ -13,7 +13,12 @@ type DocumentListView() as this =
     inherit UserControl()
 
     let mutable uiTheme = UiThemeDefaults.defaultTheme
-    let tabsPanel = StackPanel(Orientation = Orientation.Horizontal, Spacing = 2.0)
+
+    let tabsPanel =
+        StackPanel(
+            Orientation = Orientation.Horizontal,
+            Spacing = (ThemeShapeDensity.fromUiTheme UiThemeDefaults.defaultTheme).DocumentTabSpacing
+        )
 
     let scrollViewer =
         ScrollViewer(

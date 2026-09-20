@@ -48,16 +48,19 @@ type SettingsDraft =
       DocumentTabCloseButtonSize: string
       DocumentTabPaddingHorizontal: string
       DocumentTabPaddingVertical: string
-      DocumentTabSpacing: string }
+      DocumentTabSpacing: string
+      CommandPaletteWidth: string
+      CommandPaletteTopMargin: string
+      CommandPalettePadding: string
+      CommandPaletteMaxHeight: string
+      CommandPaletteItemMarginHorizontal: string
+      CommandPaletteItemMarginVertical: string
+      CommandPaletteGestureMargin: string }
 
 module SettingsDraft =
     let private colorText color = sprintf "#%08X" color
 
-    let paletteForPreset preset =
-        if preset = ThemePreset.GraphiteLight then
-            Theme.graphiteLight
-        else
-            Theme.defaultPalette
+    let paletteForPreset preset = ThemePreset.palette preset
 
     let private parseColor name (value: string) =
         let normalized = value.Trim().TrimStart('#')
@@ -89,10 +92,10 @@ module SettingsDraft =
         |> Map.tryFind name
         |> Option.defaultValue palette.Foreground
 
-    let fromSettings (settings: AppSettings) =
+    let fromSettingsWithPreset preset (settings: AppSettings) =
         let palette = settings.Theme.ThemeSource.Resolve()
 
-        { ThemePreset = settings.Theme.Preset
+        { ThemePreset = preset
           Background = colorText palette.Background
           Foreground = colorText palette.Foreground
           Selection = colorText palette.Selection
@@ -131,6 +134,16 @@ module SettingsDraft =
             settings.Theme.Ui.DocumentTabPaddingVertical.ToString(CultureInfo.InvariantCulture)
           DocumentTabSpacing = settings.Theme.Ui.DocumentTabSpacing.ToString(CultureInfo.InvariantCulture)
           CommandPaletteFontSize = settings.Theme.Ui.CommandPaletteFontSize.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteWidth = settings.Theme.Ui.CommandPaletteWidth.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteTopMargin = settings.Theme.Ui.CommandPaletteTopMargin.ToString(CultureInfo.InvariantCulture)
+          CommandPalettePadding = settings.Theme.Ui.CommandPalettePadding.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteMaxHeight = settings.Theme.Ui.CommandPaletteMaxHeight.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteItemMarginHorizontal =
+            settings.Theme.Ui.CommandPaletteItemMarginHorizontal.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteItemMarginVertical =
+            settings.Theme.Ui.CommandPaletteItemMarginVertical.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteGestureMargin =
+            settings.Theme.Ui.CommandPaletteGestureMargin.ToString(CultureInfo.InvariantCulture)
           WelcomeTitleFontSize = settings.Theme.Ui.WelcomeTitleFontSize.ToString(CultureInfo.InvariantCulture)
           TextMutedOpacity = settings.Theme.Ui.TextMutedOpacity.ToString(CultureInfo.InvariantCulture)
           ControlCornerRadius = settings.Theme.Ui.ControlCornerRadius.ToString(CultureInfo.InvariantCulture)
@@ -139,6 +152,9 @@ module SettingsDraft =
           WorkspaceSeparatorColor = colorText settings.Theme.Ui.WorkspaceSeparatorColor
           MeasurementColor = colorText settings.Theme.Ui.MeasurementColor
           TabCloseIconSize = settings.Theme.Ui.TabCloseIconSize.ToString(CultureInfo.InvariantCulture) }
+
+    let fromSettings (settings: AppSettings) =
+        fromSettingsWithPreset settings.Theme.Preset settings
 
     let applyPreset preset draft =
         let palette = paletteForPreset preset
@@ -359,6 +375,41 @@ module SettingsDraft =
                 |> Result.map (fun value ->
                     { ui with
                         CommandPaletteFontSize = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Command palette width" draft.CommandPaletteWidth
+                |> Result.map (fun value -> { ui with CommandPaletteWidth = value }))
+            |> bind (fun ui ->
+                parseNonNegativeFloat "Command palette top margin" draft.CommandPaletteTopMargin
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPaletteTopMargin = value }))
+            |> bind (fun ui ->
+                parseNonNegativeFloat "Command palette padding" draft.CommandPalettePadding
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPalettePadding = value }))
+            |> bind (fun ui ->
+                parsePositiveFloat "Command palette maximum height" draft.CommandPaletteMaxHeight
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPaletteMaxHeight = value }))
+            |> bind (fun ui ->
+                parseNonNegativeFloat
+                    "Command palette item horizontal margin"
+                    draft.CommandPaletteItemMarginHorizontal
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPaletteItemMarginHorizontal = value }))
+            |> bind (fun ui ->
+                parseNonNegativeFloat "Command palette item vertical margin" draft.CommandPaletteItemMarginVertical
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPaletteItemMarginVertical = value }))
+            |> bind (fun ui ->
+                parseNonNegativeFloat "Command palette gesture margin" draft.CommandPaletteGestureMargin
+                |> Result.map (fun value ->
+                    { ui with
+                        CommandPaletteGestureMargin = value }))
             |> bind (fun ui ->
                 parsePositiveFloat "Welcome title font size" draft.WelcomeTitleFontSize
                 |> Result.map (fun value -> { ui with WelcomeTitleFontSize = value }))

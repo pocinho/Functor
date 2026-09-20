@@ -83,6 +83,12 @@ module ThemeSettingsLoader =
         | Some value when Single.IsFinite value && value > 0.0f -> Ok(update value ui)
         | Some _ -> Error(sprintf "Invalid UI theme value: %s" name)
 
+    let private applyUiNonNegativeFloat element name update ui =
+        match tryFloat32 element name with
+        | None -> Ok ui
+        | Some value when Single.IsFinite value && value >= 0.0f -> Ok(update value ui)
+        | Some _ -> Error(sprintf "Invalid UI theme value: %s" name)
+
     let private applyUiOpacity element name update ui =
         match tryFloat32 element name with
         | None -> Ok ui
@@ -131,11 +137,10 @@ module ThemeSettingsLoader =
             let preset =
                 tryString theme "preset" |> Option.defaultValue ThemePreset.GraphiteDark
 
-            let basePalette =
-                if preset = ThemePreset.GraphiteLight then
-                    Theme.graphiteLight
-                else
-                    Theme.defaultPalette
+            if not (ThemePreset.valid |> List.contains preset) then
+                failwith (sprintf "Invalid theme preset: %s" preset)
+
+            let basePalette = ThemePreset.palette preset
 
             let result =
                 basePalette
@@ -298,6 +303,41 @@ module ThemeSettingsLoader =
                         applyUiFloat theme "commandPaletteFontSize" (fun value ui ->
                             { ui with
                                 CommandPaletteFontSize = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "commandPaletteWidth" (fun value ui ->
+                            { ui with
+                                CommandPaletteWidth = float value })
+                    )
+                    |> Result.bind (
+                        applyUiNonNegativeFloat theme "commandPaletteTopMargin" (fun value ui ->
+                            { ui with
+                                CommandPaletteTopMargin = float value })
+                    )
+                    |> Result.bind (
+                        applyUiNonNegativeFloat theme "commandPalettePadding" (fun value ui ->
+                            { ui with
+                                CommandPalettePadding = float value })
+                    )
+                    |> Result.bind (
+                        applyUiPositiveFloat theme "commandPaletteMaxHeight" (fun value ui ->
+                            { ui with
+                                CommandPaletteMaxHeight = float value })
+                    )
+                    |> Result.bind (
+                        applyUiNonNegativeFloat theme "commandPaletteItemMarginHorizontal" (fun value ui ->
+                            { ui with
+                                CommandPaletteItemMarginHorizontal = float value })
+                    )
+                    |> Result.bind (
+                        applyUiNonNegativeFloat theme "commandPaletteItemMarginVertical" (fun value ui ->
+                            { ui with
+                                CommandPaletteItemMarginVertical = float value })
+                    )
+                    |> Result.bind (
+                        applyUiNonNegativeFloat theme "commandPaletteGestureMargin" (fun value ui ->
+                            { ui with
+                                CommandPaletteGestureMargin = float value })
                     )
                     |> Result.bind (
                         applyUiFloat theme "welcomeTitleFontSize" (fun value ui ->

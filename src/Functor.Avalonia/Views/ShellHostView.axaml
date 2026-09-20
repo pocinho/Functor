@@ -74,6 +74,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="{DynamicResource Theme.SettingsFooterSpacing}">
                         <Button x:Name="ApplySettingsButton" Content="Apply" />
                         <Button x:Name="SaveSettingsButton" Content="Save" />
+                        <Button x:Name="ExportThemeButton" Content="Export theme" />
                         <Button x:Name="CloseSettingsButton" Content="Close" />
                     </StackPanel>
                 </Border>

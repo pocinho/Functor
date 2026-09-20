@@ -23,6 +23,13 @@ type UiThemeDefaults =
       DocumentTabPaddingVertical: float
       DocumentTabSpacing: float
       CommandPaletteFontSize: float
+      CommandPaletteWidth: float
+      CommandPaletteTopMargin: float
+      CommandPalettePadding: float
+      CommandPaletteMaxHeight: float
+      CommandPaletteItemMarginHorizontal: float
+      CommandPaletteItemMarginVertical: float
+      CommandPaletteGestureMargin: float
       WelcomeTitleFontSize: float
       TextMutedOpacity: float
       ControlCornerRadius: float
@@ -128,6 +135,13 @@ module UiThemeDefaults =
           DocumentTabPaddingVertical = 4.0
           DocumentTabSpacing = 2.0
           CommandPaletteFontSize = 14.0
+          CommandPaletteWidth = 560.0
+          CommandPaletteTopMargin = 8.0
+          CommandPalettePadding = 10.0
+          CommandPaletteMaxHeight = 260.0
+          CommandPaletteItemMarginHorizontal = 8.0
+          CommandPaletteItemMarginVertical = 6.0
+          CommandPaletteGestureMargin = 16.0
           WelcomeTitleFontSize = 28.0
           TextMutedOpacity = 0.68
           ControlCornerRadius = 0.0
@@ -146,6 +160,7 @@ type ThemeShapeDensity =
       TabNavigationButtonWidth: float
       WorkspaceTreeIndent: float
       WorkspaceTreeCollapseButtonSize: float
+      WorkspaceRowSpacing: float
       TitleBarHeight: float
       WindowControlWidth: float
       WindowControlPadding: float
@@ -177,6 +192,7 @@ module ThemeShapeDensity =
           TabNavigationButtonWidth = 28.0
           WorkspaceTreeIndent = 14.0
           WorkspaceTreeCollapseButtonSize = 18.0
+          WorkspaceRowSpacing = 0.0
           TitleBarHeight = 32.0
           WindowControlWidth = 46.0
           WindowControlPadding = 2.0
@@ -184,13 +200,13 @@ module ThemeShapeDensity =
           MinimumWindowWidth = 360.0 + (46.0 * 3.0) + 102.0
           CommandBarHeight = 24.0
           TitleBarHorizontalPadding = 12.0
-          CommandPaletteWidth = 560.0
-          CommandPaletteTopMargin = 8.0
-          CommandPalettePadding = 10.0
-          CommandPaletteMaxHeight = 260.0
-          CommandPaletteItemMarginHorizontal = 8.0
-          CommandPaletteItemMarginVertical = 6.0
-          CommandPaletteGestureMargin = 16.0
+          CommandPaletteWidth = uiTheme.CommandPaletteWidth
+          CommandPaletteTopMargin = uiTheme.CommandPaletteTopMargin
+          CommandPalettePadding = uiTheme.CommandPalettePadding
+          CommandPaletteMaxHeight = uiTheme.CommandPaletteMaxHeight
+          CommandPaletteItemMarginHorizontal = uiTheme.CommandPaletteItemMarginHorizontal
+          CommandPaletteItemMarginVertical = uiTheme.CommandPaletteItemMarginVertical
+          CommandPaletteGestureMargin = uiTheme.CommandPaletteGestureMargin
           SidePanelResizeHandleWidth = 4.0
           SidePanelRightPadding = 8.0
           BorderWidth = 1.0
@@ -213,7 +229,15 @@ type ThemeLayoutDensity =
       WelcomeActionSpacing: float
       DialogContentPadding: float
       DialogContentSpacing: float
-      DialogButtonSpacing: float }
+      DialogButtonSpacing: float
+      SettingsPagePadding: float
+      SettingsPageSpacing: float
+      SettingsSectionHeadingTopSpacing: float
+      SettingsSectionHeadingBottomSpacing: float
+      SettingsControlWidth: float
+      SettingsRowMarginBottom: float
+      SettingsColorPickerWidth: float
+      SettingsColorPickerHeight: float }
 
 module ThemeLayoutDensity =
     let fromUiTheme (_uiTheme: UiThemeDefaults) =
@@ -232,4 +256,12 @@ module ThemeLayoutDensity =
           WelcomeActionSpacing = 8.0
           DialogContentPadding = 16.0
           DialogContentSpacing = 16.0
-          DialogButtonSpacing = 8.0 }
+          DialogButtonSpacing = 8.0
+          SettingsPagePadding = 16.0
+          SettingsPageSpacing = 4.0
+          SettingsSectionHeadingTopSpacing = 12.0
+          SettingsSectionHeadingBottomSpacing = 8.0
+          SettingsControlWidth = 200.0
+          SettingsRowMarginBottom = 8.0
+          SettingsColorPickerWidth = 64.0
+          SettingsColorPickerHeight = 32.0 }

@@ -50,6 +50,7 @@ module ThemeResources =
                box (Thickness(shape.DocumentTabPaddingHorizontal, shape.DocumentTabPaddingVertical)))
               ("Theme.DocumentTabSpacing", box shape.DocumentTabSpacing)
               ("Theme.TabNavigationButtonWidth", box shape.TabNavigationButtonWidth)
+              ("Theme.WorkspaceRowSpacing", box shape.WorkspaceRowSpacing)
               ("Theme.TitleBarHeight", box shape.TitleBarHeight)
               ("Theme.WindowControlWidth", box shape.WindowControlWidth)
               ("Theme.WindowControlPadding", box (Thickness(shape.WindowControlPadding)))
@@ -71,6 +72,10 @@ module ThemeResources =
               ("Theme.ToolRailSpacing", box layout.ToolRailSpacing)
               ("Theme.SettingsFooterPadding", box (Thickness(layout.SettingsFooterPadding)))
               ("Theme.SettingsFooterSpacing", box layout.SettingsFooterSpacing)
+              ("Theme.SettingsControlWidth", box layout.SettingsControlWidth)
+              ("Theme.SettingsRowMargin", box (Thickness(0.0, 0.0, 0.0, layout.SettingsRowMarginBottom)))
+              ("Theme.SettingsColorPickerWidth", box layout.SettingsColorPickerWidth)
+              ("Theme.SettingsColorPickerHeight", box layout.SettingsColorPickerHeight)
               ("Theme.StatusBarPadding",
                box (Thickness(layout.StatusBarPaddingHorizontal, layout.StatusBarPaddingVertical)))
               ("Theme.StatusTextGap", box (Thickness(layout.StatusTextGap, 0.0, 0.0, 0.0)))
@@ -78,6 +83,12 @@ module ThemeResources =
               ("Theme.WelcomeWidth", box layout.WelcomeWidth)
               ("Theme.WelcomeSectionSpacing", box layout.WelcomeSectionSpacing)
               ("Theme.WelcomeActionSpacing", box layout.WelcomeActionSpacing)
+              ("Theme.SettingsPagePadding", box (Thickness(layout.SettingsPagePadding)))
+              ("Theme.SettingsPageSpacing", box layout.SettingsPageSpacing)
+              ("Theme.SettingsSectionHeadingMargin",
+               box (Thickness(0.0, layout.SettingsSectionHeadingTopSpacing, 0.0, layout.SettingsSectionHeadingBottomSpacing)))
+              ("Theme.SettingsFirstHeadingMargin",
+               box (Thickness(0.0, 0.0, 0.0, layout.SettingsSectionHeadingBottomSpacing)))
               ("Theme.EditorFontSize", box typography.EditorFontSize)
               ("Theme.EditorLineHeight", box typography.EditorLineHeight)
               ("Theme.EditorTabSize", box uiTheme.EditorTabSize)

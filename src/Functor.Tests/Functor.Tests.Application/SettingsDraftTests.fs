@@ -62,6 +62,15 @@ type SettingsDraftTests() =
         Assert.Equal(Error "Tab close icon size must be a positive number.", SettingsDraft.tryCreateSettings draft)
 
     [<Fact>]
+    member _.``rejects non-positive command palette width``() =
+        let draft =
+            AppSettings.defaults
+            |> SettingsDraft.fromSettings
+            |> fun value -> { value with CommandPaletteWidth = "0" }
+
+        Assert.Equal(Error "Command palette width must be a positive number.", SettingsDraft.tryCreateSettings draft)
+
+    [<Fact>]
     member _.``applying a preset replaces palette values``() =
         let draft = AppSettings.defaults |> SettingsDraft.fromSettings
         let updated = SettingsDraft.applyPreset "Graphite Light" draft
@@ -85,6 +94,13 @@ type SettingsDraftTests() =
                     GutterSeparatorWidth = "1.75"
                     TabCloseIconSize = "11"
                     ControlCornerRadius = "4"
+                    CommandPaletteWidth = "640"
+                    CommandPaletteTopMargin = "12"
+                    CommandPalettePadding = "14"
+                    CommandPaletteMaxHeight = "320"
+                    CommandPaletteItemMarginHorizontal = "10"
+                    CommandPaletteItemMarginVertical = "7"
+                    CommandPaletteGestureMargin = "20"
                     WorkspaceSeparatorColor = "#FF123456"
                     SyntaxKeyword = "#FF654321" }
 
@@ -101,6 +117,13 @@ type SettingsDraftTests() =
             Assert.Equal(1.75, settings.Theme.Ui.GutterSeparatorWidth)
             Assert.Equal(11.0, settings.Theme.Ui.TabCloseIconSize)
             Assert.Equal(4.0, settings.Theme.Ui.ControlCornerRadius)
+            Assert.Equal(640.0, settings.Theme.Ui.CommandPaletteWidth)
+            Assert.Equal(12.0, settings.Theme.Ui.CommandPaletteTopMargin)
+            Assert.Equal(14.0, settings.Theme.Ui.CommandPalettePadding)
+            Assert.Equal(320.0, settings.Theme.Ui.CommandPaletteMaxHeight)
+            Assert.Equal(10.0, settings.Theme.Ui.CommandPaletteItemMarginHorizontal)
+            Assert.Equal(7.0, settings.Theme.Ui.CommandPaletteItemMarginVertical)
+            Assert.Equal(20.0, settings.Theme.Ui.CommandPaletteGestureMargin)
             Assert.Equal(0xFF123456u, settings.Theme.Ui.WorkspaceSeparatorColor)
             Assert.Equal(Some 0xFF654321u, settings.Theme.ThemeSource.Resolve().SyntaxColors |> Map.tryFind "keyword")
         | Error error -> failwith error

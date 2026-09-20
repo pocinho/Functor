@@ -14,6 +14,7 @@ open Functor.Application
 open Functor.Avalonia
 open Functor.Avalonia.Controls
 open Functor.Domain.Document
+open Functor.Platform
 open Functor.Workspace
 
 type ShellHostView() as this =
@@ -36,6 +37,7 @@ type ShellHostView() as this =
     let settingsView = lazy (this.FindControl<SettingsView>("SettingsView"))
     let applySettingsButton = lazy (this.FindControl<Button>("ApplySettingsButton"))
     let saveSettingsButton = lazy (this.FindControl<Button>("SaveSettingsButton"))
+    let exportThemeButton = lazy (this.FindControl<Button>("ExportThemeButton"))
     let closeSettingsButton = lazy (this.FindControl<Button>("CloseSettingsButton"))
 
     let auxiliaryPanelHost =
@@ -176,7 +178,7 @@ type ShellHostView() as this =
             updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
 
     let openSettingsTab () =
-        settingsView.Value.Configure(currentSettings)
+        settingsView.Value.Configure(currentSettings, ThemeCatalog.load ())
         settingsOpen <- true
         settingsActive <- true
         settingsTabButton.Value.IsVisible <- true
@@ -197,6 +199,19 @@ type ShellHostView() as this =
 
                 match result with
                 | Ok() -> settingsView.Value.SetError("")
+                | Error error -> settingsView.Value.SetError(error)
+
+    let tryExportTheme () =
+        match settingsView.Value.Draft with
+        | None -> settingsView.Value.SetError("Theme draft is not initialized.")
+        | Some draft ->
+            match SettingsDraft.tryCreateSettings draft with
+            | Error error -> settingsView.Value.SetError(error)
+            | Ok settings ->
+                match ThemeCatalog.export settingsView.Value.ThemeName settings with
+                | Ok() ->
+                    settingsView.Value.UpdateThemes(ThemeCatalog.load ())
+                    settingsView.Value.SetError("")
                 | Error error -> settingsView.Value.SetError(error)
 
     let hasDiskWorkspace (workspace: WorkspaceModel) =
@@ -379,6 +394,7 @@ type ShellHostView() as this =
 
         applySettingsButton.Value.Click.Add(fun _ -> tryApplySettings false)
         saveSettingsButton.Value.Click.Add(fun _ -> tryApplySettings true)
+        exportThemeButton.Value.Click.Add(fun _ -> tryExportTheme ())
         closeSettingsButton.Value.Click.Add(fun _ -> closeSettingsTab ())
 
         this.AttachedToVisualTree.Add(fun _ -> attachSubscriptions ())

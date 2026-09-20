@@ -93,6 +93,13 @@ module AppSettingsLoader =
         theme["documentTabPaddingVertical"] <- ui.DocumentTabPaddingVertical
         theme["documentTabSpacing"] <- ui.DocumentTabSpacing
         theme["commandPaletteFontSize"] <- ui.CommandPaletteFontSize
+        theme["commandPaletteWidth"] <- ui.CommandPaletteWidth
+        theme["commandPaletteTopMargin"] <- ui.CommandPaletteTopMargin
+        theme["commandPalettePadding"] <- ui.CommandPalettePadding
+        theme["commandPaletteMaxHeight"] <- ui.CommandPaletteMaxHeight
+        theme["commandPaletteItemMarginHorizontal"] <- ui.CommandPaletteItemMarginHorizontal
+        theme["commandPaletteItemMarginVertical"] <- ui.CommandPaletteItemMarginVertical
+        theme["commandPaletteGestureMargin"] <- ui.CommandPaletteGestureMargin
         theme["welcomeTitleFontSize"] <- ui.WelcomeTitleFontSize
         theme["textMutedOpacity"] <- ui.TextMutedOpacity
         theme["controlCornerRadius"] <- ui.ControlCornerRadius

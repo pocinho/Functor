@@ -17,6 +17,9 @@
         <Style Selector="Button">
             <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
             <Setter Property="FontFamily" Value="{DynamicResource Theme.ControlFontFamily}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
         </Style>
 
         <Style Selector="Button:pointerover">
@@ -71,6 +74,9 @@
         <Style Selector="TextBox">
             <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
             <Setter Property="FontFamily" Value="{DynamicResource Theme.ControlFontFamily}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.InputBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
         </Style>
 
         <Style Selector="TextBox:focus-visible">
@@ -89,6 +95,9 @@
         <Style Selector="ComboBox">
             <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
             <Setter Property="FontFamily" Value="{DynamicResource Theme.ControlFontFamily}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.InputBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
         </Style>
 
         <Style Selector="ComboBox:focus-visible">
@@ -100,9 +109,25 @@
             <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />
         </Style>
 
+        <Style Selector="NumericUpDown">
+            <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
+            <Setter Property="FontFamily" Value="{DynamicResource Theme.ControlFontFamily}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.InputBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
+        </Style>
+
+        <Style Selector="NumericUpDown:disabled">
+            <Setter Property="Foreground" Value="{DynamicResource Theme.Disabled}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />
+        </Style>
+
         <Style Selector="ListBox">
             <Setter Property="CornerRadius" Value="{DynamicResource Theme.ControlCornerRadius}" />
             <Setter Property="FontFamily" Value="{DynamicResource Theme.ControlFontFamily}" />
+            <Setter Property="Background" Value="{DynamicResource Theme.PanelBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Theme.Border}" />
+            <Setter Property="Foreground" Value="{DynamicResource Theme.TextPrimary}" />
         </Style>
 
         <Style Selector="ListBoxItem:pointerover">

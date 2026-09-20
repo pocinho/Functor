@@ -45,6 +45,13 @@ type ThemeSettingsLoaderTests() =
         Assert.Equal(Theme.dark.Foreground, settings.ThemeSource.Resolve().Foreground)
 
     [<Fact>]
+    member _.``rejects unknown theme presets``() =
+        let result =
+            ThemeSettingsLoader.loadText "{ \"theme\": { \"schemaVersion\": 1, \"preset\": \"Unknown\" } }"
+
+        Assert.Equal(Error "Invalid theme preset: Unknown", result)
+
+    [<Fact>]
     member _.``loads nested theme colors and border settings``() =
         let json =
             """
@@ -70,6 +77,21 @@ type ThemeSettingsLoaderTests() =
         Assert.Equal(0xFFF0F0F0u, palette.Foreground)
         Assert.Equal(Some 0xFF555555u, palette.EditorBorder)
         Assert.Equal(2.0f, palette.EditorBorderWidth)
+
+    [<Fact>]
+    member _.``custom theme overlays preserve unspecified preset values``() =
+        let result =
+            ThemeSettingsLoader.loadText
+                "{ \"theme\": { \"schemaVersion\": 1, \"preset\": \"Custom\", \"foreground\": \"#FFF0F0F0\" } }"
+
+        let palette =
+            match result with
+            | Ok settings -> settings.ThemeSource.Resolve()
+            | Error error -> failwith error
+
+        Assert.Equal(0xFFF0F0F0u, palette.Foreground)
+        Assert.Equal(Theme.defaultPalette.Background, palette.Background)
+        Assert.Equal(Theme.defaultPalette.Selection, palette.Selection)
 
     [<Fact>]
     member _.``loads colors without a leading hash``() =
