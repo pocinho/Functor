@@ -1,5 +1,9 @@
 # Recommended Code Review Actions
 
+## Review Status
+
+The high-priority actions in this review have been completed. Shell coordination, editor-session responsibilities, settings boundaries, theme loading, service composition, and the associated focused tests are now implemented. The remaining items below are conditional follow-ups and should only be reopened when concrete coupling, cohesion, or product requirements justify them.
+
 ## Review Context
 
 The current codebase has a sound pure-domain and rendering foundation. The main maintainability risk is orchestration concentration in the application coordinator and Avalonia shell, not widespread impurity in domain logic.
@@ -10,20 +14,20 @@ The current codebase has a sound pure-domain and rendering foundation. The main 
 
 `src/Functor.Avalonia/Views/ShellHostView.axaml.fs` coordinates shell projection, workspace-tree loading and invalidation, settings application and export, dialogs, tabs, scrollbars, tool panels, and command routing.
 
-Recommended decomposition:
+Completed decomposition:
 
 - `ShellHostProjection.fs` for pure model-to-control projection helpers.
 - `WorkspaceTreeCoordinator.fs` for workspace keys, loading, generation checks, and refresh.
 - `SettingsCoordinator.fs` for settings validation, apply/save, and export callbacks.
 - Keep `ShellHostView` as the Avalonia lifecycle and event adapter.
 
-This is the highest-value refactor because it improves testability without requiring an MVU rewrite.
+This refactor improved testability without requiring an MVU rewrite.
 
 ### High: EditorSession Has Too Many Coordinator Responsibilities
 
 `src/Functor.Application/EditorSession.fs` is an application coordinator, so its mutable state is not a Domain purity violation. However, it combines model updates, event publication, effect requests, tokenization scheduling, cancellation, incremental tokenization, pending-save tracking, and confirmation workflows.
 
-Recommended extraction:
+Completed extraction:
 
 - `EditorSessionUpdate.fs` for pure model and event transitions.
 - `EditorSessionTokenization.fs` for scheduling, cancellation, and incremental tokenization.
@@ -36,27 +40,25 @@ Do not convert this directly to event sourcing unless replay, auditing, or persi
 
 `SettingsView.axaml.fs` mixes control synchronization, settings editing, theme-file selection, and settings UI lifecycle.
 
-`src/Functor.Application/SettingsDraft.fs` combines the draft record, color parsing, preset application, projection, numeric validation, and final `AppSettings` construction.
+The settings form modules combine the editable values, color parsing, preset application, projection, numeric validation, and final `AppSettings` construction.
 
-Potential future splits:
+Completed decomposition:
 
-- `ThemeParsing.fs`
-- `ThemeValidation.fs`
-- `ThemeProjection.fs`
-- A focused settings UI coordinator for control synchronization and theme-file actions.
+- `SettingsFormModel.fs`, `SettingsFormValidation.fs`, and `SettingsFormProjection.fs` separate the settings contract responsibilities.
+- `SettingsCoordinator.fs` owns settings validation, apply/save, and export coordination.
 
-The settings record itself can remain centralized as the public settings-page contract.
+The settings form model remains centralized as the public settings-page contract.
 
 ### Medium: ThemeSettingsLoader Is A Schema Parser And Validator
 
 `src/Functor.Application/ThemeSettingsLoader.fs` handles JSON primitives, schema versioning, palette overlays, UI overlays, and validation.
 
-Potential future splits:
+Completed decomposition:
 
-- `ThemeJsonPrimitives.fs`
-- `ThemePaletteLoader.fs`
-- `ThemeUiLoader.fs`
-- Keep `ThemeSettingsLoader.fs` as the schema/orchestration entry point.
+- `ThemeSettingsJson.fs` owns JSON primitives and schema concerns.
+- `ThemeSettingsPalette.fs` owns palette loading.
+- `ThemeSettingsUi.fs` owns UI loading.
+- `ThemeSettingsLoader.fs` remains the schema/orchestration entry point.
 
 This is lower priority than `ShellHostView` because the responsibilities remain within one application/settings boundary.
 
@@ -64,7 +66,7 @@ This is lower priority than `ShellHostView` because the responsibilities remain 
 
 `src/Functor.Avalonia/Controls/EditorControl.fs` constructs the editor session and platform services directly. This makes substitution and focused testing harder.
 
-Introduce a small composition boundary incrementally, for example:
+Completed composition boundary:
 
 ```fsharp
 type EditorServices =
@@ -74,11 +76,11 @@ type EditorServices =
       Tokenizer: ITokenizerService }
 ```
 
-The desktop/bootstrap layer can construct these services and pass them into the control. Start with the editor session and file/dialog services.
+The desktop/bootstrap layer constructs these services and passes them into the control, allowing reusable controls and tests to substitute platform dependencies.
 
 ### Medium: Test Coverage Gaps
 
-Add focused tests for:
+Focused tests now cover:
 
 - Multi-document edit preservation across tab switches.
 - Workspace revision guards and stale-result rejection.
@@ -133,10 +135,8 @@ This preserves MVU's important guarantee without requiring an impractical statel
 
 ## Recommended Order
 
-1. Extract pure workspace-tree and settings logic from `ShellHostView`.
-2. Add multi-document, async-refresh, and stale-result tests.
-3. Separate tokenization and save coordination from `EditorSession`.
-4. Introduce the `EditorControl` composition boundary.
-5. Split the settings contract and `ThemeSettingsLoader` if they continue to grow.
+1. Reassess `WorkspaceModel` only if aggregate coupling creates a concrete ownership or testability problem.
+2. Reassess `LayoutEngine` only if its cohesion or discoverability degrades.
+3. Reconsider tokenizer placement only if syntax analysis gains a stable domain-owned contract.
 
 Avoid broad rewrites, event sourcing, opaque workspace state, or a ViewModel layer unless a concrete requirement justifies them.

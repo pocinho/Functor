@@ -14,7 +14,7 @@ open Functor.Rendering
 type SettingsView() as this =
     inherit UserControl()
 
-    let mutable draft = None
+    let mutable form = None
     let mutable themeFiles: ThemeFile list = []
     let mutable selectedThemeName: string option = None
     let mutable themeName = ThemePreset.GraphiteDark
@@ -75,7 +75,7 @@ type SettingsView() as this =
 
     let updateDraft update =
         if not updatingControls then
-            draft <- draft |> Option.map update
+            form <- form |> Option.map update
 
     let updateTextField name update =
         let control = textBox name
@@ -151,12 +151,12 @@ type SettingsView() as this =
                     | Some theme ->
                         selectedThemeName <- Some value
                         themeName <- value
-                        draft <- Some(SettingsDraft.fromSettingsWithPreset theme.Settings.Theme.Preset theme.Settings)
+                        form <- Some(SettingsForm.fromAppSettingsWithPreset theme.Settings.Theme.Preset theme.Settings)
                         this.RefreshControls()
                     | None ->
                         selectedThemeName <- None
                         themeName <- value
-                        draft <- draft |> Option.map (SettingsDraft.applyPreset value)
+                        form <- form |> Option.map (SettingsForm.applyPreset value)
                         this.RefreshControls()
                 | _ -> ())
 
@@ -426,12 +426,12 @@ type SettingsView() as this =
         preset.ItemsSource <- ThemePreset.all @ (loadedThemes |> List.map (fun theme -> theme.Name))
         selectedThemeName <- None
         themeName <- settings.Theme.Preset
-        draft <- Some(SettingsDraft.fromSettings settings)
+        form <- Some(SettingsForm.fromAppSettings settings)
         this.RefreshControls()
 
     member this.Configure(settings: AppSettings) = this.Configure(settings, [])
 
-    member _.Draft = draft
+    member _.Form = form
 
     member _.ThemeName = themeName
 
@@ -444,7 +444,7 @@ type SettingsView() as this =
         this.FindControl<TextBlock>("ErrorText").Text <- error
 
     member private this.RefreshControls() =
-        match draft with
+        match form with
         | Some value ->
             updatingControls <- true
             let preset = this.FindControl<ComboBox>("ThemePreset")

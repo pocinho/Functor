@@ -9,7 +9,7 @@
     <Compile Include="ThemeSettingsLoaderTests.fs" />
     <Compile Include="AppCommandCatalogTests.fs" />
     <Compile Include="CommandPaletteStateTests.fs" />
-    <Compile Include="SettingsDraftTests.fs" />
+    <Compile Include="SettingsFormTests.fs" />
     <Compile Include="ShellStateTests.fs" />
     <Compile Include="ShellMvuTests.fs" />
     <Compile Include="EditorStatusTests.fs" />

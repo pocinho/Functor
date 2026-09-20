@@ -1,0 +1,54 @@
+namespace Functor.Application
+
+type SettingsFormModel =
+    { ThemePreset: string
+      Background: string
+      Foreground: string
+      Selection: string
+      Cursor: string
+      LineNumber: string
+      GutterBackground: string
+      DiagnosticError: string
+      DiagnosticWarning: string
+      DiagnosticInfo: string
+      SyntaxKeyword: string
+      SyntaxString: string
+      SyntaxComment: string
+      SyntaxNumber: string
+      SyntaxType: string
+      SyntaxFunction: string
+      EditorBorder: string
+      EditorBorderWidth: string
+      EditorFontFamily: string
+      EditorFallbackFontFamily: string
+      IconFontFamily: string
+      WorkspaceFontSize: string
+      EditorFontSize: string
+      EditorLineHeight: string
+      EditorTabSize: string
+      CursorWidth: string
+      GutterSeparatorWidth: string
+      GutterPadding: string
+      GutterMinimumWidth: string
+      CommandPaletteFontSize: string
+      WelcomeTitleFontSize: string
+      TextMutedOpacity: string
+      ControlCornerRadius: string
+      ResizeHandleColor: string
+      CommandPaletteShadowColor: string
+      WorkspaceSeparatorColor: string
+      MeasurementColor: string
+      TabCloseIconSize: string
+      UiFontFamily: string
+      DocumentTabMinHeight: string
+      DocumentTabCloseButtonSize: string
+      DocumentTabPaddingHorizontal: string
+      DocumentTabPaddingVertical: string
+      DocumentTabSpacing: string
+      CommandPaletteWidth: string
+      CommandPaletteTopMargin: string
+      CommandPalettePadding: string
+      CommandPaletteMaxHeight: string
+      CommandPaletteItemMarginHorizontal: string
+      CommandPaletteItemMarginVertical: string
+      CommandPaletteGestureMargin: string }

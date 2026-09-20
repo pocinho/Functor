@@ -4,64 +4,7 @@ open System
 open System.Globalization
 open Functor.Rendering
 
-type SettingsDraft =
-    { ThemePreset: string
-      Background: string
-      Foreground: string
-      Selection: string
-      Cursor: string
-      LineNumber: string
-      GutterBackground: string
-      DiagnosticError: string
-      DiagnosticWarning: string
-      DiagnosticInfo: string
-      SyntaxKeyword: string
-      SyntaxString: string
-      SyntaxComment: string
-      SyntaxNumber: string
-      SyntaxType: string
-      SyntaxFunction: string
-      EditorBorder: string
-      EditorBorderWidth: string
-      EditorFontFamily: string
-      EditorFallbackFontFamily: string
-      IconFontFamily: string
-      WorkspaceFontSize: string
-      EditorFontSize: string
-      EditorLineHeight: string
-      EditorTabSize: string
-      CursorWidth: string
-      GutterSeparatorWidth: string
-      GutterPadding: string
-      GutterMinimumWidth: string
-      CommandPaletteFontSize: string
-      WelcomeTitleFontSize: string
-      TextMutedOpacity: string
-      ControlCornerRadius: string
-      ResizeHandleColor: string
-      CommandPaletteShadowColor: string
-      WorkspaceSeparatorColor: string
-      MeasurementColor: string
-      TabCloseIconSize: string
-      UiFontFamily: string
-      DocumentTabMinHeight: string
-      DocumentTabCloseButtonSize: string
-      DocumentTabPaddingHorizontal: string
-      DocumentTabPaddingVertical: string
-      DocumentTabSpacing: string
-      CommandPaletteWidth: string
-      CommandPaletteTopMargin: string
-      CommandPalettePadding: string
-      CommandPaletteMaxHeight: string
-      CommandPaletteItemMarginHorizontal: string
-      CommandPaletteItemMarginVertical: string
-      CommandPaletteGestureMargin: string }
-
-module SettingsDraft =
-    let private colorText color = sprintf "#%08X" color
-
-    let paletteForPreset preset = ThemePreset.palette preset
-
+module SettingsFormValidation =
     let private parseColor name (value: string) =
         let normalized = value.Trim().TrimStart('#')
 
@@ -87,102 +30,11 @@ module SettingsDraft =
         else
             parseColor name value |> Result.map Some
 
-    let private syntaxColor name palette =
-        palette.SyntaxColors
-        |> Map.tryFind name
-        |> Option.defaultValue palette.Foreground
-
-    let fromSettingsWithPreset preset (settings: AppSettings) =
-        let palette = settings.Theme.ThemeSource.Resolve()
-
-        { ThemePreset = preset
-          Background = colorText palette.Background
-          Foreground = colorText palette.Foreground
-          Selection = colorText palette.Selection
-          Cursor = colorText palette.Cursor
-          LineNumber = colorText palette.LineNumber
-          GutterBackground = colorText palette.GutterBackground
-          DiagnosticError = colorText palette.DiagnosticError
-          DiagnosticWarning = colorText palette.DiagnosticWarning
-          DiagnosticInfo = colorText palette.DiagnosticInfo
-          SyntaxKeyword = colorText (syntaxColor "keyword" palette)
-          SyntaxString = colorText (syntaxColor "string" palette)
-          SyntaxComment = colorText (syntaxColor "comment" palette)
-          SyntaxNumber = colorText (syntaxColor "number" palette)
-          SyntaxType = colorText (syntaxColor "type" palette)
-          SyntaxFunction = colorText (syntaxColor "function" palette)
-          EditorBorder = palette.EditorBorder |> Option.map colorText |> Option.defaultValue ""
-          EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture)
-          EditorFontFamily = settings.Theme.Ui.EditorFontFamily
-          EditorFallbackFontFamily = settings.Theme.Ui.EditorFallbackFontFamily
-          UiFontFamily = settings.Theme.Ui.UiFontFamily
-          IconFontFamily = settings.Theme.Ui.IconFontFamily
-          WorkspaceFontSize = settings.Theme.Ui.WorkspaceFontSize.ToString(CultureInfo.InvariantCulture)
-          EditorFontSize = settings.Theme.Ui.EditorFontSize.ToString(CultureInfo.InvariantCulture)
-          EditorLineHeight = settings.Theme.Ui.EditorLineHeight.ToString(CultureInfo.InvariantCulture)
-          EditorTabSize = settings.Theme.Ui.EditorTabSize.ToString(CultureInfo.InvariantCulture)
-          CursorWidth = settings.Theme.Ui.CursorWidth.ToString(CultureInfo.InvariantCulture)
-          GutterSeparatorWidth = settings.Theme.Ui.GutterSeparatorWidth.ToString(CultureInfo.InvariantCulture)
-          GutterPadding = settings.Theme.Ui.GutterPadding.ToString(CultureInfo.InvariantCulture)
-          GutterMinimumWidth = settings.Theme.Ui.GutterMinimumWidth.ToString(CultureInfo.InvariantCulture)
-          DocumentTabMinHeight = settings.Theme.Ui.DocumentTabMinHeight.ToString(CultureInfo.InvariantCulture)
-          DocumentTabCloseButtonSize =
-            settings.Theme.Ui.DocumentTabCloseButtonSize.ToString(CultureInfo.InvariantCulture)
-          DocumentTabPaddingHorizontal =
-            settings.Theme.Ui.DocumentTabPaddingHorizontal.ToString(CultureInfo.InvariantCulture)
-          DocumentTabPaddingVertical =
-            settings.Theme.Ui.DocumentTabPaddingVertical.ToString(CultureInfo.InvariantCulture)
-          DocumentTabSpacing = settings.Theme.Ui.DocumentTabSpacing.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteFontSize = settings.Theme.Ui.CommandPaletteFontSize.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteWidth = settings.Theme.Ui.CommandPaletteWidth.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteTopMargin = settings.Theme.Ui.CommandPaletteTopMargin.ToString(CultureInfo.InvariantCulture)
-          CommandPalettePadding = settings.Theme.Ui.CommandPalettePadding.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteMaxHeight = settings.Theme.Ui.CommandPaletteMaxHeight.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteItemMarginHorizontal =
-            settings.Theme.Ui.CommandPaletteItemMarginHorizontal.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteItemMarginVertical =
-            settings.Theme.Ui.CommandPaletteItemMarginVertical.ToString(CultureInfo.InvariantCulture)
-          CommandPaletteGestureMargin =
-            settings.Theme.Ui.CommandPaletteGestureMargin.ToString(CultureInfo.InvariantCulture)
-          WelcomeTitleFontSize = settings.Theme.Ui.WelcomeTitleFontSize.ToString(CultureInfo.InvariantCulture)
-          TextMutedOpacity = settings.Theme.Ui.TextMutedOpacity.ToString(CultureInfo.InvariantCulture)
-          ControlCornerRadius = settings.Theme.Ui.ControlCornerRadius.ToString(CultureInfo.InvariantCulture)
-          ResizeHandleColor = colorText settings.Theme.Ui.ResizeHandleColor
-          CommandPaletteShadowColor = colorText settings.Theme.Ui.CommandPaletteShadowColor
-          WorkspaceSeparatorColor = colorText settings.Theme.Ui.WorkspaceSeparatorColor
-          MeasurementColor = colorText settings.Theme.Ui.MeasurementColor
-          TabCloseIconSize = settings.Theme.Ui.TabCloseIconSize.ToString(CultureInfo.InvariantCulture) }
-
-    let fromSettings (settings: AppSettings) =
-        fromSettingsWithPreset settings.Theme.Preset settings
-
-    let applyPreset preset draft =
-        let palette = paletteForPreset preset
-
-        { draft with
-            ThemePreset = preset
-            Background = colorText palette.Background
-            Foreground = colorText palette.Foreground
-            Selection = colorText palette.Selection
-            Cursor = colorText palette.Cursor
-            LineNumber = colorText palette.LineNumber
-            GutterBackground = colorText palette.GutterBackground
-            DiagnosticError = colorText palette.DiagnosticError
-            DiagnosticWarning = colorText palette.DiagnosticWarning
-            DiagnosticInfo = colorText palette.DiagnosticInfo
-            SyntaxKeyword = colorText (syntaxColor "keyword" palette)
-            SyntaxString = colorText (syntaxColor "string" palette)
-            SyntaxComment = colorText (syntaxColor "comment" palette)
-            SyntaxNumber = colorText (syntaxColor "number" palette)
-            SyntaxType = colorText (syntaxColor "type" palette)
-            SyntaxFunction = colorText (syntaxColor "function" palette)
-            EditorBorder = palette.EditorBorder |> Option.map colorText |> Option.defaultValue ""
-            EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture) }
-
-    let tryCreateSettings draft =
+    let tryBuildAppSettings (form: SettingsFormModel) =
+        let draft = form
         let bind next result = Result.bind next result
 
-        Ok(paletteForPreset draft.ThemePreset)
+        Ok(ThemePreset.palette form.ThemePreset)
         |> bind (fun palette ->
             parseColor "Background" draft.Background
             |> Result.map (fun value -> { palette with Background = value }))

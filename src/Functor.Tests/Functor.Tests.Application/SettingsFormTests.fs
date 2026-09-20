@@ -23,14 +23,14 @@ type SettingsFormTests() =
 
     [<Fact>]
     member _.``rejects invalid colors``() =
-        let draft =
+        let form =
             AppSettings.defaults
             |> SettingsForm.fromAppSettings
             |> fun value ->
                 { value with
                     Background = "not-a-color" }
 
-        Assert.Equal(Error "Background must be a 6- or 8-digit hex color.", SettingsForm.tryBuildAppSettings draft)
+        Assert.Equal(Error "Background must be a 6- or 8-digit hex color.", SettingsForm.tryBuildAppSettings form)
 
     [<Fact>]
     member _.``rejects colors with unsupported hex lengths``() =

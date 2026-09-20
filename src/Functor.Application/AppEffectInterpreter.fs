@@ -6,16 +6,15 @@ open System
 open System.Threading
 
 /// Executes application effects through injected platform-neutral services.
-type AppEffectInterpreter
-    (
-        clipboardService: IClipboardService,
-        fileService: IFileService,
-        dialogService: IDialogService,
-        dispatch: AppCommand -> unit,
-        ?tokenizerService: ITokenizerService
-    ) =
+type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit) =
     let reportFailure message =
         dispatch (AppCommand.fileOperationFailed message)
+
+    new(clipboardService, fileService, dialogService, dispatch, ?tokenizerService) =
+        AppEffectInterpreter(
+            EditorServices.create clipboardService fileService dialogService tokenizerService,
+            dispatch
+        )
 
     member this.Execute(effect: AppEffect) =
         async {
@@ -24,63 +23,63 @@ type AppEffectInterpreter
                 | NoEffect -> ()
                 | NotifyStatus message -> dispatch (AppCommand.setStatus message)
                 | NotifyError error -> dispatch (AppCommand.reportError error)
-                | WriteClipboard text -> do! clipboardService.SetText text
+                | WriteClipboard text -> do! services.Clipboard.SetText text
                 | ReadClipboard ->
-                    let! text = clipboardService.GetText()
+                    let! text = services.Clipboard.GetText()
 
                     match text with
                     | Some value -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString value)))
                     | None -> ()
                 | PasteText text -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString text)))
                 | OpenFile ->
-                    let! path = dialogService.OpenFile()
+                    let! path = services.Dialog.OpenFile()
 
                     match path with
                     | Some value -> do! this.Execute(AppEffect.readFile value)
                     | None -> ()
                 | OpenFolder ->
-                    let! path = dialogService.OpenFolder()
+                    let! path = services.Dialog.OpenFolder()
 
                     match path with
                     | Some value -> dispatch (AppCommand.folderOpened value)
                     | None -> ()
                 | ReadFile path ->
-                    let! result = fileService.ReadText path
+                    let! result = services.File.ReadText path
 
                     match result with
                     | Ok contents -> dispatch (AppCommand.fileOpened path contents)
                     | Error message -> reportFailure message
                 | SaveFile(suggestedName, contents) ->
-                    let! path = dialogService.SaveFile suggestedName
+                    let! path = services.Dialog.SaveFile suggestedName
 
                     match path with
                     | Some value -> do! this.Execute(AppEffect.writeFile value contents)
                     | None -> ()
                 | SaveFileForDocument(documentId, revision, suggestedName, contents) ->
-                    let! path = dialogService.SaveFile suggestedName
+                    let! path = services.Dialog.SaveFile suggestedName
 
                     match path with
                     | Some value ->
-                        let! result = fileService.WriteText(value, contents)
+                        let! result = services.File.WriteText(value, contents)
 
                         match result with
                         | Ok() -> dispatch (AppCommand.fileSavedForDocument documentId revision value)
                         | Error message -> reportFailure message
                     | None -> ()
                 | WriteFile(path, contents) ->
-                    let! result = fileService.WriteText(path, contents)
+                    let! result = services.File.WriteText(path, contents)
 
                     match result with
                     | Ok() -> dispatch (AppCommand.fileSaved path)
                     | Error message -> reportFailure message
                 | WriteFileForDocument(documentId, revision, path, contents) ->
-                    let! result = fileService.WriteText(path, contents)
+                    let! result = services.File.WriteText(path, contents)
 
                     match result with
                     | Ok() -> dispatch (AppCommand.fileSavedForDocument documentId revision path)
                     | Error message -> reportFailure message
                 | Tokenize(request, cancellationToken) ->
-                    match tokenizerService with
+                    match services.Tokenizer with
                     | Some service ->
                         let coordinator = TokenizationCoordinator(service, dispatch)
                         let! result = coordinator.Execute(request, cancellationToken)

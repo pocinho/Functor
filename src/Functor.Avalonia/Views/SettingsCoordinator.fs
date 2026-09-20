@@ -53,10 +53,10 @@ type SettingsCoordinator(
             updateEmptyState (hasActiveDocument ())
 
     member _.TryApply(save: bool) =
-        match settingsView.Draft with
-        | None -> settingsView.SetError("Settings draft is not initialized.")
-        | Some draft ->
-            match SettingsDraft.tryCreateSettings draft with
+        match settingsView.Form with
+        | None -> settingsView.SetError("Settings form is not initialized.")
+        | Some form ->
+            match SettingsForm.tryBuildAppSettings form with
             | Error error -> settingsView.SetError(error)
             | Ok settings ->
                 let result =
@@ -70,10 +70,10 @@ type SettingsCoordinator(
                 | Error error -> settingsView.SetError(error)
 
     member _.TryExportTheme() =
-        match settingsView.Draft with
-        | None -> settingsView.SetError("Theme draft is not initialized.")
-        | Some draft ->
-            match SettingsDraft.tryCreateSettings draft with
+        match settingsView.Form with
+        | None -> settingsView.SetError("Theme form is not initialized.")
+        | Some form ->
+            match SettingsForm.tryBuildAppSettings form with
             | Error error -> settingsView.SetError(error)
             | Ok settings ->
                 match ThemeCatalog.export settingsView.ThemeName settings with

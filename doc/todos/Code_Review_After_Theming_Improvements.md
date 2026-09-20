@@ -28,11 +28,11 @@ Follow-up roadmap for the architecture and maintainability actions identified af
 
 ## Phase 3: Composition And Settings Boundaries
 
-- [ ] Introduce an `EditorServices` composition record for clipboard, file, dialog, and tokenizer dependencies.
-- [ ] Move service construction toward the desktop/bootstrap composition boundary.
-- [ ] Add settings apply, save, and failure-path tests.
-- [ ] Split the settings contract into parsing, validation, and projection modules if its responsibilities continue to grow.
-- [ ] Split `ThemeSettingsLoader` into schema, palette, and UI loaders only if the current growth makes ownership unclear.
+- [x] Introduce an `EditorServices` composition record for clipboard, file, dialog, and tokenizer dependencies.
+- [x] Move service construction toward the desktop/bootstrap composition boundary.
+- [x] Add settings apply, save, and failure-path tests.
+- [x] Split the settings contract into parsing, validation, and projection modules as its responsibilities grew.
+- [x] Split `ThemeSettingsLoader` into schema, palette, and UI loaders as its responsibilities became distinct.
 
 ## Deferred Structural Work
 
@@ -43,11 +43,11 @@ Follow-up roadmap for the architecture and maintainability actions identified af
 
 ## Completion Criteria
 
-- [ ] High-priority orchestration modules have focused ownership and tests.
-- [ ] Async operations reject stale results at the relevant boundaries.
-- [ ] Editor services can be substituted without constructing platform implementations inside reusable controls.
-- [ ] Settings failure paths are covered.
-- [ ] The practical MVU boundary remains consistent: authoritative state is model-owned, while bounded framework-local lifecycle state remains allowed.
+- [x] High-priority orchestration modules have focused ownership and tests.
+- [x] Async operations reject stale results at the relevant boundaries.
+- [x] Editor services can be substituted without constructing platform implementations inside reusable controls.
+- [x] Settings failure paths are covered.
+- [x] The practical MVU boundary remains consistent: authoritative state is model-owned, while bounded framework-local lifecycle state remains allowed.
 
 ## Source Notes
 

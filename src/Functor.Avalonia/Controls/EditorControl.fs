@@ -15,7 +15,6 @@ open Functor.Domain.Core
 open Functor.Avalonia
 open Functor.Avalonia.Rendering
 open Functor.Avalonia.Services
-open Functor.Platform
 open Functor.Rendering
 
 type EditorControl() as this =
@@ -27,24 +26,10 @@ type EditorControl() as this =
 
     let session = EditorSession()
 
-    let clipboardService: IClipboardService =
-        AvaloniaClipboardService(fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
+    let services =
+        EditorServicesFactory.create (fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
 
-    let fileService: IFileService = FileService()
-
-    let dialogService: IDialogService =
-        AvaloniaDialogService(fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
-
-    let tokenizerService: ITokenizerService = DefaultTokenizerService()
-
-    let effectInterpreter =
-        AppEffectInterpreter(
-            clipboardService,
-            fileService,
-            dialogService,
-            session.DispatchCommand,
-            tokenizerService = tokenizerService
-        )
+    let effectInterpreter = AppEffectInterpreter(services, session.DispatchCommand)
 
     do
         session.EffectsRequested.Add(fun effects ->
@@ -146,7 +131,7 @@ type EditorControl() as this =
 
     member private this.NotifyScrollStateChanged() = scrollStateChanged.Trigger()
 
-    member private this.ClipboardService: IClipboardService = clipboardService
+    member private this.ClipboardService: IClipboardService = services.Clipboard
 
     member private this.ApplyEditingEvent(event: EditingEvent) =
         session.Dispatch(CoreEvent.ApplyEditingEvent event)

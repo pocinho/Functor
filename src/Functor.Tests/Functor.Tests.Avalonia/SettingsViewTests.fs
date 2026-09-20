@@ -37,48 +37,48 @@ module SettingsViewTests =
         let documentTabSpacing = view.FindControl<NumericUpDown>("DocumentTabSpacing")
 
         let expectedBackground =
-            (SettingsDraft.fromSettings AppSettings.defaults).Background
+            (SettingsForm.fromAppSettings AppSettings.defaults).Background
 
         Assert.Equal(expectedBackground, background.Text)
 
         let numericValue (control: NumericUpDown) =
             control.Value.Value.ToString(CultureInfo.InvariantCulture)
 
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).TabCloseIconSize, numericValue tabCloseIconSize)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).EditorFontSize, numericValue editorFontSize)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).GutterPadding, numericValue gutterPadding)
+        Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).TabCloseIconSize, numericValue tabCloseIconSize)
+        Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).EditorFontSize, numericValue editorFontSize)
+        Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).GutterPadding, numericValue gutterPadding)
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).GutterMinimumWidth,
+            (SettingsForm.fromAppSettings AppSettings.defaults).GutterMinimumWidth,
             numericValue gutterMinimumWidth
         )
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabMinHeight,
+            (SettingsForm.fromAppSettings AppSettings.defaults).DocumentTabMinHeight,
             numericValue documentTabMinHeight
         )
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabCloseButtonSize,
+            (SettingsForm.fromAppSettings AppSettings.defaults).DocumentTabCloseButtonSize,
             numericValue documentTabCloseButtonSize
         )
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabPaddingHorizontal,
+            (SettingsForm.fromAppSettings AppSettings.defaults).DocumentTabPaddingHorizontal,
             numericValue documentTabPaddingHorizontal
         )
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabPaddingVertical,
+            (SettingsForm.fromAppSettings AppSettings.defaults).DocumentTabPaddingVertical,
             numericValue documentTabPaddingVertical
         )
 
         Assert.Equal(
-            (SettingsDraft.fromSettings AppSettings.defaults).DocumentTabSpacing,
+            (SettingsForm.fromAppSettings AppSettings.defaults).DocumentTabSpacing,
             numericValue documentTabSpacing
         )
 
-        Assert.Equal(Some(SettingsDraft.fromSettings AppSettings.defaults), view.Draft)
+        Assert.Equal(Some(SettingsForm.fromAppSettings AppSettings.defaults), view.Form)
 
     [<AvaloniaFact>]
     let ``editing a control updates the draft`` () =
@@ -92,7 +92,7 @@ module SettingsViewTests =
         background.Text <- expectedBackground
         Dispatcher.UIThread.RunJobs()
 
-        Assert.Equal(Some expectedBackground, view.Draft |> Option.map (fun draft -> draft.Background))
+        Assert.Equal(Some expectedBackground, view.Form |> Option.map (fun draft -> draft.Background))
 
         let gutterPadding = view.FindControl<NumericUpDown>("GutterPadding")
         let gutterMinimumWidth = view.FindControl<NumericUpDown>("GutterMinimumWidth")
@@ -100,8 +100,8 @@ module SettingsViewTests =
         gutterMinimumWidth.Value <- Nullable 20M
         Dispatcher.UIThread.RunJobs()
 
-        Assert.Equal(Some "6", view.Draft |> Option.map (fun draft -> draft.GutterPadding))
-        Assert.Equal(Some "20", view.Draft |> Option.map (fun draft -> draft.GutterMinimumWidth))
+        Assert.Equal(Some "6", view.Form |> Option.map (fun draft -> draft.GutterPadding))
+        Assert.Equal(Some "20", view.Form |> Option.map (fun draft -> draft.GutterMinimumWidth))
 
         let documentTabMinHeight = view.FindControl<NumericUpDown>("DocumentTabMinHeight")
 
@@ -122,7 +122,7 @@ module SettingsViewTests =
         documentTabSpacing.Value <- Nullable 3M
         Dispatcher.UIThread.RunJobs()
 
-        let draft = view.Draft.Value
+        let draft = view.Form.Value
         Assert.Equal("30", draft.DocumentTabMinHeight)
         Assert.Equal("24", draft.DocumentTabCloseButtonSize)
         Assert.Equal("12", draft.DocumentTabPaddingHorizontal)
@@ -140,7 +140,7 @@ module SettingsViewTests =
         Dispatcher.UIThread.RunJobs()
 
         Assert.Equal(15M, view.FindControl<NumericUpDown>("EditorFontSize").Value.Value)
-        Assert.Equal(Some "15", view.Draft |> Option.map (fun draft -> draft.EditorFontSize))
+        Assert.Equal(Some "15", view.Form |> Option.map (fun draft -> draft.EditorFontSize))
 
     [<AvaloniaFact>]
     let ``editing editor font size synchronizes editor line height`` () =
@@ -153,7 +153,7 @@ module SettingsViewTests =
         Dispatcher.UIThread.RunJobs()
 
         Assert.Equal(18M, view.FindControl<NumericUpDown>("EditorLineHeight").Value.Value)
-        Assert.Equal(Some "18", view.Draft |> Option.map (fun draft -> draft.EditorLineHeight))
+        Assert.Equal(Some "18", view.Form |> Option.map (fun draft -> draft.EditorLineHeight))
 
     [<AvaloniaFact>]
     let ``color picker updates the hex field and draft`` () =
@@ -167,7 +167,7 @@ module SettingsViewTests =
         Dispatcher.UIThread.RunJobs()
 
         Assert.Equal("#FF112233", view.FindControl<TextBox>("Background").Text)
-        Assert.Equal(Some "#FF112233", view.Draft |> Option.map (fun draft -> draft.Background))
+        Assert.Equal(Some "#FF112233", view.Form |> Option.map (fun draft -> draft.Background))
 
     [<AvaloniaFact>]
     let ``font lookup combo updates the draft`` () =
@@ -180,7 +180,7 @@ module SettingsViewTests =
         editorFont.Text <- "Cascadia Code"
         Dispatcher.UIThread.RunJobs()
 
-        Assert.Equal(Some "Cascadia Code", view.Draft |> Option.map (fun draft -> draft.EditorFontFamily))
+        Assert.Equal(Some "Cascadia Code", view.Form |> Option.map (fun draft -> draft.EditorFontFamily))
 
     [<AvaloniaFact>]
     let ``selecting a preset updates the draft without recursive control edits`` () =
@@ -190,7 +190,7 @@ module SettingsViewTests =
 
         preset.SelectedItem <- "Graphite Light"
 
-        let draft = view.Draft.Value
+        let draft = view.Form.Value
         Assert.Equal("Graphite Light", draft.ThemePreset)
         Assert.Equal("#FFE7E5EA", draft.Background)
 
@@ -203,8 +203,8 @@ module SettingsViewTests =
 
         view.Configure(AppSettings.defaults)
 
-        Assert.Equal(Some(SettingsDraft.fromSettings AppSettings.defaults), view.Draft)
-        Assert.Equal((SettingsDraft.fromSettings AppSettings.defaults).Background, background.Text)
+        Assert.Equal(Some(SettingsForm.fromAppSettings AppSettings.defaults), view.Form)
+        Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).Background, background.Text)
 
     [<Fact>]
     let ``theme catalog loads only valid functortheme files`` () =
