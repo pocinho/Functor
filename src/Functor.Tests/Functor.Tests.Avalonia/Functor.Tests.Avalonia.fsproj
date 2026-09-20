@@ -12,6 +12,7 @@
     <Compile Include="ShellViewTests.fs" />
     <Compile Include="ShellHostViewTests.fs" />
     <Compile Include="ShellHostViewProjectionTests.fs" />
+    <Compile Include="WorkspaceTreeCoordinatorTests.fs" />
     <Compile Include="MainWindowTests.fs" />
     <Compile Include="EditorControlTests.fs" />
     <Compile Include="InputAdapterTests.fs" />

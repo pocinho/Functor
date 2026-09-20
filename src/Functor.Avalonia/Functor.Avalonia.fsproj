@@ -28,6 +28,9 @@
     <Compile Include="Views\WelcomeView.axaml.fs" />
     <Compile Include="Views\\ThemedDialogWindow.fs" />
     <Compile Include="Views\IShellProjectionTarget.fs" />
+    <Compile Include="Views\ShellHostProjection.fs" />
+    <Compile Include="Views\SettingsCoordinator.fs" />
+    <Compile Include="Views\WorkspaceTreeCoordinator.fs" />
     <Compile Include="Views\ShellView.axaml.fs" />
     <Compile Include="Views\ShellHostView.axaml.fs" />
     <Compile Include="Views\MainWindow.axaml.fs" />

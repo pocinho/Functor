@@ -1,8 +1,6 @@
 namespace Functor.Avalonia.Views
 
 open System
-open System.IO
-open System.Threading.Tasks
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Primitives
@@ -47,10 +45,6 @@ type ShellHostView() as this =
     let mutable subscriptions: IDisposable list = []
     let mutable confirmationOpen = false
     let mutable refreshQueued = false
-    let mutable cachedWorkspace: WorkspaceModel option = None
-    let mutable cachedWorkspaceTree: WorkspaceFileTreeNode option = None
-    let mutable pendingWorkspaceTree: WorkspaceModel option = None
-    let mutable workspaceTreeGeneration = 0L
     let mutable requestRefresh: unit -> unit = ignore
     let mutable settingsOpen = false
     let mutable settingsActive = false
@@ -61,11 +55,30 @@ type ShellHostView() as this =
     let mutable saveSettingsCallback: AppSettings -> Result<unit, string> =
         fun _ -> Ok()
 
+    let workspaceTreeCoordinator =
+        WorkspaceTreeCoordinator(
+            WorkspaceFileTree.create,
+            (fun action -> Dispatcher.UIThread.Post(Action action) |> ignore),
+            (fun () -> requestRefresh ())
+        )
+
     let updateEmptyStateFromProjection hasActiveDocument =
         editor.Value.IsVisible <- not settingsActive && hasActiveDocument
         welcomeView.Value.IsVisible <- not settingsActive && not hasActiveDocument
         settingsDocument.Value.IsVisible <- settingsActive
         settingsTabButton.Value.Classes.Set("selected", settingsActive)
+
+    let settingsCoordinator =
+        lazy
+            (SettingsCoordinator(
+                settingsView.Value,
+                settingsTabButton.Value,
+                settingsDocument.Value,
+                (fun () -> editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome),
+                updateEmptyStateFromProjection,
+                (fun active -> settingsActive <- active),
+                (fun () -> editor.Value.Focus() |> ignore)
+            ))
 
     let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
         let verticalScrollBar = verticalScrollBar.Value
@@ -163,130 +176,27 @@ type ShellHostView() as this =
             dialog.ShowDialog(owner) |> ignore
         | _ -> editor.Value.CancelPendingOperation()
 
-    let closeSettingsTab () =
-        settingsOpen <- false
-        settingsActive <- false
-        settingsDocument.Value.IsVisible <- false
-        settingsTabButton.Value.IsVisible <- false
-        updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
-        editor.Value.Focus() |> ignore
+    let closeSettingsTab () = settingsCoordinator.Value.Close()
 
     let closeSettingsForDocumentNavigation () =
-        if settingsActive then
-            settingsActive <- false
-            settingsDocument.Value.IsVisible <- false
-            updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
+        settingsCoordinator.Value.CloseForDocumentNavigation()
 
     let openSettingsTab () =
-        settingsView.Value.Configure(currentSettings, ThemeCatalog.load ())
-        settingsOpen <- true
-        settingsActive <- true
-        settingsTabButton.Value.IsVisible <- true
-        updateEmptyStateFromProjection editor.Value.SessionState.Workspace.ActiveDocumentId.IsSome
+        settingsCoordinator.Value.Configure(currentSettings, applySettingsCallback, saveSettingsCallback)
+        settingsCoordinator.Value.Open()
 
     let tryApplySettings save =
-        match settingsView.Value.Draft with
-        | None -> settingsView.Value.SetError("Settings draft is not initialized.")
-        | Some draft ->
-            match SettingsDraft.tryCreateSettings draft with
-            | Error error -> settingsView.Value.SetError(error)
-            | Ok settings ->
-                let result =
-                    if save then
-                        saveSettingsCallback settings
-                    else
-                        Ok(applySettingsCallback settings)
-
-                match result with
-                | Ok() -> settingsView.Value.SetError("")
-                | Error error -> settingsView.Value.SetError(error)
+        settingsCoordinator.Value.TryApply(save)
 
     let tryExportTheme () =
-        match settingsView.Value.Draft with
-        | None -> settingsView.Value.SetError("Theme draft is not initialized.")
-        | Some draft ->
-            match SettingsDraft.tryCreateSettings draft with
-            | Error error -> settingsView.Value.SetError(error)
-            | Ok settings ->
-                match ThemeCatalog.export settingsView.Value.ThemeName settings with
-                | Ok() ->
-                    settingsView.Value.UpdateThemes(ThemeCatalog.load ())
-                    settingsView.Value.SetError("")
-                | Error error -> settingsView.Value.SetError(error)
-
-    let hasDiskWorkspace (workspace: WorkspaceModel) =
-        match workspace.RootPath with
-        | Some root -> Directory.Exists root
-        | None -> false
-
-    let workspaceTreeKey (workspace: WorkspaceModel) =
-        let documents =
-            workspace.Documents
-            |> Map.toList
-            |> List.choose (fun (_, documentState) ->
-                let isDirty =
-                    documentState.Editing.IsDirty || documentState.Document.Metadata.IsDirty
-
-                if isDirty then
-                    Some(
-                        documentState.Document.Metadata.Path
-                        |> Option.map DocumentModel.canonicalizePath,
-                        documentState.Document.Metadata.Name,
-                        isDirty
-                    )
-                else
-                    None)
-
-        match workspace.RootPath with
-        | Some root -> Some(DocumentModel.canonicalizePath root), documents, None
-        | None -> None, documents, Some workspace.TabOrder
-
-    let startWorkspaceTreeLoad (workspace: WorkspaceModel) =
-        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
-        let generation = workspaceTreeGeneration
-        pendingWorkspaceTree <- Some workspace
-
-        Task
-            .Run(fun () -> WorkspaceFileTree.create workspace)
-            .ContinueWith(fun (completed: Task<WorkspaceFileTreeNode>) ->
-                if completed.Status = System.Threading.Tasks.TaskStatus.RanToCompletion then
-                    Dispatcher.UIThread.Post(
-                        Action(fun () ->
-                            if generation = workspaceTreeGeneration then
-                                pendingWorkspaceTree <- None
-                                cachedWorkspace <- Some workspace
-                                cachedWorkspaceTree <- Some completed.Result
-                                requestRefresh ())
-                    )
-                    |> ignore)
-        |> ignore
+        settingsCoordinator.Value.TryExportTheme()
 
     let refresh () =
         refreshQueued <- false
         let editorControl = editor.Value
         let sessionState = editorControl.SessionState
-        let treeKey = workspaceTreeKey sessionState.Workspace
         let tabs = WorkspaceProjection.tabs sessionState.Workspace
-
-        let fileTree =
-            match cachedWorkspace with
-            | Some previous when workspaceTreeKey previous = treeKey -> cachedWorkspaceTree.Value
-            | _ when
-                pendingWorkspaceTree
-                |> Option.exists (fun pending -> workspaceTreeKey pending = treeKey)
-                ->
-                WorkspaceFileTree.loading sessionState.Workspace
-            | _ ->
-                if hasDiskWorkspace sessionState.Workspace then
-                    startWorkspaceTreeLoad sessionState.Workspace
-                    WorkspaceFileTree.loading sessionState.Workspace
-                else
-                    workspaceTreeGeneration <- workspaceTreeGeneration + 1L
-                    pendingWorkspaceTree <- None
-                    let fileTree = WorkspaceFileTree.create sessionState.Workspace
-                    cachedWorkspace <- Some sessionState.Workspace
-                    cachedWorkspaceTree <- Some fileTree
-                    fileTree
+        let fileTree = workspaceTreeCoordinator.GetTree sessionState.Workspace
 
         let input = ShellProjection.fromEditorWithWorkspace editorControl tabs fileTree
 
@@ -312,17 +222,13 @@ type ShellHostView() as this =
             Dispatcher.UIThread.Post(Action refresh) |> ignore
 
     let invalidateWorkspaceTree () =
-        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
-        pendingWorkspaceTree <- None
-        cachedWorkspace <- None
-        cachedWorkspaceTree <- None
+        workspaceTreeCoordinator.Invalidate()
         refreshOnUiThread ()
 
     let disposeSubscriptions () =
         subscriptions |> List.iter (fun subscription -> subscription.Dispose())
         subscriptions <- []
-        workspaceTreeGeneration <- workspaceTreeGeneration + 1L
-        pendingWorkspaceTree <- None
+        workspaceTreeCoordinator.Dispose()
 
     let attachSubscriptions () =
         if subscriptions.IsEmpty then
