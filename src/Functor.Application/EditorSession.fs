@@ -13,30 +13,14 @@ type EditorSession(initialModel: CoreModel) =
     let statusChanged = Event<SessionStatus>()
     let editorStatusChanged = Event<EditorStatus>()
     let effectsRequested = Event<AppEffect list>()
-    let mutable pendingTokenization: CancellationTokenSource option = None
-    let mutable incrementalState = IncrementalTokenizationState.empty
 
-    let mutable pendingSaves: Map<DocumentId, (int64 * string option * string list) list> =
-        Map.empty
-
-    let tokenizationDelay = 150
+    let pendingSaves = EditorSessionPersistence()
 
     let queuePendingSave documentId revision expectedPath buffer =
-        let pending = pendingSaves |> Map.tryFind documentId |> Option.defaultValue []
-        pendingSaves <- pendingSaves.Add(documentId, (revision, expectedPath, buffer) :: pending)
+        pendingSaves.Queue(documentId, revision, expectedPath, buffer)
 
     let removePendingSave documentId revision expectedPath =
-        pendingSaves <-
-            pendingSaves
-            |> Map.change documentId (function
-                | None -> None
-                | Some pending ->
-                    let remaining =
-                        pending
-                        |> List.filter (fun (pendingRevision, pendingPath, _) ->
-                            pendingRevision <> revision || pendingPath <> expectedPath)
-
-                    if remaining.IsEmpty then None else Some remaining)
+        pendingSaves.Remove(documentId, revision, expectedPath)
 
     let publishState () = stateChanged.Trigger(state)
 
@@ -47,162 +31,14 @@ type EditorSession(initialModel: CoreModel) =
         statusChanged.Trigger(state.Status)
         publishEditorStatus ()
 
-    let syncActiveDocumentToWorkspace currentState =
-        match currentState.Model.ActiveDocument with
-        | Some document when Functor.Workspace.WorkspaceModel.containsDocument document.Id currentState.Workspace ->
-            let documentState: Functor.Workspace.PerDocumentSessionState =
-                { Document = document
-                  Editing = currentState.Model.Editing
-                  Syntax = currentState.Model.Syntax
-                  Navigation = currentState.Model.Navigation
-                  Diagnostics = currentState.Model.Diagnostics
-                  Mode = currentState.Model.Mode
-                  View = currentState.Model.View
-                  Auxiliary = currentState.Workspace.Documents[document.Id].Auxiliary }
-
-            { currentState with
-                Workspace =
-                    Functor.Workspace.WorkspaceLogic.update
-                        (Functor.Workspace.ReplaceDocumentState documentState)
-                        currentState.Workspace }
-        | _ -> currentState
-
-    let modelFromWorkspace (workspace: Functor.Workspace.WorkspaceModel) : CoreModel =
-        let openDocuments: Functor.Workspace.PerDocumentSessionState list =
-            workspace.TabOrder
-            |> List.choose (fun documentId -> workspace.Documents |> Map.tryFind documentId)
-
-        match Functor.Workspace.WorkspaceModel.activeDocument workspace with
-        | Some documentState ->
-            { ActiveDocument = Some documentState.Document
-              OpenDocuments = openDocuments |> List.map (fun value -> value.Document)
-              Editing = documentState.Editing
-              Syntax = documentState.Syntax
-              Navigation = documentState.Navigation
-              Diagnostics = documentState.Diagnostics
-              Mode = documentState.Mode
-              View = documentState.View }
-        | None ->
-            { CoreModel.empty with
-                OpenDocuments = openDocuments |> List.map (fun value -> value.Document) }
-
     let requestEffects (effects: AppEffect list) =
         if not effects.IsEmpty then
             effectsRequested.Trigger(effects)
 
-    let cancelPendingTokenization () =
-        match pendingTokenization with
-        | Some cancellation ->
-            cancellation.Cancel()
-            cancellation.Dispose()
-            pendingTokenization <- None
-        | None -> ()
-
-    let currentTokenizationRequest () =
-        state.Model.ActiveDocument
-        |> Option.bind (fun document ->
-            FileType.languageId document.Metadata.Path
-            |> Option.map (fun language ->
-                let scope =
-                    match IncrementalTokenizationState.requestRange incrementalState with
-                    | Some(startLine, endLine) when startLine = endLine -> Line startLine
-                    | Some(startLine, endLine) -> LineRange(startLine, endLine)
-                    | None ->
-                        match state.Model.Syntax.DirtyRanges with
-                        | [] -> FullDocument
-                        | ranges ->
-                            let startLine = ranges |> List.head |> fst
-                            let endLine = ranges |> List.last |> snd
-
-                            if startLine = 0 && endLine = System.Int32.MaxValue then
-                                FullDocument
-                            else
-                                LineRange(startLine, endLine)
-
-                let initialState =
-                    IncrementalTokenizationState.initialState
-                        document.Id
-                        state.Model.Editing.Revision
-                        scope
-                        incrementalState
-
-                let request: TokenizationRequest =
-                    { DocumentId = document.Id
-                      Revision = state.Model.Editing.Revision
-                      Language = language
-                      Scope = scope
-                      Lines = state.Model.Editing.Buffer
-                      InitialState = initialState }
-
-                request))
-
-    let requestCurrentTokenization cancellationToken =
-        match currentTokenizationRequest () with
-        | Some request -> requestEffects [ AppEffect.tokenizeWithCancellation request cancellationToken ]
-        | None -> cancelPendingTokenization ()
-
-    let scheduleTokenization () =
-        cancelPendingTokenization ()
-
-        match currentTokenizationRequest () with
-        | Some _ ->
-            let cancellation = new CancellationTokenSource()
-            pendingTokenization <- Some cancellation
-
-            Async.StartImmediate(
-                async {
-                    try
-                        do! Task.Delay(tokenizationDelay, cancellation.Token) |> Async.AwaitTask
-
-                        if not cancellation.IsCancellationRequested then
-                            requestCurrentTokenization cancellation.Token
-                    with
-                    | :? TaskCanceledException -> ()
-                    | :? OperationCanceledException -> ()
-                }
-            )
-        | None -> ()
+    let tokenization = EditorSessionTokenization((fun () -> state), requestEffects)
 
     let updateModel event =
-        state <- syncActiveDocumentToWorkspace state
-
-        state <-
-            { state with
-                Model = CoreLogic.update event state.Model }
-
-        state <-
-            match event with
-            | NewDocument _
-            | LoadDocument _ ->
-                match state.Model.ActiveDocument with
-                | Some document ->
-                    { state with
-                        Workspace =
-                            Functor.Workspace.WorkspaceLogic.update
-                                (Functor.Workspace.AddDocument document)
-                                state.Workspace }
-                | None -> state
-            | CloseDocument documentId ->
-                { state with
-                    Workspace =
-                        Functor.Workspace.WorkspaceLogic.update
-                            (Functor.Workspace.RemoveDocument documentId)
-                            state.Workspace }
-            | SwitchDocument documentId ->
-                { state with
-                    Workspace =
-                        Functor.Workspace.WorkspaceLogic.update
-                            (Functor.Workspace.ActivateDocument documentId)
-                            state.Workspace }
-            | _ -> state
-
-        match event with
-        | CloseDocument _
-        | SwitchDocument _ ->
-            state <-
-                { state with
-                    Model = modelFromWorkspace state.Workspace }
-        | _ -> state <- syncActiveDocumentToWorkspace state
+        state <- EditorSessionUpdate.apply event state
 
         publishState ()
         publishEditorStatus ()
@@ -211,26 +47,24 @@ type EditorSession(initialModel: CoreModel) =
         | LoadDocument _
         | SwitchDocument _
         | NewDocument _ ->
-            cancelPendingTokenization ()
-            requestCurrentTokenization CancellationToken.None
+            tokenization.Cancel()
+            tokenization.RequestCurrent(CancellationToken.None)
         | CloseDocument documentId ->
-            cancelPendingTokenization ()
-            incrementalState <- IncrementalTokenizationState.removeDocument documentId incrementalState
-            pendingSaves <- pendingSaves |> Map.remove documentId
+            tokenization.RemoveDocument(documentId)
+            pendingSaves.RemoveDocument(documentId)
         | ApplyEditingEvent _ ->
             match state.Model.Editing.LastChange with
             | Some change ->
-                incrementalState <-
-                    IncrementalTokenizationState.beginEdit
-                        state.Model.ActiveDocument.Value.Id
-                        (state.Model.Editing.Revision - 1L)
-                        state.Model.Editing.Revision
-                        change
-                        incrementalState
+                tokenization.BeginEdit(
+                    state.Model.ActiveDocument.Value.Id,
+                    state.Model.Editing.Revision - 1L,
+                    state.Model.Editing.Revision,
+                    change
+                )
             | None -> ()
 
-            scheduleTokenization ()
-        | ApplySyntaxEvent(SetLanguage _) -> requestCurrentTokenization CancellationToken.None
+            tokenization.Schedule()
+        | ApplySyntaxEvent(SetLanguage _) -> tokenization.RequestCurrent(CancellationToken.None)
         | _ -> ()
 
     let isDirty () = state.Model.Editing.IsDirty
@@ -275,10 +109,8 @@ type EditorSession(initialModel: CoreModel) =
     let requestOpenFolder () = requestEffects [ AppEffect.openFolder ]
 
     let replaceWorkspace path =
-        cancelPendingTokenization ()
-        incrementalState <- IncrementalTokenizationState.reset
-
-        pendingSaves <- Map.empty
+        tokenization.Reset()
+        pendingSaves.Reset()
 
         state <-
             { state with
@@ -425,23 +257,14 @@ type EditorSession(initialModel: CoreModel) =
             let canonicalPath = DocumentModel.canonicalizePath path
 
             let pendingDocument =
-                pendingSaves
-                |> Map.tryPick (fun documentId pending ->
-                    pending
-                    |> List.tryFind (fun (pendingRevision, expectedPath, _) ->
-                        let matchesPath = expectedPath = Some canonicalPath
-
-                        let matchesUntitledSave =
-                            expectedPath.IsNone
-                            && state.Model.ActiveDocument
-                               |> Option.exists (fun document -> document.Id = documentId)
-                            && state.Model.Editing.Revision = pendingRevision
-
-                        matchesPath || matchesUntitledSave)
-                    |> Option.map (fun (revision, expectedPath, _) -> documentId, (revision, expectedPath)))
+                pendingSaves.TryFindFileCompletion(
+                    path,
+                    state.Model.ActiveDocument |> Option.map (fun document -> document.Id),
+                    state.Model.Editing.Revision
+                )
 
             match pendingDocument, state.Model.ActiveDocument with
-            | Some(documentId, (revision, _)), Some document when
+            | Some(documentId, revision, _), Some document when
                 document.Id = documentId && state.Model.Editing.Revision = revision
                 ->
                 removePendingSave documentId revision (Some canonicalPath)
@@ -453,13 +276,7 @@ type EditorSession(initialModel: CoreModel) =
             let canonicalPath = DocumentModel.canonicalizePath path
 
             let matchesPendingSave =
-                pendingSaves
-                |> Map.tryFind documentId
-                |> Option.bind (
-                    List.tryFind (fun (pendingRevision, expectedPath, _) ->
-                        pendingRevision = revision
-                        && (expectedPath.IsNone || expectedPath = Some canonicalPath))
-                )
+                pendingSaves.TryFindDocumentCompletion(documentId, revision, path)
 
             match Functor.Workspace.WorkspaceModel.tryFindDocument documentId state.Workspace, matchesPendingSave with
             | Some documentState, Some(pendingRevision, expectedPath, savedBuffer) when pendingRevision = revision ->
@@ -498,7 +315,7 @@ type EditorSession(initialModel: CoreModel) =
                 then
                     state <-
                         { state with
-                            Model = modelFromWorkspace state.Workspace }
+                            Model = EditorSessionUpdate.modelFromWorkspace state.Workspace }
 
                 publishState ()
                 publishEditorStatus ()
@@ -528,32 +345,12 @@ type EditorSession(initialModel: CoreModel) =
                     && state.Model.Editing.Revision = result.Revision)
 
             let stable =
-                match IncrementalTokenizationState.requestRange incrementalState, matchesCurrentDocument with
-                | Some(_, endLine), true ->
-                    IncrementalTokenizationState.isStable
-                        result.DocumentId
-                        result.Revision
-                        state.Model.Editing.Buffer.Length
-                        endLine
-                        result.FinalState
-                        (IncrementalTokenizationState.recordCompletion
-                            result.DocumentId
-                            result.Revision
-                            result.Scope
-                            result.Snapshots
-                            result.FinalState
-                            incrementalState)
+                match tokenization.RequestRange, matchesCurrentDocument with
+                | Some(_, endLine), true -> tokenization.IsStable(result, state.Model.Editing.Buffer.Length, endLine)
                 | _ -> false
 
             if matchesCurrentDocument then
-                incrementalState <-
-                    IncrementalTokenizationState.recordCompletion
-                        result.DocumentId
-                        result.Revision
-                        result.Scope
-                        result.Snapshots
-                        result.FinalState
-                        incrementalState
+                tokenization.RecordCompletion(result)
 
             let syntaxEvent =
                 match result.Scope with
@@ -565,14 +362,13 @@ type EditorSession(initialModel: CoreModel) =
             if matchesCurrentDocument then
                 updateModel (ApplySyntaxEvent syntaxEvent)
 
-                match IncrementalTokenizationState.requestRange incrementalState, stable with
+                match tokenization.RequestRange, stable with
                 | Some(_, endLine), true ->
-                    incrementalState <- IncrementalTokenizationState.clearRange incrementalState
+                    tokenization.ClearRange()
                     updateModel (ApplySyntaxEvent(MarkSyntaxCleanFrom(endLine + 1)))
                 | Some(startLine, endLine), false ->
-                    let nextEndLine = min (state.Model.Editing.Buffer.Length - 1) (endLine + 1)
-                    incrementalState <- IncrementalTokenizationState.extend startLine endLine incrementalState
-                    requestCurrentTokenization CancellationToken.None
+                    tokenization.Extend(startLine, endLine)
+                    tokenization.RequestCurrent(CancellationToken.None)
                 | None, _ -> ()
         | ToggleAgentPanel ->
             match state.Workspace.ActiveDocumentId with

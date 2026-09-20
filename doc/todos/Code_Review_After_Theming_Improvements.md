@@ -19,12 +19,12 @@ Follow-up roadmap for the architecture and maintainability actions identified af
 
 ## Phase 2: Editor Session Boundaries
 
-- [ ] Add focused tests for multi-document edit preservation across tab switches.
-- [ ] Add focused tests for tokenization cancellation and stale-result rejection.
-- [ ] Extract pure model and event transitions into `EditorSessionUpdate.fs`.
-- [ ] Extract scheduling, cancellation, and incremental tokenization into `EditorSessionTokenization.fs`.
-- [ ] Extract pending-save and save coordination into `EditorSessionPersistence.fs`.
-- [ ] Keep `EditorSession` as the application orchestration boundary.
+- [x] Add focused tests for multi-document edit preservation across tab switches.
+- [x] Add focused tests for tokenization cancellation and stale-result rejection.
+- [x] Extract pure model and event transitions into `EditorSessionUpdate.fs`.
+- [x] Extract scheduling, cancellation, and incremental tokenization into `EditorSessionTokenization.fs`.
+- [x] Extract pending-save and save coordination into `EditorSessionPersistence.fs`.
+- [x] Keep `EditorSession` as the application orchestration boundary.
 
 ## Phase 3: Composition And Settings Boundaries
 
