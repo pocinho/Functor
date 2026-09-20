@@ -1,257 +1,193 @@
-# PLUGIN ARCHITECTURE (Draft)
+# Functor Plugin Architecture
 
-## 1. Purpose
-Functor’s plugin system enables external modules to extend the editor’s capabilities without modifying the core MVU engine. Plugins operate as **first‑class citizens** in the architecture, capable of observing and mutating the editor state, adding new views, defining commands, and introducing new execution modes (e.g., notebook mode).
+## Purpose
 
-The plugin system must preserve Functor’s core guarantees:
-- **Single source of truth** (the MVU model)
-- **Deterministic updates** (pure `update` function)
-- **Safe extensibility** (plugins cannot corrupt internal invariants)
-- **Multi‑frontend support** (editor UI, notebook runner, CLI, WASM)
+Functor should support plugins as optional, capability-based extensions to the editor. The architecture must be broad enough for future language services, commands, diagnostics, views, notebooks, agents, and other editor features, while keeping the first implementation small and trustworthy.
 
----
+The plugin API is a host boundary, not a second editor core. Functor remains responsible for its document, workspace, application, and rendering state. Plugins contribute through capabilities that the host defines, validates, and owns.
 
-## 2. Architectural Principles
+## Architectural Principles
 
-### 2.1 MVU as the Foundation
-Functor.Core provides:
-- `Model` — immutable editor state
-- `Message` — discrete events
-- `Update` — pure function `Model -> Message -> Model`
+### 1. Plugins Extend Capabilities, Not the Internal Model
 
-Plugins interact with the system exclusively through:
-- **dispatching messages**
-- **subscribing to model changes**
-- **registering commands**
-- **providing views or surfaces**
+Plugins must not receive or mutate `AppSessionState`, `WorkspaceModel`, `CoreModel`, internal domain events, or the internal MVU message stream. They must not receive an unrestricted dispatcher or a live editor model subscription.
 
-This ensures consistency across all frontends.
+The MVU and application flows remain Functor implementation details. The host translates valid plugin requests into internal commands or effects and decides whether those requests are accepted.
 
-### 2.2 Multi‑Driver Architecture
-Functor supports multiple simultaneous drivers:
-- **EditorDriver** (Avalonia UI)
-- **NotebookDriver** (headless reactive runner)
-- Future drivers: CLI, WASM, agentic workflows
+This preserves the draft's goals of deterministic state transitions and a single source of truth without making the current internal model part of the plugin contract.
 
-Each driver:
-- dispatches messages into the shared MVU loop
-- subscribes to model updates
-- renders its own view
+### 2. Capabilities Are the Extension Surface
 
-Drivers do not own state; they observe the shared model.
+A capability is a bounded contribution or service with its own request types, result types, validation rules, lifecycle, and version. Examples include:
 
-### 2.3 Plugin Isolation
-Plugins must be:
-- sandboxed from each other
-- prevented from mutating the model directly
-- restricted to message dispatch and view rendering
-- able to register commands without interfering with core commands
+- language tokenization;
+- diagnostics;
+- commands;
+- read-only document access;
+- language-server integration;
+- declarative views or panels;
+- notebook or agent services.
 
----
+These are possible future capabilities, not a promise that they are currently available. Each capability must be justified and implemented independently.
 
-## 3. Plugin System Overview
+Plugins receive only the capabilities granted to them. A plugin must not gain access to unrelated Functor services merely because it implements one capability.
 
-### 3.1 Plugin Interface
-Each plugin implements a minimal interface:
+### 3. The API Is Versioned
 
+The Plugin API is a versioned public contract. A plugin declares the API and capability versions it supports, and the host selects a compatible contract before activation.
+
+Versioning rules:
+
+- a version defines stable observable behavior, not the host's internal build number;
+- capability versions may evolve independently where practical;
+- additive changes are preferred;
+- changes to required meaning or safety guarantees require an incompatible version;
+- deprecated versions remain explicit until support is intentionally removed;
+- internal Functor refactoring does not require a new API version unless a public invariant changes.
+
+The first implementation may use an internal or first-party contract namespace while these semantics are proven. It should not claim external compatibility before the contract is deliberately stabilized.
+
+### 4. Public Types Are Frontend-Neutral
+
+The contract must not expose Avalonia controls, renderer objects, UI-thread assumptions, or frontend-specific models. Views and panels, if added later, should be declarative contributions rendered by the active frontend.
+
+Public data should be immutable, ordinary, and usable from F#, C#, Visual Basic, and other compatible .NET languages. It should be serializable in principle so another execution adapter can be added later without changing capability meaning.
+
+### 5. The Host Owns Lifecycle and Resources
+
+The host owns plugin activation, capability registration, cancellation, disposal, and failure state. Every provider, command, subscription, view descriptor, process, or background operation must be associated with its plugin activation and revocable by the host.
+
+A future lifecycle may be represented as:
+
+```text
+discover -> validate -> enable -> activate -> operate -> revoke -> dispose
 ```
+
+The initial implementation may omit discovery and persistence, but it should still establish ownership and safe disposal for manually composed providers.
+
+Activation should be deterministic and idempotent. Repeating activation must not create duplicate registrations. Revocation must stop new work, cancel owned work, and prevent late results from being accepted.
+
+### 6. Requests and Results Are Validated
+
+Capability operations must carry enough context for the host to validate them. Document-scoped work should include document identity and revision. Asynchronous work should also have cancellation and, where needed, an operation identity.
+
+The host must reject results that are stale, revoked, invalid, unauthorized, or outside declared limits. It owns payload, range, concurrency, and timeout policy as appropriate for each capability.
+
+### 7. Failures Are Isolated and Observable
+
+Plugin exceptions, invalid results, timeouts, and process failures must become attributed host diagnostics. They must not corrupt editor state or terminate unrelated capabilities where containment is possible.
+
+Status and logs should identify the plugin, capability, operation, and failure category without exposing document content by default. Compatibility failure must be distinguishable from runtime failure.
+
+### 8. Trust Boundaries Must Be Explicit
+
+An in-process .NET plugin is trusted code. Interfaces, assemblies, and capability restrictions provide API isolation for well-behaved plugins, but they do not sandbox malicious or compromised code from filesystem, network, process, native, CPU, or memory access available to the Functor process.
+
+The initial supported plugins should therefore be Functor-owned or explicitly trusted. Users should be warned not to run arbitrary third-party plugins. Supporting untrusted plugins requires a separate execution and security design.
+
+## Plugin Shape
+
+The eventual contract may provide a small plugin lifecycle and context rather than a broad editor interface:
+
+```text
+PluginManifest
+  id, publisher, package version
+  supported API and capability versions
+  declared capabilities and contributions
+  activation conditions and permissions
+
 IPlugin
- ├── Initialize(context)
- ├── OnModelChanged(model)
- └── Commands : PluginCommand list
+  manifest
+  Activate(context)
+  Dispose()
+
+PluginContext
+  selected API version
+  granted capability services
+  lifecycle cancellation
+  host-owned registration factory
 ```
 
-### 3.2 PluginContext
-The context exposes controlled capabilities:
+This is a direction for the versioned contract, not a requirement to implement every field immediately. The context must not expose unrestricted model access or arbitrary internal message dispatch.
 
-- `Dispatch : Message -> unit`
-- `Subscribe : (Model -> unit) -> unit`
-- `GetModel : unit -> Model`
-- `RegisterView : IPluginView -> unit`
-- `RegisterCommand : PluginCommand -> unit`
+## Initial Capability: Language Tokenization
 
-This ensures plugins interact with Functor through safe channels.
+Tokenization is the first implementation seam because Functor already has a request, provider output, cancellation path, and revision-aware completion flow.
 
-### 3.3 PluginHost
-Responsible for:
-- loading plugins
-- initializing them
-- wiring them to the MVU loop
-- managing plugin lifecycle
-- routing commands
+A token provider receives an immutable request containing, at minimum:
 
-The host is frontend‑agnostic.
+- document identity;
+- document revision;
+- language identity;
+- tokenization scope;
+- document lines or an approved snapshot;
+- lexer state;
+- cancellation.
 
----
+It returns tokens, token layer, snapshots, final lexer state, or a defined failure. The host passes the request through, validates the result, and routes accepted output through the existing application completion path.
 
-## 4. Plugin Types
+Built-in tokenizers remain providers and fallbacks. The first registry should support explicit, curated provider selection and one provider per language and token layer. It should reject ambiguous registrations rather than merge competing results.
 
-### 4.1 Logic Plugins
-Extend editor behavior:
-- custom commands
-- custom transformations
-- agentic workflows
-- background tasks
+Users may select a provider for the language they are working with, such as F#, while other providers remain inactive. If providers are compiled into the application, inactive means they are not invoked or initialized for work; it does not necessarily mean their assemblies are absent from process memory.
 
-### 4.2 View Plugins
-Provide UI surfaces:
-- panels
-- inspectors
-- logs
-- visualizations
+The first implementation should be manually composed and should not require dynamic assembly discovery, user plugin directories, manifests, marketplace support, or a plugin manager.
 
-Views subscribe to model changes and render projections.
+## Future Capability Families
 
-### 4.3 Mode Plugins
-Introduce new execution modes:
-- Notebook mode
-- Debug mode
-- Teaching mode
-- Agent mode
+The architecture may later support the following through separate versioned capabilities:
 
-Mode plugins may define their own drivers.
+- **Language services:** diagnostics, completion, hover, symbols, formatting, and language-server integration.
+- **Commands:** namespaced commands with host-owned registration and invocation.
+- **Documents:** approved read-only snapshots and, only when justified, validated host-mediated edits.
+- **Configuration:** namespaced plugin settings owned and persisted by the host.
+- **Views:** declarative panels, inspectors, logs, and visualizations rendered by each frontend.
+- **Notebook and agent services:** execution and workflow capabilities that do not require access to the global editor model.
 
----
+No future capability should silently expand an existing contract. It must define its own authority, validation, lifecycle, cancellation, disposal, and failure behavior.
 
-## 5. Notebook Mode as a Plugin
+## Multi-Frontend Support
 
-### 5.1 Motivation
-Notebook mode is a headless reactive execution environment that:
-- runs cells
-- dispatches messages
-- observes model changes
-- renders outputs (text, HTML, SVG)
+The host contract should remain independent of a particular frontend. Desktop, browser, mobile, CLI, notebook, and agent integrations may use different drivers or adapters, but plugins should communicate through the same capability semantics.
 
-It is a natural fit for a plugin because:
-- it is optional
-- it is self‑contained
-- it uses MVU semantics
-- it can run alongside editor mode
+Drivers render or operate on host-owned projections. They do not give plugins direct control over frontend state or widget trees.
 
-### 5.2 NotebookPlugin Responsibilities
-- load notebook files
-- parse cells
-- build dependency graph
-- execute cells
-- dispatch messages from cells
-- render cell outputs
-- expose notebook commands
+## Initial Trust and Composition Model
 
-### 5.3 Interaction with MVU
-NotebookPlugin:
-- subscribes to model changes
-- marks dependent cells as dirty
-- recomputes cells when needed
-- dispatches messages generated by cells
+The first plugins are reviewed, Functor-owned .NET code. They may be written in F#, C#, Visual Basic, or another compatible .NET language. They are explicitly registered in the composition root or an application-owned plugin-host module.
 
-This allows notebook mode and editor mode to operate simultaneously.
+The initial system must not load assemblies from user-controlled locations or claim security isolation. Official providers can be shipped with Functor or in an official version-matched package, giving users recommended features without asking them to evaluate arbitrary code.
 
----
+## Initial Validation Criteria
 
-## 6. Multi‑Mode Operation
+Before adding a second capability, tests should demonstrate:
 
-### 6.1 Shared Model
-Both editor mode and notebook mode operate on the same `Model`.  
-This ensures:
-- consistency
-- determinism
-- unified undo/redo
-- unified plugin behavior
+- contract and provider identity validation;
+- deterministic provider selection and built-in fallback;
+- propagation of document identity, revision, scope, lexer state, and cancellation;
+- provider registration and disposal;
+- cancellation and rejection of revoked or stale results;
+- exception containment and provider attribution;
+- preservation of the existing editor tokenization path;
+- no access to internal state or arbitrary MVU messages.
 
-### 6.2 Dual Drivers
-EditorDriver:
-- handles UI events
-- renders the editor
+## Non-Goals of the First Implementation
 
-NotebookDriver:
-- handles cell execution
-- renders notebook outputs
+The first implementation does not include:
 
-Both drivers:
-- dispatch messages
-- subscribe to model updates
+- a general shared-MVU plugin runtime;
+- arbitrary model observation or mutation;
+- unrestricted internal message dispatch;
+- arbitrary Avalonia control injection;
+- user-installed or dynamically discovered plugins;
+- a marketplace, updates, or dependency resolver;
+- untrusted plugin execution or sandboxing;
+- plugin-to-plugin services;
+- full LSP support;
+- notebook or agent execution as the first proof;
+- alternate plugin runtimes.
 
-### 6.3 Conflict Resolution
-MVU guarantees deterministic ordering:
-- messages are processed sequentially
-- update function defines the canonical state transition
-- no race conditions or conflicting widget trees
+These are possible future projects, not assumptions required by the initial token-provider implementation.
 
----
+## Design Rule
 
-## 7. Plugin Lifecycle
-
-### 7.1 Initialization
-- PluginHost loads plugin assemblies
-- PluginHost creates plugin instances
-- PluginHost passes PluginContext
-- Plugins register commands and views
-
-### 7.2 Runtime
-- Plugins receive model updates
-- Plugins dispatch messages
-- Plugins render views
-- Plugins may run background tasks
-
-### 7.3 Shutdown
-- Plugins receive shutdown notification
-- Plugins release resources
-
----
-
-## 8. Safety and Stability
-
-### 8.1 Message Dispatch Safety
-Plugins cannot mutate the model directly.  
-All changes must go through the update function.
-
-### 8.2 View Isolation
-Views cannot interfere with each other.  
-They only observe model changes.
-
-### 8.3 Command Namespacing
-Commands must be namespaced to avoid collisions.
-
-### 8.4 Error Handling
-Plugin errors must:
-- not crash the editor
-- be logged
-- be isolated to the plugin
-
----
-
-## 9. Future Extensions
-
-### 9.1 WASM Plugin Runtime
-Enable plugins to run in browser environments.
-
-### 9.2 Agentic Plugins
-Allow LLM-driven workflows to manipulate the editor via messages.
-
-### 9.3 Notebook‑Driven Teaching Mode
-Combine editor and notebook views for interactive learning.
-
-### 9.4 Plugin Marketplace
-Support community-driven extensions.
-
----
-
-## 10. Summary
-
-Functor’s plugin architecture is built around:
-- MVU purity
-- deterministic state transitions
-- multi-driver support
-- safe extensibility
-- unified model across modes
-
-This enables Functor to support:
-- editor mode
-- notebook mode
-- agent mode
-- CLI mode
-- WASM mode
-
-All simultaneously, all consistently, all safely.
-
----
+Keep the public API broad in concept but narrow in authority: versioned capabilities may grow over time, while every capability remains host-mediated, validated, cancellable, disposable, and isolated from Functor's internal state.
