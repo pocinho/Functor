@@ -4,8 +4,6 @@ open System.Globalization
 open Functor.Rendering
 
 module SettingsFormProjection =
-    let private colorText color = sprintf "#%08X" color
-
     let paletteForPreset preset = ThemePreset.palette preset
 
     let private syntaxColor name palette =
@@ -18,22 +16,25 @@ module SettingsFormProjection =
         let ui = settings.Theme.Ui
 
         { ThemePreset = preset
-          Background = colorText palette.Background
-          Foreground = colorText palette.Foreground
-          Selection = colorText palette.Selection
-          Cursor = colorText palette.Cursor
-          LineNumber = colorText palette.LineNumber
-          GutterBackground = colorText palette.GutterBackground
-          DiagnosticError = colorText palette.DiagnosticError
-          DiagnosticWarning = colorText palette.DiagnosticWarning
-          DiagnosticInfo = colorText palette.DiagnosticInfo
-          SyntaxKeyword = colorText (syntaxColor "keyword" palette)
-          SyntaxString = colorText (syntaxColor "string" palette)
-          SyntaxComment = colorText (syntaxColor "comment" palette)
-          SyntaxNumber = colorText (syntaxColor "number" palette)
-          SyntaxType = colorText (syntaxColor "type" palette)
-          SyntaxFunction = colorText (syntaxColor "function" palette)
-          EditorBorder = palette.EditorBorder |> Option.map colorText |> Option.defaultValue ""
+          Background = ColorUtilities.toHex palette.Background
+          Foreground = ColorUtilities.toHex palette.Foreground
+          Selection = ColorUtilities.toHex palette.Selection
+          Cursor = ColorUtilities.toHex palette.Cursor
+          LineNumber = ColorUtilities.toHex palette.LineNumber
+          GutterBackground = ColorUtilities.toHex palette.GutterBackground
+          DiagnosticError = ColorUtilities.toHex palette.DiagnosticError
+          DiagnosticWarning = ColorUtilities.toHex palette.DiagnosticWarning
+          DiagnosticInfo = ColorUtilities.toHex palette.DiagnosticInfo
+          SyntaxKeyword = ColorUtilities.toHex (syntaxColor "keyword" palette)
+          SyntaxString = ColorUtilities.toHex (syntaxColor "string" palette)
+          SyntaxComment = ColorUtilities.toHex (syntaxColor "comment" palette)
+          SyntaxNumber = ColorUtilities.toHex (syntaxColor "number" palette)
+          SyntaxType = ColorUtilities.toHex (syntaxColor "type" palette)
+          SyntaxFunction = ColorUtilities.toHex (syntaxColor "function" palette)
+          EditorBorder =
+            palette.EditorBorder
+            |> Option.map ColorUtilities.toHex
+            |> Option.defaultValue ""
           EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture)
           EditorFontFamily = ui.EditorFontFamily
           EditorFallbackFontFamily = ui.EditorFallbackFontFamily
@@ -64,10 +65,11 @@ module SettingsFormProjection =
           WelcomeTitleFontSize = ui.WelcomeTitleFontSize.ToString(CultureInfo.InvariantCulture)
           TextMutedOpacity = ui.TextMutedOpacity.ToString(CultureInfo.InvariantCulture)
           ControlCornerRadius = ui.ControlCornerRadius.ToString(CultureInfo.InvariantCulture)
-          ResizeHandleColor = colorText ui.ResizeHandleColor
-          CommandPaletteShadowColor = colorText ui.CommandPaletteShadowColor
-          WorkspaceSeparatorColor = colorText ui.WorkspaceSeparatorColor
-          MeasurementColor = colorText ui.MeasurementColor
+          ResizeHandleColor = ColorUtilities.toHex ui.ResizeHandleColor
+          SidePanelResizeHandleWidth = ui.SidePanelResizeHandleWidth.ToString(CultureInfo.InvariantCulture)
+          CommandPaletteShadowColor = ColorUtilities.toHex ui.CommandPaletteShadowColor
+          WorkspaceSeparatorColor = ColorUtilities.toHex ui.WorkspaceSeparatorColor
+          MeasurementColor = ColorUtilities.toHex ui.MeasurementColor
           TabCloseIconSize = ui.TabCloseIconSize.ToString(CultureInfo.InvariantCulture) }
 
     let fromAppSettings (settings: AppSettings) =
@@ -78,20 +80,26 @@ module SettingsFormProjection =
 
         { form with
             ThemePreset = preset
-            Background = colorText palette.Background
-            Foreground = colorText palette.Foreground
-            Selection = colorText palette.Selection
-            Cursor = colorText palette.Cursor
-            LineNumber = colorText palette.LineNumber
-            GutterBackground = colorText palette.GutterBackground
-            DiagnosticError = colorText palette.DiagnosticError
-            DiagnosticWarning = colorText palette.DiagnosticWarning
-            DiagnosticInfo = colorText palette.DiagnosticInfo
-            SyntaxKeyword = colorText (syntaxColor "keyword" palette)
-            SyntaxString = colorText (syntaxColor "string" palette)
-            SyntaxComment = colorText (syntaxColor "comment" palette)
-            SyntaxNumber = colorText (syntaxColor "number" palette)
-            SyntaxType = colorText (syntaxColor "type" palette)
-            SyntaxFunction = colorText (syntaxColor "function" palette)
-            EditorBorder = palette.EditorBorder |> Option.map colorText |> Option.defaultValue ""
-            EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture) }
+            Background = ColorUtilities.toHex palette.Background
+            Foreground = ColorUtilities.toHex palette.Foreground
+            Selection = ColorUtilities.toHex palette.Selection
+            Cursor = ColorUtilities.toHex palette.Cursor
+            LineNumber = ColorUtilities.toHex palette.LineNumber
+            GutterBackground = ColorUtilities.toHex palette.GutterBackground
+            DiagnosticError = ColorUtilities.toHex palette.DiagnosticError
+            DiagnosticWarning = ColorUtilities.toHex palette.DiagnosticWarning
+            DiagnosticInfo = ColorUtilities.toHex palette.DiagnosticInfo
+            SyntaxKeyword = ColorUtilities.toHex (syntaxColor "keyword" palette)
+            SyntaxString = ColorUtilities.toHex (syntaxColor "string" palette)
+            SyntaxComment = ColorUtilities.toHex (syntaxColor "comment" palette)
+            SyntaxNumber = ColorUtilities.toHex (syntaxColor "number" palette)
+            SyntaxType = ColorUtilities.toHex (syntaxColor "type" palette)
+            SyntaxFunction = ColorUtilities.toHex (syntaxColor "function" palette)
+            EditorBorder =
+                palette.EditorBorder
+                |> Option.map ColorUtilities.toHex
+                |> Option.defaultValue ""
+            EditorBorderWidth = palette.EditorBorderWidth.ToString(CultureInfo.InvariantCulture)
+            ResizeHandleColor = ColorUtilities.toHex (ThemePreset.ui preset).ResizeHandleColor
+            SidePanelResizeHandleWidth =
+                (ThemePreset.ui preset).SidePanelResizeHandleWidth.ToString(CultureInfo.InvariantCulture) }

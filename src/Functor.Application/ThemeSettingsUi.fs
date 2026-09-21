@@ -39,8 +39,8 @@ module ThemeSettingsUi =
         | None -> Ok ui
         | Some value -> parseColor value |> Result.map (fun color -> update color ui)
 
-    let apply (theme: JsonElement) =
-        Ok UiThemeDefaults.defaultTheme
+    let apply (theme: JsonElement) preset =
+        Ok(ThemePreset.ui preset)
         |> Result.bind (applyString theme "editorFontFamily" (fun value ui -> { ui with EditorFontFamily = value }))
         |> Result.bind (
             applyString theme "editorFallbackFontFamily" (fun value ui ->
@@ -167,6 +167,11 @@ module ThemeSettingsUi =
                     ControlCornerRadius = float value })
         )
         |> Result.bind (applyColor theme "resizeHandleColor" (fun value ui -> { ui with ResizeHandleColor = value }))
+        |> Result.bind (
+            applyPositiveFloat theme "sidePanelResizeHandleWidth" (fun value ui ->
+                { ui with
+                    SidePanelResizeHandleWidth = float value })
+        )
         |> Result.bind (
             applyColor theme "commandPaletteShadowColor" (fun value ui ->
                 { ui with

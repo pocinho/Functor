@@ -5,15 +5,16 @@ open Functor.Application
 open Functor.Avalonia
 open Functor.Platform
 
-type SettingsCoordinator(
-    settingsView: SettingsView,
-    settingsTabButton: Button,
-    settingsDocument: Grid,
-    hasActiveDocument: unit -> bool,
-    updateEmptyState: bool -> unit,
-    setActive: bool -> unit,
-    focusEditor: unit -> unit
-) =
+type SettingsCoordinator
+    (
+        settingsView: SettingsView,
+        settingsTabButton: Button,
+        settingsDocument: Grid,
+        hasActiveDocument: unit -> bool,
+        updateEmptyState: bool -> unit,
+        setActive: bool -> unit,
+        focusEditor: unit -> unit
+    ) =
     let mutable isOpen = false
     let mutable isActive = false
     let mutable currentSettings = AppSettings.defaults
@@ -66,7 +67,9 @@ type SettingsCoordinator(
                         Ok(applySettings settings)
 
                 match result with
-                | Ok() -> settingsView.SetError("")
+                | Ok() ->
+                    currentSettings <- settings
+                    settingsView.SetError("")
                 | Error error -> settingsView.SetError(error)
 
     member _.TryExportTheme() =

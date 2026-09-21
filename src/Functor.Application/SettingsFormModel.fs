@@ -35,6 +35,7 @@ type SettingsFormModel =
       TextMutedOpacity: string
       ControlCornerRadius: string
       ResizeHandleColor: string
+      SidePanelResizeHandleWidth: string
       CommandPaletteShadowColor: string
       WorkspaceSeparatorColor: string
       MeasurementColor: string

@@ -284,6 +284,11 @@ module SettingsFormValidation =
                 parseColor "Resize handle color" draft.ResizeHandleColor
                 |> Result.map (fun value -> { ui with ResizeHandleColor = value }))
             |> bind (fun ui ->
+                parsePositiveFloat "Side panel resize handle width" draft.SidePanelResizeHandleWidth
+                |> Result.map (fun value ->
+                    { ui with
+                        SidePanelResizeHandleWidth = value }))
+            |> bind (fun ui ->
                 parseColor "Command palette shadow color" draft.CommandPaletteShadowColor
                 |> Result.map (fun value ->
                     { ui with

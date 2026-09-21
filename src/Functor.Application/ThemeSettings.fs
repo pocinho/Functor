@@ -2,25 +2,6 @@ namespace Functor.Application
 
 open Functor.Rendering
 
-module ThemePreset =
-    [<Literal>]
-    let GraphiteDark = "Graphite Dark"
-
-    [<Literal>]
-    let GraphiteLight = "Graphite Light"
-
-    [<Literal>]
-    let Custom = "Custom"
-
-    let all = [ GraphiteDark; GraphiteLight ]
-    let valid = GraphiteDark :: GraphiteLight :: [ Custom ]
-
-    let palette preset =
-        if preset = GraphiteLight then
-            Theme.graphiteLight
-        else
-            Theme.defaultPalette
-
 /// Application-level editor theme settings.
 /// This keeps theme selection outside the rendering pipeline but still makes the
 /// palette source configurable without hard-coding a single default.
@@ -33,7 +14,7 @@ module ThemeSettings =
     let defaultTheme =
         { ThemeSource = Theme.defaultSource
           Preset = ThemePreset.GraphiteDark
-          Ui = UiThemeDefaults.defaultTheme }
+          Ui = ThemePreset.ui ThemePreset.GraphiteDark }
 
     let fromSource (themeSource: ThemeSource) =
         { ThemeSource = themeSource
@@ -48,7 +29,7 @@ module ThemeSettings =
     let fromPaletteWithPreset preset palette =
         { ThemeSource = ThemeSource.fixedPalette palette
           Preset = preset
-          Ui = UiThemeDefaults.defaultTheme }
+          Ui = ThemePreset.ui preset }
 
     let fromPaletteWithPresetAndUi preset palette ui =
         { ThemeSource = ThemeSource.fixedPalette palette

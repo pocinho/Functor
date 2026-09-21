@@ -47,7 +47,7 @@ module ThemeSettingsLoader =
 
             result
             |> Result.bind (fun palette ->
-                ThemeSettingsUi.apply theme
+                ThemeSettingsUi.apply theme preset
                 |> Result.map (ThemeSettings.fromPaletteWithPresetAndUi preset palette))
         with ex ->
             Error ex.Message

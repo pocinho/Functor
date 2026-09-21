@@ -252,6 +252,10 @@
         <ColorPicker x:Name="ResizeHandleColorPicker" Grid.Column="1" IsAlphaEnabled="True" IsAlphaVisible="True" />
         <TextBox x:Name="ResizeHandleColor" Classes="settings-input" Grid.Column="2" />
       </Grid>
+      <Grid Classes="settings-row" ColumnDefinitions="240,*">
+        <TextBlock Text="Side panel resize handle width" VerticalAlignment="Center" />
+        <NumericUpDown x:Name="SidePanelResizeHandleWidth" Grid.Column="1" Minimum="1" Increment="1" FormatString="0.##" />
+      </Grid>
       <Grid Classes="settings-row" ColumnDefinitions="240,72,*">
         <TextBlock Text="Command palette shadow" VerticalAlignment="Center" />
         <ColorPicker x:Name="CommandPaletteShadowColorPicker" Grid.Column="1" IsAlphaEnabled="True" IsAlphaVisible="True" />

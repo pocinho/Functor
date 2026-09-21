@@ -10,6 +10,7 @@ open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia.Views
 open Functor.Platform
+open Functor.Rendering
 open Xunit
 
 module SettingsViewTests =
@@ -44,7 +45,11 @@ module SettingsViewTests =
         let numericValue (control: NumericUpDown) =
             control.Value.Value.ToString(CultureInfo.InvariantCulture)
 
-        Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).TabCloseIconSize, numericValue tabCloseIconSize)
+        Assert.Equal(
+            (SettingsForm.fromAppSettings AppSettings.defaults).TabCloseIconSize,
+            numericValue tabCloseIconSize
+        )
+
         Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).EditorFontSize, numericValue editorFontSize)
         Assert.Equal((SettingsForm.fromAppSettings AppSettings.defaults).GutterPadding, numericValue gutterPadding)
 
@@ -128,6 +133,8 @@ module SettingsViewTests =
         Assert.Equal("12", draft.DocumentTabPaddingHorizontal)
         Assert.Equal("5", draft.DocumentTabPaddingVertical)
         Assert.Equal("3", draft.DocumentTabSpacing)
+        Assert.Equal(ThemePreset.Custom, draft.ThemePreset)
+        Assert.Equal(ThemePreset.Custom, view.FindControl<ComboBox>("ThemePreset").SelectedItem :?> string)
 
     [<AvaloniaFact>]
     let ``editing editor line height synchronizes editor font size`` () =
@@ -208,6 +215,63 @@ module SettingsViewTests =
         let draft = view.Form.Value
         Assert.Equal("Graphite Light", draft.ThemePreset)
         Assert.Equal("#FFE7E5EA", draft.Background)
+
+    [<AvaloniaFact>]
+    let ``reselecting a graphite preset restores its defaults after editing`` () =
+        let view = SettingsView()
+        let window = Window(Content = view)
+        window.Show()
+        view.Configure(AppSettings.defaults)
+
+        let preset = view.FindControl<ComboBox>("ThemePreset")
+        let background = view.FindControl<TextBox>("Background")
+        background.Text <- "#FF112233"
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.Equal(ThemePreset.Custom, preset.SelectedItem :?> string)
+
+        preset.SelectedItem <- ThemePreset.GraphiteLight
+        Dispatcher.UIThread.RunJobs()
+        preset.SelectedItem <- ThemePreset.GraphiteLight
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.Equal(ThemePreset.GraphiteLight, view.Form.Value.ThemePreset)
+        Assert.Equal("#FFE7E5EA", background.Text)
+
+    [<AvaloniaFact>]
+    let ``editing a saved theme selects Custom and reselecting it reloads the file`` () =
+        let savedTheme =
+            { Name = "Ocean"
+              Settings =
+                AppSettings.fromTheme (
+                    ThemeSettings.fromPaletteWithPresetAndUi
+                        ThemePreset.GraphiteLight
+                        Theme.graphiteLight
+                        UiThemeDefaults.defaultTheme
+                ) }
+
+        let view = SettingsView()
+        let window = Window(Content = view)
+        window.Show()
+        view.Configure(AppSettings.defaults)
+        view.UpdateThemes([ savedTheme ])
+
+        let preset = view.FindControl<ComboBox>("ThemePreset")
+        let background = view.FindControl<TextBox>("Background")
+        preset.SelectedItem <- "Ocean"
+        Dispatcher.UIThread.RunJobs()
+        background.Text <- "#FF112233"
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.Equal(ThemePreset.Custom, preset.SelectedItem :?> string)
+        Assert.Equal(Some "#FF112233", view.Form |> Option.map (fun draft -> draft.Background))
+
+        preset.SelectedItem <- "Ocean"
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.Equal("Ocean", preset.SelectedItem :?> string)
+        Assert.Equal(ThemePreset.GraphiteLight, view.Form.Value.ThemePreset)
+        Assert.Equal("#FFE7E5EA", background.Text)
 
     [<AvaloniaFact>]
     let ``reconfiguring the view discards the previous draft`` () =

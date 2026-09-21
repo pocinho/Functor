@@ -34,6 +34,7 @@ type UiThemeDefaults =
       TextMutedOpacity: float
       ControlCornerRadius: float
       ResizeHandleColor: uint32
+      SidePanelResizeHandleWidth: float
       CommandPaletteShadowColor: uint32
       WorkspaceSeparatorColor: uint32
       MeasurementColor: uint32 }
@@ -146,6 +147,7 @@ module UiThemeDefaults =
           TextMutedOpacity = 0.68
           ControlCornerRadius = 0.0
           ResizeHandleColor = 0xDCDC3C3Cu
+          SidePanelResizeHandleWidth = 1.0
           CommandPaletteShadowColor = 0x66000000u
           WorkspaceSeparatorColor = 0x6EA0A0A0u
           MeasurementColor = 0xFFFFFFFFu }
@@ -207,7 +209,7 @@ module ThemeShapeDensity =
           CommandPaletteItemMarginHorizontal = uiTheme.CommandPaletteItemMarginHorizontal
           CommandPaletteItemMarginVertical = uiTheme.CommandPaletteItemMarginVertical
           CommandPaletteGestureMargin = uiTheme.CommandPaletteGestureMargin
-          SidePanelResizeHandleWidth = 4.0
+          SidePanelResizeHandleWidth = uiTheme.SidePanelResizeHandleWidth
           SidePanelRightPadding = 8.0
           BorderWidth = 1.0
           SeparatorWidth = UiThemeDefaults.separatorWidth

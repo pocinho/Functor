@@ -19,6 +19,7 @@ type SettingsView() as this =
     let mutable selectedThemeName: string option = None
     let mutable themeName = ThemePreset.GraphiteDark
     let mutable updatingControls = false
+    let mutable presetControl: ComboBox option = None
 
     let textBox name = this.FindControl<TextBox>(name)
     let numericUpDown name = this.FindControl<NumericUpDown>(name)
@@ -75,11 +76,31 @@ type SettingsView() as this =
 
     let updateDraft update =
         if not updatingControls then
-            form <- form |> Option.map update
+            form <-
+                form
+                |> Option.map (fun current ->
+                    let updated = update current
 
-    let updateTextField name update =
-        let control = textBox name
-        control.TextChanged.Add(fun _ -> updateDraft (fun current -> update control.Text current))
+                    if updated = current then
+                        current
+                    elif
+                        current.ThemePreset = ThemePreset.GraphiteDark
+                        || current.ThemePreset = ThemePreset.GraphiteLight
+                        || selectedThemeName.IsSome
+                    then
+                        selectedThemeName <- None
+
+                        match presetControl with
+                        | Some control when control.SelectedItem <> ThemePreset.Custom ->
+                            updatingControls <- true
+                            control.SelectedItem <- ThemePreset.Custom
+                            updatingControls <- false
+                        | _ -> ()
+
+                        { updated with
+                            ThemePreset = ThemePreset.Custom }
+                    else
+                        updated)
 
     let updateColorTextField textName pickerName update =
         let text = textBox textName
@@ -131,6 +152,7 @@ type SettingsView() as this =
 
         let preset = this.FindControl<ComboBox>("ThemePreset")
         preset.ItemsSource <- ThemePreset.all
+        presetControl <- Some preset
 
         let themeNameControl = textBox "ThemeName"
 
@@ -163,10 +185,19 @@ type SettingsView() as this =
                         form <- Some(SettingsForm.fromAppSettingsWithPreset theme.Settings.Theme.Preset theme.Settings)
                         this.RefreshControls()
                     | None ->
-                        selectedThemeName <- None
-                        themeName <- value
-                        form <- form |> Option.map (SettingsForm.applyPreset value)
-                        this.RefreshControls()
+                        if value = ThemePreset.Custom then
+                            selectedThemeName <- None
+
+                            form <-
+                                form
+                                |> Option.map (fun current ->
+                                    { current with
+                                        ThemePreset = ThemePreset.Custom })
+                        else
+                            selectedThemeName <- None
+                            themeName <- value
+                            form <- form |> Option.map (SettingsForm.applyPreset value)
+                            this.RefreshControls()
                 | _ -> ())
 
         updateColorTextField "Background" "BackgroundPicker" (fun value current -> { current with Background = value })
@@ -262,6 +293,10 @@ type SettingsView() as this =
         updateColorField "ResizeHandleColor" "ResizeHandleColorPicker" (fun value current ->
             { current with
                 ResizeHandleColor = value })
+
+        updateNumericField "SidePanelResizeHandleWidth" (fun value current ->
+            { current with
+                SidePanelResizeHandleWidth = value })
 
         updateColorField "CommandPaletteShadowColor" "CommandPaletteShadowColorPicker" (fun value current ->
             { current with
@@ -430,6 +465,10 @@ type SettingsView() as this =
             { current with
                 ResizeHandleColor = value })
 
+        updateNumericField "SidePanelResizeHandleWidth" (fun value current ->
+            { current with
+                SidePanelResizeHandleWidth = value })
+
         updateColorTextField "CommandPaletteShadowColor" "CommandPaletteShadowColorPicker" (fun value current ->
             { current with
                 CommandPaletteShadowColor = value })
@@ -536,6 +575,7 @@ type SettingsView() as this =
             setNumericText (numericUpDown "ControlCornerRadius") value.ControlCornerRadius
             setText (textBox "ResizeHandleColor") value.ResizeHandleColor
             setColorPicker (colorPicker "ResizeHandleColorPicker") value.ResizeHandleColor
+            setNumericText (numericUpDown "SidePanelResizeHandleWidth") value.SidePanelResizeHandleWidth
             setText (textBox "CommandPaletteShadowColor") value.CommandPaletteShadowColor
             setColorPicker (colorPicker "CommandPaletteShadowColorPicker") value.CommandPaletteShadowColor
             setText (textBox "WorkspaceSeparatorColor") value.WorkspaceSeparatorColor

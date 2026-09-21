@@ -32,8 +32,10 @@
     <Compile Include="EditorSessionTokenization.fs" />
     <Compile Include="EditorSession.fs" />
     <Compile Include="UiTheme.fs" />
+    <Compile Include="ThemePreset.fs" />
     <Compile Include="ThemeSettings.fs" />
     <Compile Include="ThemeSettingsJson.fs" />
+    <Compile Include="ColorUtilities.fs" />
     <Compile Include="ThemeSettingsPalette.fs" />
     <Compile Include="ThemeSettingsUi.fs" />
     <Compile Include="ThemeSettingsLoader.fs" />

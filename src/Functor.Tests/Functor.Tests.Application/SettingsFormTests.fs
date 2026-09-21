@@ -77,6 +77,14 @@ type SettingsFormTests() =
 
         Assert.Equal("Graphite Light", updated.ThemePreset)
         Assert.Equal("#FFE7E5EA", updated.Background)
+        Assert.Equal("#FF4E3A78", updated.ResizeHandleColor)
+
+    [<Fact>]
+    member _.``applying Graphite Dark uses its built-in resize handle color``() =
+        let draft = AppSettings.defaults |> SettingsForm.fromAppSettings
+        let updated = SettingsForm.applyPreset "Graphite Dark" draft
+
+        Assert.Equal("#FF333333", updated.ResizeHandleColor)
 
     [<Fact>]
     member _.``round trips custom UI settings``() =

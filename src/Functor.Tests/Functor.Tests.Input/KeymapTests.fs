@@ -19,8 +19,8 @@ type KeymapTests() =
         Assert.Equal(Some KeyAction.Delete, Keymap.resolve (Helpers.keyboard Key.Delete KeyModifiers.None))
 
     [<Fact>]
-    member _.``command modifiers are left for command routing``() =
-        Assert.Equal(None, Keymap.resolve (Helpers.keyboard Key.Left KeyModifiers.Control))
+    member _.``CUA word movement resolves command-modified arrows``() =
+        Assert.Equal(Some KeyAction.MoveWordLeft, Keymap.resolve (Helpers.keyboard Key.Left KeyModifiers.Control))
         Assert.Equal(None, Keymap.resolve (Helpers.keyboard Key.Enter KeyModifiers.Meta))
 
     [<Fact>]

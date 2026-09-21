@@ -7,7 +7,6 @@ open Functor.Rendering
 
 module AppSettingsLoader =
     let private currentSchemaVersion = 1
-    let private colorToHex color = sprintf "#%08X" color
 
     let loadText (json: string) : Result<AppSettings, string> =
         ThemeSettingsLoader.loadText json |> Result.map AppSettings.fromTheme
@@ -20,53 +19,53 @@ module AppSettingsLoader =
         let theme = Dictionary<string, obj>()
         theme["schemaVersion"] <- currentSchemaVersion
         theme["preset"] <- settings.Theme.Preset
-        theme["background"] <- colorToHex palette.Background
-        theme["foreground"] <- colorToHex palette.Foreground
-        theme["selection"] <- colorToHex palette.Selection
-        theme["cursor"] <- colorToHex palette.Cursor
-        theme["lineNumber"] <- colorToHex palette.LineNumber
-        theme["gutterBackground"] <- colorToHex palette.GutterBackground
-        theme["diagnosticError"] <- colorToHex palette.DiagnosticError
-        theme["diagnosticWarning"] <- colorToHex palette.DiagnosticWarning
-        theme["diagnosticInfo"] <- colorToHex palette.DiagnosticInfo
+        theme["background"] <- ColorUtilities.toHex palette.Background
+        theme["foreground"] <- ColorUtilities.toHex palette.Foreground
+        theme["selection"] <- ColorUtilities.toHex palette.Selection
+        theme["cursor"] <- ColorUtilities.toHex palette.Cursor
+        theme["lineNumber"] <- ColorUtilities.toHex palette.LineNumber
+        theme["gutterBackground"] <- ColorUtilities.toHex palette.GutterBackground
+        theme["diagnosticError"] <- ColorUtilities.toHex palette.DiagnosticError
+        theme["diagnosticWarning"] <- ColorUtilities.toHex palette.DiagnosticWarning
+        theme["diagnosticInfo"] <- ColorUtilities.toHex palette.DiagnosticInfo
 
         theme["syntaxKeyword"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "keyword"
                 |> Option.defaultValue palette.Foreground
             )
 
         theme["syntaxString"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "string"
                 |> Option.defaultValue palette.Foreground
             )
 
         theme["syntaxComment"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "comment"
                 |> Option.defaultValue palette.Foreground
             )
 
         theme["syntaxNumber"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "number"
                 |> Option.defaultValue palette.Foreground
             )
 
         theme["syntaxType"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "type"
                 |> Option.defaultValue palette.Foreground
             )
 
         theme["syntaxFunction"] <-
-            colorToHex (
+            ColorUtilities.toHex (
                 palette.SyntaxColors
                 |> Map.tryFind "function"
                 |> Option.defaultValue palette.Foreground
@@ -103,13 +102,14 @@ module AppSettingsLoader =
         theme["welcomeTitleFontSize"] <- ui.WelcomeTitleFontSize
         theme["textMutedOpacity"] <- ui.TextMutedOpacity
         theme["controlCornerRadius"] <- ui.ControlCornerRadius
-        theme["resizeHandleColor"] <- colorToHex ui.ResizeHandleColor
-        theme["commandPaletteShadowColor"] <- colorToHex ui.CommandPaletteShadowColor
-        theme["workspaceSeparatorColor"] <- colorToHex ui.WorkspaceSeparatorColor
-        theme["measurementColor"] <- colorToHex ui.MeasurementColor
+        theme["resizeHandleColor"] <- ColorUtilities.toHex ui.ResizeHandleColor
+        theme["sidePanelResizeHandleWidth"] <- ui.SidePanelResizeHandleWidth
+        theme["commandPaletteShadowColor"] <- ColorUtilities.toHex ui.CommandPaletteShadowColor
+        theme["workspaceSeparatorColor"] <- ColorUtilities.toHex ui.WorkspaceSeparatorColor
+        theme["measurementColor"] <- ColorUtilities.toHex ui.MeasurementColor
 
         match palette.EditorBorder with
-        | Some color -> theme["editorBorder"] <- colorToHex color
+        | Some color -> theme["editorBorder"] <- ColorUtilities.toHex color
         | None -> ()
 
         JsonSerializer.Serialize(dict [ "theme", box theme ], options)

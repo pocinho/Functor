@@ -54,8 +54,11 @@ module SettingsCoordinatorTests =
         let applied = ref None
         coordinator.Configure(AppSettings.defaults, (fun settings -> applied.Value <- Some settings), fun _ -> Ok())
         view.SetError("previous error")
+        view.FindControl<TextBox>("Background").Text <- "#FF112233"
+        Dispatcher.UIThread.RunJobs()
 
         coordinator.TryApply(false)
 
         Assert.True(applied.Value.IsSome)
+        Assert.Equal(0xFF112233u, coordinator.CurrentSettings.Theme.ThemeSource.Resolve().Background)
         Assert.Equal("", view.FindControl<TextBlock>("ErrorText").Text)
