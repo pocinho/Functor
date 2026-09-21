@@ -149,7 +149,7 @@ type EditorControl() as this =
             Async.StartImmediate(
                 async {
                     do! this.ClipboardService.SetText text
-                    this.ApplyEditingEvent(EditingEvent.DeleteSelection)
+                    this.ApplyEditingEvent(EditingEvent.TextInput TextInputEvent.DeleteSelection)
                 }
             )
         | _ -> ()
@@ -160,7 +160,7 @@ type EditorControl() as this =
                 let! text = this.ClipboardService.GetText()
 
                 match text with
-                | Some value -> this.ApplyEditingEvent(EditingEvent.InsertString value)
+                | Some value -> this.ApplyEditingEvent(EditingEvent.TextInput(TextInputEvent.InsertString value))
                 | None -> ()
             }
         )
@@ -301,7 +301,7 @@ type EditorControl() as this =
 
         match Functor.Avalonia.InputAdapter.textInput e.Text with
         | Some input ->
-            this.ApplyEditingEvent(EditingEvent.InsertString input.Text)
+            this.ApplyEditingEvent(EditingEvent.TextInput(TextInputEvent.InsertString input.Text))
             e.Handled <- true
         | None -> ()
 
@@ -342,18 +342,25 @@ type EditorControl() as this =
         | Some event ->
             if e.KeyModifiers.HasFlag(KeyModifiers.Shift) then
                 if session.Model.Editing.Selection.IsNone then
-                    this.ApplyEditingEvent(EditingEvent.StartSelection)
+                    this.ApplyEditingEvent(EditingEvent.Selection SelectionEvent.StartSelection)
 
                 this.ApplyEditingEvent(event)
-                this.ApplyEditingEvent(EditingEvent.UpdateSelection)
+                this.ApplyEditingEvent(EditingEvent.Selection SelectionEvent.UpdateSelection)
             else
                 this.ApplyEditingEvent(event)
 
                 match event with
-                | EditingEvent.MoveLeft
-                | EditingEvent.MoveRight
-                | EditingEvent.MoveUp
-                | EditingEvent.MoveDown -> this.ApplyEditingEvent(EditingEvent.ClearSelection)
+                | EditingEvent.Cursor(CursorEvent.MoveLeft)
+                | EditingEvent.Cursor(CursorEvent.MoveRight)
+                | EditingEvent.Cursor(CursorEvent.MoveUp)
+                | EditingEvent.Cursor(CursorEvent.MoveDown)
+                | EditingEvent.Cursor(CursorEvent.MoveWordLeft)
+                | EditingEvent.Cursor(CursorEvent.MoveWordRight)
+                | EditingEvent.Cursor(CursorEvent.MoveToLineStart)
+                | EditingEvent.Cursor(CursorEvent.MoveToLineEnd)
+                | EditingEvent.Cursor(CursorEvent.MoveToDocumentStart)
+                | EditingEvent.Cursor(CursorEvent.MoveToDocumentEnd) ->
+                    this.ApplyEditingEvent(EditingEvent.Selection SelectionEvent.ClearSelection)
                 | _ -> ()
 
             e.Handled <- true
@@ -379,8 +386,8 @@ type EditorControl() as this =
             let position =
                 this.PositionAtPoint(Avalonia.Point(input.Position.X, input.Position.Y))
 
-            this.ApplyEditingEvent(EditingEvent.SetCursor position)
-            this.ApplyEditingEvent(EditingEvent.StartSelection)
+            this.ApplyEditingEvent(EditingEvent.Cursor(CursorEvent.SetCursor position))
+            this.ApplyEditingEvent(EditingEvent.Selection SelectionEvent.StartSelection)
             e.Handled <- true
 
     override this.OnPointerMoved(e: PointerEventArgs) =
@@ -399,8 +406,8 @@ type EditorControl() as this =
             let position =
                 this.PositionAtPoint(Avalonia.Point(input.Position.X, input.Position.Y))
 
-            this.ApplyEditingEvent(EditingEvent.SetCursor position)
-            this.ApplyEditingEvent(EditingEvent.UpdateSelection)
+            this.ApplyEditingEvent(EditingEvent.Cursor(CursorEvent.SetCursor position))
+            this.ApplyEditingEvent(EditingEvent.Selection SelectionEvent.UpdateSelection)
             e.Handled <- true
 
     override this.OnPointerReleased(e: PointerReleasedEventArgs) =

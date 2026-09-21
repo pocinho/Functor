@@ -8,8 +8,7 @@ module SyntaxLogic =
     // Language
     // ────────────────────────────────────────────────
 
-    let private setLanguage (model: SyntaxModel) (lang: string) =
-        SyntaxModel.setLanguage model lang
+    let private setLanguage (model: SyntaxModel) (lang: string) = SyntaxModel.setLanguage model lang
 
     // ────────────────────────────────────────────────
     // Tokenization Requests
@@ -35,8 +34,7 @@ module SyntaxLogic =
     let private markSyntaxDirty (model: SyntaxModel) =
         SyntaxModel.markDirty model.DocumentRevision model
 
-    let private markSyntaxCleanFrom (model: SyntaxModel) line =
-        SyntaxModel.markCleanFrom line model
+    let private markSyntaxCleanFrom (model: SyntaxModel) line = SyntaxModel.markCleanFrom line model
 
     // ────────────────────────────────────────────────
     // Token Cache Updates
@@ -54,26 +52,18 @@ module SyntaxLogic =
 
     let update (evt: SyntaxEvent) (model: SyntaxModel) : SyntaxModel =
         match evt with
-        | SetLanguage lang ->
-            setLanguage model lang
-
-        | TokenizeFull ->
-            tokenizeFull model
-
-        | TokenizeLine line ->
-            tokenizeLine model line
-
-        | TokenizeRange (startLine, endLine) ->
-            tokenizeRange model startLine endLine
-
-        | MarkSyntaxDirty ->
-            markSyntaxDirty model
-
-        | MarkSyntaxCleanFrom line ->
-            markSyntaxCleanFrom model line
-
-        | SetTokens(documentId, revision, tokens) ->
-            setTokens documentId revision tokens model
-
-        | SetTokenRange(documentId, revision, startLine, endLine, tokens) ->
-            setTokenRange documentId revision startLine endLine tokens model
+        | Language(LanguageEvent.SetLanguage lang) -> setLanguage model lang
+        | Tokenization tokenization ->
+            match tokenization with
+            | TokenizeFull -> tokenizeFull model
+            | TokenizeLine line -> tokenizeLine model line
+            | TokenizeRange(startLine, endLine) -> tokenizeRange model startLine endLine
+        | Invalidation invalidation ->
+            match invalidation with
+            | MarkSyntaxDirty -> markSyntaxDirty model
+            | MarkSyntaxCleanFrom line -> markSyntaxCleanFrom model line
+        | TokenCache cache ->
+            match cache with
+            | SetTokens(documentId, revision, tokens) -> setTokens documentId revision tokens model
+            | SetTokenRange(documentId, revision, startLine, endLine, tokens) ->
+                setTokenRange documentId revision startLine endLine tokens model

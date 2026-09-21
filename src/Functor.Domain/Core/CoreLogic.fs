@@ -166,8 +166,7 @@ module CoreLogic =
             let newActive = model.OpenDocuments |> List.tryFind (fun d -> d.Id = id)
 
             match newActive with
-            | Some document when model.ActiveDocument |> Option.exists (fun active -> active.Id = document.Id) ->
-                model
+            | Some document when model.ActiveDocument |> Option.exists (fun active -> active.Id = document.Id) -> model
             | Some document ->
                 let editing = EditingModel.createFromText document.InitialText model.Editing
 
@@ -176,21 +175,19 @@ module CoreLogic =
                     Editing = editing
                     Syntax = SyntaxModel.createForDocument document.Id editing.Revision
                     Diagnostics = DiagnosticsModel.create () }
-            | None ->
-                model
+            | None -> model
 
         | ApplyDocumentEvent evt ->
             let updated = applyDocumentEvent model evt
 
             match evt with
-            | MarkDocumentClean ->
+            | DocumentEvent.Metadata DocumentMetadataEvent.MarkDocumentClean ->
                 { updated with
                     Editing =
                         { updated.Editing with
                             SavedBuffer = updated.Editing.Buffer
                             IsDirty = false } }
-            | _ ->
-                updated
+            | _ -> updated
 
         // Editing
         | ApplyEditingEvent evt -> applyEditingEvent model evt

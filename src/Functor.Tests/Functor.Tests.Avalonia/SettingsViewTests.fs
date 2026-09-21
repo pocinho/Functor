@@ -170,6 +170,21 @@ module SettingsViewTests =
         Assert.Equal(Some "#FF112233", view.Form |> Option.map (fun draft -> draft.Background))
 
     [<AvaloniaFact>]
+    let ``editing a color field updates its picker and draft`` () =
+        let view = SettingsView()
+        let window = Window(Content = view)
+        window.Show()
+        view.Configure(AppSettings.defaults)
+        let text = view.FindControl<TextBox>("Background")
+        let picker = view.FindControl<ColorPicker>("BackgroundPicker")
+
+        text.Text <- "#FF112233"
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.Equal(Color.FromArgb(0xFFuy, 0x11uy, 0x22uy, 0x33uy), picker.Color)
+        Assert.Equal(Some "#FF112233", view.Form |> Option.map (fun draft -> draft.Background))
+
+    [<AvaloniaFact>]
     let ``font lookup combo updates the draft`` () =
         let view = SettingsView()
         let window = Window(Content = view)

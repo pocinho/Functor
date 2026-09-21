@@ -137,7 +137,7 @@ type EditorSessionTokenizationTests() =
         Thread.Sleep(250)
 
         match requestedEffects[0] with
-        | [ Tokenize(request, _) ] -> Assert.Equal(Line 0, request.Scope)
+        | [ Tokenize(request, _) ] -> Assert.Equal(TokenizationScope.Line 0, request.Scope)
         | effects -> Assert.True(false, $"Expected one tokenization effect but received {effects}")
 
     [<Fact>]
@@ -170,7 +170,7 @@ type EditorSessionTokenizationTests() =
 
         match requestedEffects[0] with
         | [ Tokenize(request, _) ] ->
-            Assert.Equal(Line 1, request.Scope)
+            Assert.Equal(TokenizationScope.Line 1, request.Scope)
             Assert.Equal(FSharpState 1, request.InitialState)
         | effects -> Assert.True(false, $"Expected one tokenization effect but received {effects}")
 
@@ -178,7 +178,7 @@ type EditorSessionTokenizationTests() =
             AppCommand.tokenizationCompleted
                 { DocumentId = document.Id
                   Revision = session.Model.Editing.Revision
-                  Scope = Line 1
+                  Scope = TokenizationScope.Line 1
                   Provider = LocalLexical
                   Layer = Lexical
                   Tokens = [ { Line = 1; Tokens = [] } ]

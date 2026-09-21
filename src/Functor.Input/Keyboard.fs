@@ -9,6 +9,9 @@ type Key =
     | Backspace
     | Delete
     | Enter
+    | Home
+    | End
+    | Insert
     | Escape
 
 [<System.Flags>]

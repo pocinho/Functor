@@ -5,9 +5,18 @@ type KeyAction =
     | MoveRight
     | MoveUp
     | MoveDown
+    | MoveWordLeft
+    | MoveWordRight
+    | MoveToLineStart
+    | MoveToLineEnd
+    | MoveToDocumentStart
+    | MoveToDocumentEnd
     | Backspace
     | Delete
     | InsertNewLine
+    | SelectAll
+    | Undo
+    | Redo
 
 type Keymap =
     { Bindings: Map<KeyboardInput, KeyAction> }
@@ -55,6 +64,42 @@ module Keymap =
                   ({ Key = Key.Down
                      Modifiers = KeyModifiers.Shift },
                    KeyAction.MoveDown)
+                  ({ Key = Key.Left
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.MoveWordLeft)
+                  ({ Key = Key.Left
+                     Modifiers = (KeyModifiers.Control ||| KeyModifiers.Shift) },
+                   KeyAction.MoveWordLeft)
+                  ({ Key = Key.Right
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.MoveWordRight)
+                  ({ Key = Key.Right
+                     Modifiers = (KeyModifiers.Control ||| KeyModifiers.Shift) },
+                   KeyAction.MoveWordRight)
+                  ({ Key = Key.Home
+                     Modifiers = KeyModifiers.None },
+                   KeyAction.MoveToLineStart)
+                  ({ Key = Key.Home
+                     Modifiers = KeyModifiers.Shift },
+                   KeyAction.MoveToLineStart)
+                  ({ Key = Key.End
+                     Modifiers = KeyModifiers.None },
+                   KeyAction.MoveToLineEnd)
+                  ({ Key = Key.End
+                     Modifiers = KeyModifiers.Shift },
+                   KeyAction.MoveToLineEnd)
+                  ({ Key = Key.Home
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.MoveToDocumentStart)
+                  ({ Key = Key.Home
+                     Modifiers = (KeyModifiers.Control ||| KeyModifiers.Shift) },
+                   KeyAction.MoveToDocumentStart)
+                  ({ Key = Key.End
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.MoveToDocumentEnd)
+                  ({ Key = Key.End
+                     Modifiers = (KeyModifiers.Control ||| KeyModifiers.Shift) },
+                   KeyAction.MoveToDocumentEnd)
                   ({ Key = Key.Backspace
                      Modifiers = KeyModifiers.None },
                    KeyAction.Backspace)
@@ -63,7 +108,16 @@ module Keymap =
                    KeyAction.Delete)
                   ({ Key = Key.Enter
                      Modifiers = KeyModifiers.None },
-                   KeyAction.InsertNewLine) ] }
+                   KeyAction.InsertNewLine)
+                  ({ Key = Key.Character 'a'
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.SelectAll)
+                  ({ Key = Key.Character 'z'
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.Undo)
+                  ({ Key = Key.Character 'y'
+                     Modifiers = KeyModifiers.Control },
+                   KeyAction.Redo) ] }
 
     let create bindings = { Bindings = Map.ofList bindings }
 
@@ -102,6 +156,9 @@ module Keymap =
         | Key.Character 'c' when commandModifier -> Some EditorAction.Copy
         | Key.Character 'x' when commandModifier -> Some EditorAction.Cut
         | Key.Character 'v' when commandModifier -> Some EditorAction.Paste
+        | Key.Insert when input.Modifiers = KeyModifiers.Control -> Some EditorAction.Copy
+        | Key.Insert when input.Modifiers = KeyModifiers.Shift -> Some EditorAction.Paste
+        | Key.Delete when input.Modifiers = KeyModifiers.Shift -> Some EditorAction.Cut
         | Key.Character 'o' when commandModifier -> Some EditorAction.OpenFile
         | Key.Character 's' when shiftedCommandModifier -> Some EditorAction.SaveFileAs
         | Key.Character 's' when commandModifier -> Some EditorAction.SaveFile

@@ -13,8 +13,7 @@ module DiagnosticsLogic =
     let private setDiagnostics (model: DiagnosticsModel) (diags: Diagnostic list) =
         DiagnosticsModel.setDiagnostics model diags
 
-    let private clearDiagnostics (model: DiagnosticsModel) =
-        DiagnosticsModel.create ()
+    let private clearDiagnostics (model: DiagnosticsModel) = DiagnosticsModel.create ()
 
     // ────────────────────────────────────────────────
     // Incremental Diagnostics
@@ -22,9 +21,7 @@ module DiagnosticsLogic =
 
     let private setLineDiagnostics (model: DiagnosticsModel) (line: int) (diags: Diagnostic list) =
         // Replace diagnostics for a single line
-        let filtered =
-            model.All
-            |> List.filter (fun d -> d.RangeStart.Line <> line)
+        let filtered = model.All |> List.filter (fun d -> d.RangeStart.Line <> line)
 
         let newAll = diags @ filtered
 
@@ -53,8 +50,7 @@ module DiagnosticsLogic =
     // Invalidation
     // ────────────────────────────────────────────────
 
-    let private markDiagnosticsDirty (model: DiagnosticsModel) =
-        DiagnosticsModel.markDirty model
+    let private markDiagnosticsDirty (model: DiagnosticsModel) = DiagnosticsModel.markDirty model
 
     // ────────────────────────────────────────────────
     // Main update function
@@ -62,20 +58,14 @@ module DiagnosticsLogic =
 
     let update (evt: DiagnosticsEvent) (model: DiagnosticsModel) : DiagnosticsModel =
         match evt with
-        | SetDiagnostics diags ->
-            setDiagnostics model diags
-
-        | ClearDiagnostics ->
-            clearDiagnostics model
-
-        | SetLineDiagnostics (line, diags) ->
-            setLineDiagnostics model line diags
-
-        | SetRangeDiagnostics (startLine, endLine, diags) ->
-            setRangeDiagnostics model startLine endLine diags
-
-        | UpdateDiagnosticsTimestamp ts ->
-            updateDiagnosticsTimestamp model ts
-
-        | MarkDiagnosticsDirty ->
-            markDiagnosticsDirty model
+        | Update updateEvent ->
+            match updateEvent with
+            | SetDiagnostics diags -> setDiagnostics model diags
+            | ClearDiagnostics -> clearDiagnostics model
+        | Incremental incremental ->
+            match incremental with
+            | SetLineDiagnostics(line, diags) -> setLineDiagnostics model line diags
+            | SetRangeDiagnostics(startLine, endLine, diags) -> setRangeDiagnostics model startLine endLine diags
+        | Metadata(DiagnosticsMetadataEvent.UpdateDiagnosticsTimestamp timestamp) ->
+            updateDiagnosticsTimestamp model timestamp
+        | Invalidation DiagnosticsInvalidationEvent.MarkDiagnosticsDirty -> markDiagnosticsDirty model

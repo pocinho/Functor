@@ -53,17 +53,10 @@ module DocumentLogic =
     /// Routes DocumentEvents to the appropriate pure metadata operations.
     let update (evt: DocumentEvent) (doc: DocumentModel) : DocumentModel =
         match evt with
-        | RenameDocument newName ->
-            rename doc newName
-
-        | MarkDocumentDirty ->
-            markDirty doc
-
-        | MarkDocumentClean ->
-            markClean doc
-
-        | SetDocumentPath path ->
-            setPath doc path
-
-        | UpdateModifiedTimestamp ts ->
-            updateTimestamp doc ts
+        | Metadata metadata ->
+            match metadata with
+            | RenameDocument newName -> rename doc newName
+            | MarkDocumentDirty -> markDirty doc
+            | MarkDocumentClean -> markClean doc
+        | Path(DocumentPathEvent.SetDocumentPath path) -> setPath doc path
+        | Timestamp(DocumentTimestampEvent.UpdateModifiedTimestamp timestamp) -> updateTimestamp doc timestamp

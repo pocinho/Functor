@@ -44,8 +44,9 @@ module IncrementalTokenizationState =
     let initialState documentId revision scope state =
         match scope with
         | FullDocument -> Initial
-        | Line line -> snapshotAt documentId revision line state |> Option.defaultValue Initial
-        | LineRange(startLine, _) -> snapshotAt documentId revision startLine state |> Option.defaultValue Initial
+        | TokenizationScope.Line line -> snapshotAt documentId revision line state |> Option.defaultValue Initial
+        | TokenizationScope.LineRange(startLine, _) ->
+            snapshotAt documentId revision startLine state |> Option.defaultValue Initial
 
     let recordCompletion documentId revision scope snapshots finalState state =
         let updatedSnapshots =
@@ -58,8 +59,8 @@ module IncrementalTokenizationState =
         let finalLine =
             match scope with
             | FullDocument -> snapshots |> List.tryLast |> Option.map (fun snapshot -> snapshot.Line + 1)
-            | Line line -> Some(line + 1)
-            | LineRange(_, endLine) -> Some(endLine + 1)
+            | TokenizationScope.Line line -> Some(line + 1)
+            | TokenizationScope.LineRange(_, endLine) -> Some(endLine + 1)
 
         let updatedSnapshots =
             match finalLine with

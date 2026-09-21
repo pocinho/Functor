@@ -9,25 +9,58 @@ open System
 /// - marking diagnostics dirty
 /// - updating timestamps
 /// - incremental updates
-type DiagnosticsEvent =
+type DiagnosticsUpdateEvent =
     // ────────────────────────────────────────────────
     // Full Diagnostics Update
     // ────────────────────────────────────────────────
-    | SetDiagnostics of diagnostics:Diagnostic list
+    | SetDiagnostics of diagnostics: Diagnostic list
     | ClearDiagnostics
 
-    // ────────────────────────────────────────────────
-    // Incremental Diagnostics
-    // ────────────────────────────────────────────────
-    | SetLineDiagnostics of line:int * diagnostics:Diagnostic list
-    | SetRangeDiagnostics of startLine:int * endLine:int * diagnostics:Diagnostic list
+type DiagnosticsIncrementalEvent =
+    | SetLineDiagnostics of line: int * diagnostics: Diagnostic list
+    | SetRangeDiagnostics of startLine: int * endLine: int * diagnostics: Diagnostic list
 
-    // ────────────────────────────────────────────────
-    // Metadata
-    // ────────────────────────────────────────────────
-    | UpdateDiagnosticsTimestamp of timestamp:DateTime
+type DiagnosticsMetadataEvent = UpdateDiagnosticsTimestamp of timestamp: DateTime
 
-    // ────────────────────────────────────────────────
-    // Invalidation
-    // ────────────────────────────────────────────────
-    | MarkDiagnosticsDirty
+type DiagnosticsInvalidationEvent = | MarkDiagnosticsDirty
+
+type DiagnosticsEvent =
+    | Update of DiagnosticsUpdateEvent
+    | Incremental of DiagnosticsIncrementalEvent
+    | Metadata of DiagnosticsMetadataEvent
+    | Invalidation of DiagnosticsInvalidationEvent
+
+    static member SetDiagnostics diagnostics =
+        Update(DiagnosticsUpdateEvent.SetDiagnostics diagnostics)
+
+    static member ClearDiagnostics = Update DiagnosticsUpdateEvent.ClearDiagnostics
+
+    static member SetLineDiagnostics(line, diagnostics) =
+        Incremental(DiagnosticsIncrementalEvent.SetLineDiagnostics(line, diagnostics))
+
+    static member SetRangeDiagnostics(startLine, endLine, diagnostics) =
+        Incremental(DiagnosticsIncrementalEvent.SetRangeDiagnostics(startLine, endLine, diagnostics))
+
+    static member UpdateDiagnosticsTimestamp timestamp =
+        Metadata(DiagnosticsMetadataEvent.UpdateDiagnosticsTimestamp timestamp)
+
+    static member MarkDiagnosticsDirty =
+        Invalidation DiagnosticsInvalidationEvent.MarkDiagnosticsDirty
+
+[<AutoOpen>]
+module DiagnosticsEventConstructors =
+    let SetDiagnostics diagnostics =
+        DiagnosticsEvent.SetDiagnostics diagnostics
+
+    let ClearDiagnostics = DiagnosticsEvent.ClearDiagnostics
+
+    let SetLineDiagnostics (line, diagnostics) =
+        DiagnosticsEvent.SetLineDiagnostics(line, diagnostics)
+
+    let SetRangeDiagnostics (startLine, endLine, diagnostics) =
+        DiagnosticsEvent.SetRangeDiagnostics(startLine, endLine, diagnostics)
+
+    let UpdateDiagnosticsTimestamp timestamp =
+        DiagnosticsEvent.UpdateDiagnosticsTimestamp timestamp
+
+    let MarkDiagnosticsDirty = DiagnosticsEvent.MarkDiagnosticsDirty

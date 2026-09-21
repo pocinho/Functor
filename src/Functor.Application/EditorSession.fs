@@ -64,7 +64,8 @@ type EditorSession(initialModel: CoreModel) =
             | None -> ()
 
             tokenization.Schedule()
-        | ApplySyntaxEvent(SetLanguage _) -> tokenization.RequestCurrent(CancellationToken.None)
+        | ApplySyntaxEvent(SyntaxEvent.Language(LanguageEvent.SetLanguage _)) ->
+            tokenization.RequestCurrent(CancellationToken.None)
         | _ -> ()
 
     let isDirty () = state.Model.Editing.IsDirty

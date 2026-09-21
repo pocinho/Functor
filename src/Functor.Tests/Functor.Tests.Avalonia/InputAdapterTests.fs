@@ -51,8 +51,18 @@ module InputAdapterTests =
         Assert.Equal(Some { Text = " " }, InputAdapter.textInput " ")
 
     [<Fact>]
-    let ``editing adapter leaves command-modified keys for command routing`` () =
-        Assert.Equal(None, InputAdapter.editingEvent Avalonia.Input.Key.Left Avalonia.Input.KeyModifiers.Control)
+    let ``editing adapter maps CUA word movement keys`` () =
+        Assert.Equal(
+            Some Functor.Domain.Editing.EditingEvent.MoveWordLeft,
+            InputAdapter.editingEvent Avalonia.Input.Key.Left Avalonia.Input.KeyModifiers.Control
+        )
+
+        Assert.Equal(
+            Some Functor.Domain.Editing.EditingEvent.MoveWordLeft,
+            InputAdapter.editingEvent
+                Avalonia.Input.Key.Left
+                (Avalonia.Input.KeyModifiers.Control ||| Avalonia.Input.KeyModifiers.Shift)
+        )
 
         Assert.Equal(
             Some Functor.Domain.Editing.EditingEvent.MoveLeft,

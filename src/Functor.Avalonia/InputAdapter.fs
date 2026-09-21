@@ -31,6 +31,12 @@ module InputAdapter =
         | Avalonia.Input.Key.Back -> Some Functor.Input.Key.Backspace
         | Avalonia.Input.Key.Delete -> Some Functor.Input.Key.Delete
         | Avalonia.Input.Key.Enter -> Some Functor.Input.Key.Enter
+        | Avalonia.Input.Key.Home -> Some Functor.Input.Key.Home
+        | Avalonia.Input.Key.End -> Some Functor.Input.Key.End
+        | Avalonia.Input.Key.Insert -> Some Functor.Input.Key.Insert
+        | Avalonia.Input.Key.A -> Some(Functor.Input.Key.Character 'a')
+        | Avalonia.Input.Key.Z -> Some(Functor.Input.Key.Character 'z')
+        | Avalonia.Input.Key.Y -> Some(Functor.Input.Key.Character 'y')
         | _ -> None
 
     let editingEvent (keyValue: Avalonia.Input.Key) (keyModifiers: Avalonia.Input.KeyModifiers) =
@@ -42,13 +48,22 @@ module InputAdapter =
                     { Key = semanticKey
                       Modifiers = modifiers keyModifiers }
             with
-            | Some KeyAction.MoveLeft -> Some EditingEvent.MoveLeft
-            | Some KeyAction.MoveRight -> Some EditingEvent.MoveRight
-            | Some KeyAction.MoveUp -> Some EditingEvent.MoveUp
-            | Some KeyAction.MoveDown -> Some EditingEvent.MoveDown
-            | Some KeyAction.Backspace -> Some EditingEvent.Backspace
-            | Some KeyAction.Delete -> Some EditingEvent.Delete
-            | Some KeyAction.InsertNewLine -> Some EditingEvent.InsertNewLine
+            | Some KeyAction.MoveLeft -> Some(EditingEvent.Cursor CursorEvent.MoveLeft)
+            | Some KeyAction.MoveRight -> Some(EditingEvent.Cursor CursorEvent.MoveRight)
+            | Some KeyAction.MoveUp -> Some(EditingEvent.Cursor CursorEvent.MoveUp)
+            | Some KeyAction.MoveDown -> Some(EditingEvent.Cursor CursorEvent.MoveDown)
+            | Some KeyAction.MoveWordLeft -> Some(EditingEvent.Cursor CursorEvent.MoveWordLeft)
+            | Some KeyAction.MoveWordRight -> Some(EditingEvent.Cursor CursorEvent.MoveWordRight)
+            | Some KeyAction.MoveToLineStart -> Some(EditingEvent.Cursor CursorEvent.MoveToLineStart)
+            | Some KeyAction.MoveToLineEnd -> Some(EditingEvent.Cursor CursorEvent.MoveToLineEnd)
+            | Some KeyAction.MoveToDocumentStart -> Some(EditingEvent.Cursor CursorEvent.MoveToDocumentStart)
+            | Some KeyAction.MoveToDocumentEnd -> Some(EditingEvent.Cursor CursorEvent.MoveToDocumentEnd)
+            | Some KeyAction.Backspace -> Some(EditingEvent.TextInput TextInputEvent.Backspace)
+            | Some KeyAction.Delete -> Some(EditingEvent.TextInput TextInputEvent.Delete)
+            | Some KeyAction.InsertNewLine -> Some(EditingEvent.Line LineEvent.InsertNewLine)
+            | Some KeyAction.SelectAll -> Some(EditingEvent.Selection SelectionEvent.SelectAll)
+            | Some KeyAction.Undo -> Some(EditingEvent.History HistoryEvent.Undo)
+            | Some KeyAction.Redo -> Some(EditingEvent.History HistoryEvent.Redo)
             | None -> None
 
     let shellAction (keyValue: Avalonia.Input.Key) (keyModifiers: Avalonia.Input.KeyModifiers) =
@@ -75,6 +90,8 @@ module InputAdapter =
             | Avalonia.Input.Key.N -> Some(Functor.Input.Key.Character 'n')
             | Avalonia.Input.Key.W -> Some(Functor.Input.Key.Character 'w')
             | Avalonia.Input.Key.T -> Some(Functor.Input.Key.Character 't')
+            | Avalonia.Input.Key.Insert -> Some Functor.Input.Key.Insert
+            | Avalonia.Input.Key.Delete -> Some Functor.Input.Key.Delete
             | _ -> None
 
         semanticKey

@@ -99,6 +99,50 @@ module EditingLogic =
         |> Array.tryFind (fun start -> start > column)
         |> Option.defaultValue text.Length
 
+    let private previousWordBoundary (text: string) column =
+        let column = normalizeColumn text column
+        let boundaries = graphemeBoundaries text
+        let index = boundaries |> Array.findIndex ((=) column)
+
+        let rec skipWhitespace current =
+            if current <= 0 || not (Char.IsWhiteSpace text.[boundaries.[current - 1]]) then
+                current
+            else
+                skipWhitespace (current - 1)
+
+        let rec skipWord current =
+            if current <= 0 || Char.IsWhiteSpace text.[boundaries.[current - 1]] then
+                current
+            else
+                skipWord (current - 1)
+
+        boundaries.[skipWord (skipWhitespace index)]
+
+    let private nextWordBoundary (text: string) column =
+        let column = normalizeColumn text column
+        let boundaries = graphemeBoundaries text
+        let index = boundaries |> Array.findIndex ((=) column)
+
+        let rec skipWhitespace current =
+            if
+                current >= boundaries.Length - 1
+                || not (Char.IsWhiteSpace text.[boundaries.[current]])
+            then
+                current
+            else
+                skipWhitespace (current + 1)
+
+        let rec skipWord current =
+            if
+                current >= boundaries.Length - 1
+                || Char.IsWhiteSpace text.[boundaries.[current]]
+            then
+                current
+            else
+                skipWord (current + 1)
+
+        boundaries.[skipWord (skipWhitespace index)]
+
     let rec private advanceGraphemes (text: string) column count =
         if count <= 0 then
             column
@@ -352,6 +396,17 @@ module EditingLogic =
             { model with
                 Selection = Some { sel with End = model.Cursor } }
 
+    let private selectAll (model: EditingModel) =
+        let lastLine = model.Buffer.Length - 1
+
+        { model with
+            Selection =
+                Some
+                    { Start = { Line = 0; Column = 0 }
+                      End =
+                        { Line = lastLine
+                          Column = model.Buffer.[lastLine].Length } } }
+
     let private clearSelection (model: EditingModel) = { model with Selection = None }
 
     let private setSelection (model: EditingModel) selection =
@@ -452,60 +507,86 @@ module EditingLogic =
 
     let private updateRaw (evt: EditingEvent) (model: EditingModel) : EditingModel =
         match evt with
-        | InsertChar ch -> insertChar model ch
-        | InsertString str -> insertString model str
-        | Backspace ->
-            match normalizedSelection model with
-            | Some _ -> deleteSelection model
-            | None -> backspace model
-        | Delete -> delete model
-        | DeleteSelection -> deleteSelection model
+        | TextInput textInput ->
+            match textInput with
+            | InsertChar ch -> insertChar model ch
+            | InsertString str -> insertString model str
+            | Backspace ->
+                match normalizedSelection model with
+                | Some _ -> deleteSelection model
+                | None -> backspace model
+            | Delete -> delete model
+            | DeleteSelection -> deleteSelection model
 
-        | MoveLeft ->
-            let text = model.Buffer.[model.Cursor.Line]
+        | Cursor cursor ->
+            match cursor with
+            | MoveLeft ->
+                let text = model.Buffer.[model.Cursor.Line]
 
-            moveCursor
-                model
-                { model.Cursor with
-                    Column = previousGraphemeBoundary text model.Cursor.Column }
-        | MoveRight ->
-            let text = model.Buffer.[model.Cursor.Line]
+                moveCursor
+                    model
+                    { model.Cursor with
+                        Column = previousGraphemeBoundary text model.Cursor.Column }
+            | MoveRight ->
+                let text = model.Buffer.[model.Cursor.Line]
 
-            moveCursor
-                model
-                { model.Cursor with
-                    Column = nextGraphemeBoundary text model.Cursor.Column }
-        | MoveUp -> moveVertically model -1
-        | MoveDown -> moveVertically model 1
-        | MoveToLineStart -> moveCursor model { model.Cursor with Column = 0 }
-        | MoveToLineEnd ->
-            let line = model.Cursor.Line
-            let col = model.Buffer.[line].Length
-            moveCursor model { Line = line; Column = col }
-        | MoveToDocumentStart -> moveCursor model { Line = 0; Column = 0 }
-        | MoveToDocumentEnd ->
-            let last = model.Buffer.Length - 1
-            let col = model.Buffer.[last].Length
-            moveCursor model { Line = last; Column = col }
-        | SetCursor cursor -> moveCursor model cursor
+                moveCursor
+                    model
+                    { model.Cursor with
+                        Column = nextGraphemeBoundary text model.Cursor.Column }
+            | MoveUp -> moveVertically model -1
+            | MoveDown -> moveVertically model 1
+            | MoveWordLeft ->
+                let text = model.Buffer.[model.Cursor.Line]
 
-        | StartSelection -> startSelection model
-        | UpdateSelection -> updateSelection model
-        | ClearSelection -> clearSelection model
-        | SetSelection selection -> setSelection model selection
+                moveCursor
+                    model
+                    { model.Cursor with
+                        Column = previousWordBoundary text model.Cursor.Column }
+            | MoveWordRight ->
+                let text = model.Buffer.[model.Cursor.Line]
 
-        | InsertNewLine -> insertNewLine model
-        | DeleteLine -> deleteLine model
-        | DuplicateLine -> duplicateLine model
+                moveCursor
+                    model
+                    { model.Cursor with
+                        Column = nextWordBoundary text model.Cursor.Column }
+            | MoveToLineStart -> moveCursor model { model.Cursor with Column = 0 }
+            | MoveToLineEnd ->
+                let line = model.Cursor.Line
+                let col = model.Buffer.[line].Length
+                moveCursor model { Line = line; Column = col }
+            | MoveToDocumentStart -> moveCursor model { Line = 0; Column = 0 }
+            | MoveToDocumentEnd ->
+                let last = model.Buffer.Length - 1
+                let col = model.Buffer.[last].Length
+                moveCursor model { Line = last; Column = col }
+            | SetCursor cursor -> moveCursor model cursor
 
-        | Undo -> undo model
-        | Redo -> redo model
+        | Selection selection ->
+            match selection with
+            | StartSelection -> startSelection model
+            | UpdateSelection -> updateSelection model
+            | SelectAll -> selectAll model
+            | ClearSelection -> clearSelection model
+            | SetSelection selection -> setSelection model selection
 
-        | ToggleOverwriteMode ->
-            { model with
-                OverwriteMode = not model.OverwriteMode }
+        | Line line ->
+            match line with
+            | InsertNewLine -> insertNewLine model
+            | DeleteLine -> deleteLine model
+            | DuplicateLine -> duplicateLine model
 
-        | SetOverwriteMode enabled -> { model with OverwriteMode = enabled }
+        | History history ->
+            match history with
+            | Undo -> undo model
+            | Redo -> redo model
+
+        | Mode mode ->
+            match mode with
+            | ToggleOverwriteMode ->
+                { model with
+                    OverwriteMode = not model.OverwriteMode }
+            | SetOverwriteMode enabled -> { model with OverwriteMode = enabled }
 
     let update (evt: EditingEvent) (model: EditingModel) : EditingModel =
         let updated = updateRaw evt model

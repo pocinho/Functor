@@ -29,8 +29,8 @@ type EditorSessionTokenization(getState: unit -> AppSessionState, requestEffects
             |> Option.map (fun language ->
                 let scope =
                     match IncrementalTokenizationState.requestRange incrementalState with
-                    | Some(startLine, endLine) when startLine = endLine -> Line startLine
-                    | Some(startLine, endLine) -> LineRange(startLine, endLine)
+                    | Some(startLine, endLine) when startLine = endLine -> TokenizationScope.Line startLine
+                    | Some(startLine, endLine) -> TokenizationScope.LineRange(startLine, endLine)
                     | None ->
                         match state.Model.Syntax.DirtyRanges with
                         | [] -> FullDocument
@@ -41,7 +41,7 @@ type EditorSessionTokenization(getState: unit -> AppSessionState, requestEffects
                             if startLine = 0 && endLine = Int32.MaxValue then
                                 FullDocument
                             else
-                                LineRange(startLine, endLine)
+                                TokenizationScope.LineRange(startLine, endLine)
 
                 let initialState =
                     IncrementalTokenizationState.initialState

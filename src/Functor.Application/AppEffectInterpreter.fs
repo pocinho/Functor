@@ -28,9 +28,13 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                     let! text = services.Clipboard.GetText()
 
                     match text with
-                    | Some value -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString value)))
+                    | Some value ->
+                        dispatch (
+                            AppCommand.toCoreEvent (ApplyEditingEvent(TextInput(TextInputEvent.InsertString value)))
+                        )
                     | None -> ()
-                | PasteText text -> dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(InsertString text)))
+                | PasteText text ->
+                    dispatch (AppCommand.toCoreEvent (ApplyEditingEvent(TextInput(TextInputEvent.InsertString text))))
                 | OpenFile ->
                     let! path = services.Dialog.OpenFile()
 

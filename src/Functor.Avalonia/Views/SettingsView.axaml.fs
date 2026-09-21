@@ -81,6 +81,15 @@ type SettingsView() as this =
         let control = textBox name
         control.TextChanged.Add(fun _ -> updateDraft (fun current -> update control.Text current))
 
+    let updateColorTextField textName pickerName update =
+        let text = textBox textName
+        let picker = colorPicker pickerName
+
+        text.TextChanged.Add(fun _ ->
+            if not updatingControls then
+                setColorPicker picker text.Text
+                updateDraft (fun current -> update text.Text current))
+
     let updateNumericField name update =
         let control = numericUpDown name
 
@@ -160,32 +169,45 @@ type SettingsView() as this =
                         this.RefreshControls()
                 | _ -> ())
 
-        updateTextField "Background" (fun value current -> { current with Background = value })
-        updateTextField "Foreground" (fun value current -> { current with Foreground = value })
-        updateTextField "Selection" (fun value current -> { current with Selection = value })
-        updateTextField "Cursor" (fun value current -> { current with Cursor = value })
-        updateTextField "LineNumber" (fun value current -> { current with LineNumber = value })
+        updateColorTextField "Background" "BackgroundPicker" (fun value current -> { current with Background = value })
+        updateColorTextField "Foreground" "ForegroundPicker" (fun value current -> { current with Foreground = value })
+        updateColorTextField "Selection" "SelectionPicker" (fun value current -> { current with Selection = value })
+        updateColorTextField "Cursor" "CursorPicker" (fun value current -> { current with Cursor = value })
+        updateColorTextField "LineNumber" "LineNumberPicker" (fun value current -> { current with LineNumber = value })
 
-        updateTextField "GutterBackground" (fun value current ->
+        updateColorTextField "GutterBackground" "GutterBackgroundPicker" (fun value current ->
             { current with
                 GutterBackground = value })
 
-        updateTextField "DiagnosticError" (fun value current -> { current with DiagnosticError = value })
+        updateColorTextField "DiagnosticError" "DiagnosticErrorPicker" (fun value current ->
+            { current with DiagnosticError = value })
 
-        updateTextField "DiagnosticWarning" (fun value current ->
+        updateColorTextField "DiagnosticWarning" "DiagnosticWarningPicker" (fun value current ->
             { current with
                 DiagnosticWarning = value })
 
-        updateTextField "DiagnosticInfo" (fun value current -> { current with DiagnosticInfo = value })
+        updateColorTextField "DiagnosticInfo" "DiagnosticInfoPicker" (fun value current ->
+            { current with DiagnosticInfo = value })
 
-        updateTextField "SyntaxKeyword" (fun value current -> { current with SyntaxKeyword = value })
-        updateTextField "SyntaxString" (fun value current -> { current with SyntaxString = value })
-        updateTextField "SyntaxComment" (fun value current -> { current with SyntaxComment = value })
-        updateTextField "SyntaxNumber" (fun value current -> { current with SyntaxNumber = value })
-        updateTextField "SyntaxType" (fun value current -> { current with SyntaxType = value })
-        updateTextField "SyntaxFunction" (fun value current -> { current with SyntaxFunction = value })
+        updateColorTextField "SyntaxKeyword" "SyntaxKeywordPicker" (fun value current ->
+            { current with SyntaxKeyword = value })
 
-        updateTextField "EditorBorder" (fun value current -> { current with EditorBorder = value })
+        updateColorTextField "SyntaxString" "SyntaxStringPicker" (fun value current ->
+            { current with SyntaxString = value })
+
+        updateColorTextField "SyntaxComment" "SyntaxCommentPicker" (fun value current ->
+            { current with SyntaxComment = value })
+
+        updateColorTextField "SyntaxNumber" "SyntaxNumberPicker" (fun value current ->
+            { current with SyntaxNumber = value })
+
+        updateColorTextField "SyntaxType" "SyntaxTypePicker" (fun value current -> { current with SyntaxType = value })
+
+        updateColorTextField "SyntaxFunction" "SyntaxFunctionPicker" (fun value current ->
+            { current with SyntaxFunction = value })
+
+        updateColorTextField "EditorBorder" "EditorBorderPicker" (fun value current ->
+            { current with EditorBorder = value })
 
         let updateColorField textName pickerName update =
             let picker = colorPicker pickerName
@@ -404,19 +426,19 @@ type SettingsView() as this =
             { current with
                 ControlCornerRadius = value })
 
-        updateTextField "ResizeHandleColor" (fun value current ->
+        updateColorTextField "ResizeHandleColor" "ResizeHandleColorPicker" (fun value current ->
             { current with
                 ResizeHandleColor = value })
 
-        updateTextField "CommandPaletteShadowColor" (fun value current ->
+        updateColorTextField "CommandPaletteShadowColor" "CommandPaletteShadowColorPicker" (fun value current ->
             { current with
                 CommandPaletteShadowColor = value })
 
-        updateTextField "WorkspaceSeparatorColor" (fun value current ->
+        updateColorTextField "WorkspaceSeparatorColor" "WorkspaceSeparatorColorPicker" (fun value current ->
             { current with
                 WorkspaceSeparatorColor = value })
 
-        updateTextField "MeasurementColor" (fun value current ->
+        updateColorTextField "MeasurementColor" "MeasurementColorPicker" (fun value current ->
             { current with
                 MeasurementColor = value })
 
