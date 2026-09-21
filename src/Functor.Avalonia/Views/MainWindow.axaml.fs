@@ -128,6 +128,13 @@ type MainWindow() as this =
         recentMenu.IsEnabled <- not state.Workspace.RecentlyClosedDocuments.IsEmpty
         clearRecentDocumentsMenuItem.Value.IsEnabled <- not state.Workspace.RecentlyClosedDocuments.IsEmpty
 
+    let updateRecentDocumentsMenuOnUiThread state =
+        if Dispatcher.UIThread.CheckAccess() then
+            updateRecentDocumentsMenu state
+        else
+            Dispatcher.UIThread.Post(Action(fun () -> updateRecentDocumentsMenu state))
+            |> ignore
+
     let hideCommandPalette () =
         shellState <- ShellState.closeCommandPalette shellState
         commandPaletteOverlay.Value.IsVisible <- false
@@ -264,13 +271,20 @@ type MainWindow() as this =
         updateCommandBarWatermark ()
 
         commandPaletteView.Value.CloseRequested.Add(fun _ -> hideCommandPalette ())
-        editor.Value.StateChanged.Add(updateRecentDocumentsMenu)
+        editor.Value.StateChanged.Add(updateRecentDocumentsMenuOnUiThread)
         this.Activated.Add(fun _ -> shellHostView.Value.InvalidateWorkspaceTree())
         updateRecentDocumentsMenu shellHostView.Value.SessionState
 
         editor.Value.StateChanged.Add(fun state ->
-            let hasRecentDocuments = not state.Workspace.RecentlyClosedDocuments.IsEmpty
-            this.FindControl<MenuItem>("ReopenClosedTabMenuItem").IsEnabled <- hasRecentDocuments)
+            let update =
+                fun () ->
+                    let hasRecentDocuments = not state.Workspace.RecentlyClosedDocuments.IsEmpty
+                    this.FindControl<MenuItem>("ReopenClosedTabMenuItem").IsEnabled <- hasRecentDocuments
+
+            if Dispatcher.UIThread.CheckAccess() then
+                update ()
+            else
+                Dispatcher.UIThread.Post(Action update) |> ignore)
 
         this.FindControl<MenuItem>("ReopenClosedTabMenuItem").IsEnabled <-
             not shellHostView.Value.SessionState.Workspace.RecentlyClosedDocuments.IsEmpty

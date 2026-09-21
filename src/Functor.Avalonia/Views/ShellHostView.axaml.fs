@@ -210,6 +210,7 @@ type ShellHostView() as this =
                 closeSettingsForDocumentNavigation ()
                 editor.Value.ActivateDocument(documentId))
             (fun path -> commandRequested.Trigger(AppCommand.openDocument path))
+            commandRequested.Trigger
         |> ignore
 
         updateToolRail ()

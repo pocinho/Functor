@@ -16,6 +16,7 @@ type SidePanelControl() as this =
     let mutable panelWidth = 0.0
     let mutable title = ""
     let mutable cachedWorkspaceContent: Control option = None
+    let mutable cachedSearchContent: Control option = None
 
     let content = lazy (this.FindControl<ContentControl>("PanelContentControl"))
     let resizeHandle = lazy (this.FindControl<Border>("ResizeHandle"))
@@ -65,6 +66,10 @@ type SidePanelControl() as this =
     member _.CachedWorkspaceContent
         with get () = cachedWorkspaceContent
         and set value = cachedWorkspaceContent <- value
+
+    member _.CachedSearchContent
+        with get () = cachedSearchContent
+        and set value = cachedSearchContent <- value
 
     member _.IsOpen
         with get () = this.IsVisible

@@ -19,6 +19,7 @@
     <Compile Include="SettingsCoordinatorTests.fs" />
     <Compile Include="SettingsViewTests.fs" />
     <Compile Include="CommandPaletteViewTests.fs" />
+    <Compile Include="SearchPanelControlTests.fs" />
     <ProjectReference Include="..\..\Functor.Avalonia\Functor.Avalonia.fsproj" />
     <ProjectReference Include="..\..\Functor.Application\Functor.Application.fsproj" />
     <ProjectReference Include="..\..\Functor.Input\Functor.Input.fsproj" />

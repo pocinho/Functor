@@ -22,7 +22,7 @@ type ToolPanelState =
 module ToolPanelState =
     let forTool tool =
         match tool with
-        | SearchTool -> ToolPanelEmpty "Search is not available yet."
+        | SearchTool -> ToolPanelReady
         | WorkspaceTool -> ToolPanelReady
 
 module ToolDescriptor =

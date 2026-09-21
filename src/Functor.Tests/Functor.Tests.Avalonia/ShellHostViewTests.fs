@@ -6,6 +6,7 @@ open Avalonia.Controls
 open Avalonia.Headless.XUnit
 open Avalonia.Interactivity
 open Avalonia.Threading
+open Functor.Application
 open Functor.Avalonia
 open Functor.Avalonia.Controls
 open Functor.Avalonia.Views
@@ -78,6 +79,44 @@ type ShellHostViewTests() =
 
         Assert.Same(workspaceView, sidePanel.PanelContent)
         Assert.Same(renderedTree, treePanel.Children[0])
+
+        window.Close()
+
+    [<AvaloniaFact>]
+    member _.``search controls remain interactive after document refresh``() =
+        let host = ShellHostView()
+        let window = Window(Content = host)
+        window.Show()
+
+        host.FindControl<Button>("SearchToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        host.Editor.NewDocument()
+        Dispatcher.UIThread.RunJobs()
+
+        let panel =
+            host.FindControl<SidePanelControl>("SidePanelHost").PanelContent :?> SearchPanelControl
+
+        let content = panel.Content :?> StackPanel
+        let queryBox = content.Children[0] :?> TextBox
+        let caseSensitive = content.Children[1] :?> CheckBox
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        queryBox.Text <- "needle"
+        caseSensitive.IsChecked <- Nullable true
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.True(panel.IsHitTestVisible)
+        Assert.True(queryBox.IsHitTestVisible)
+        Assert.True(queryBox.Focusable)
+        Assert.True(caseSensitive.IsHitTestVisible)
+        Assert.Equal("needle", queryBox.Text)
+
+        let expectedOptionsCommand =
+            AppCommand.searchOptionsChanged
+                { Query = "needle"
+                  CaseSensitive = true }
+
+        Assert.Contains(commands, fun command -> command = expectedOptionsCommand)
 
         window.Close()
 

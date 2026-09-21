@@ -1,6 +1,7 @@
 namespace Functor.Domain.Navigation
 
 open Functor.Domain.Editing
+open Functor.Domain.Search
 
 /// Pure navigation logic:
 /// Applies a NavigationEvent to a NavigationModel and returns a new NavigationModel.
@@ -44,50 +45,6 @@ module NavigationLogic =
             JumpIndex = None }
 
     // ────────────────────────────────────────────────
-    // Search
-    // ────────────────────────────────────────────────
-
-    let private setSearchQuery (model: NavigationModel) (query: string) =
-        { model with
-            SearchQuery = Some query
-            SearchResults = []
-            SearchIndex = None
-            IsDirty = true }
-
-    let private setSearchResults (model: NavigationModel) (results: SearchResult list) =
-        { model with
-            SearchResults = results
-            SearchIndex = (if results.IsEmpty then None else Some 0)
-            IsDirty = false }
-
-    let private nextSearchResult (model: NavigationModel) =
-        match model.SearchIndex with
-        | None -> model
-        | Some idx ->
-            let newIdx = idx + 1
-
-            if newIdx >= model.SearchResults.Length then
-                model
-            else
-                { model with SearchIndex = Some newIdx }
-
-    let private prevSearchResult (model: NavigationModel) =
-        match model.SearchIndex with
-        | None -> model
-        | Some idx ->
-            if idx = 0 then
-                model
-            else
-                { model with
-                    SearchIndex = Some(idx - 1) }
-
-    let private clearSearch (model: NavigationModel) =
-        { model with
-            SearchQuery = None
-            SearchResults = []
-            SearchIndex = None }
-
-    // ────────────────────────────────────────────────
     // Symbols
     // ────────────────────────────────────────────────
 
@@ -113,11 +70,10 @@ module NavigationLogic =
             | JumpForward -> jumpForward model
             | ClearJumpList -> clearJumpList model
         | Search search ->
-            match search with
-            | SetSearchQuery q -> setSearchQuery model q
-            | SetSearchResults results -> setSearchResults model results
-            | NextSearchResult -> nextSearchResult model
-            | PrevSearchResult -> prevSearchResult model
-            | ClearSearch -> clearSearch model
+            let searchModel = SearchLogic.update search model.Search
+
+            { model with
+                Search = searchModel
+                IsDirty = searchModel.IsDirty }
         | Symbols(SymbolEvent.SetSymbols symbols) -> setSymbols model symbols
         | Invalidation NavigationInvalidationEvent.MarkNavigationDirty -> markNavigationDirty model

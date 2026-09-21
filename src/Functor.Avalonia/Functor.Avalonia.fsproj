@@ -20,6 +20,7 @@
     <Compile Include="InputAdapter.fs" />
     <Compile Include="Controls\EditorControl.fs" />
     <Compile Include="Controls\SidePanelControl.axaml.fs" />
+    <Compile Include="Controls\SearchPanelControl.fs" />
     <Compile Include="Controls\DocumentListView.fs" />
     <Compile Include="Controls\WorkspaceDocumentControl.axaml.fs" />
     <Compile Include="ShellProjection.fs" />

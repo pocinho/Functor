@@ -2,6 +2,7 @@ namespace Functor.Tests.Avalonia
 
 open Functor.Application
 open Functor.Avalonia
+open Functor.Domain.Search
 open Functor.Workspace
 open Xunit
 
@@ -20,6 +21,7 @@ type ShellViewNodeTests() =
                   Children = [] }
               HasActiveDocument = false
               ActiveDocumentId = None
+              Search = SearchModel.create ()
               AgentIsOpen = false
               Status =
                 { Line = 1

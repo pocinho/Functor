@@ -4,13 +4,15 @@ open Functor.Domain.Core
 open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Domain.Diagnostics
+open Functor.Domain.Search
 
 type RenderInput =
     { Buffer: string list
       View: ViewState
       Editing: EditingModel
       Syntax: SyntaxModel
-      Diagnostics: DiagnosticsModel }
+      Diagnostics: DiagnosticsModel
+      Search: SearchModel }
 
 module RenderInput =
     let fromCoreModel (model: CoreModel) : RenderInput =
@@ -18,13 +20,13 @@ module RenderInput =
           View = model.View
           Editing = model.Editing
           Syntax = model.Syntax
-          Diagnostics = model.Diagnostics }
+          Diagnostics = model.Diagnostics
+          Search = model.Navigation.Search }
 
 module SlicingEngine =
 
     // Helper: get all buffer lines as (index * text)
-    let private getBufferLines (input: RenderInput) : string list =
-        input.Buffer
+    let private getBufferLines (input: RenderInput) : string list = input.Buffer
 
     let private visibleLineRange visibleLineCount (input: RenderInput) totalLines =
         let firstLine = max 0 input.View.VerticalOffset
@@ -83,16 +85,26 @@ module SlicingEngine =
         input.Diagnostics.All
         |> List.filter (fun d -> d.RangeEnd.Line >= firstLine && d.RangeStart.Line <= lastLine)
 
+    let sliceSearchMatches visibleLineCount (input: RenderInput) : list<SearchMatch * bool> =
+        let firstLine, lastLine =
+            visibleLineRange visibleLineCount input input.Buffer.Length
+
+        input.Search.Matches
+        |> List.mapi (fun index matchValue -> matchValue, input.Search.Index = Some index)
+        |> List.filter (fun (matchValue, _) -> matchValue.Line >= firstLine && matchValue.Line <= lastLine)
+
     type SlicedSpans =
         { Lines: list<int * string>
           Tokens: list<Token>
           Selections: list<Range>
           Cursors: list<Position>
-          Diagnostics: list<Diagnostic> }
+          Diagnostics: list<Diagnostic>
+          SearchMatches: list<SearchMatch * bool> }
 
     let sliceAll visibleLineCount (input: RenderInput) : SlicedSpans =
         { Lines = sliceLines visibleLineCount input
           Tokens = sliceTokens visibleLineCount input
           Selections = sliceSelections visibleLineCount input
           Cursors = sliceCursors visibleLineCount input
-          Diagnostics = sliceDiagnostics visibleLineCount input }
+          Diagnostics = sliceDiagnostics visibleLineCount input
+          SearchMatches = sliceSearchMatches visibleLineCount input }

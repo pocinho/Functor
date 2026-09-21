@@ -67,14 +67,31 @@ type VisibleLine =
 
 /// A complete text segment ready for a backend to materialize.
 type VisibleTextRun =
-    { LineIndex: int; Text: string; Range: Range; X: float32; Y: float32; Height: float32; StartVisualColumn: int; Style: TextStyle }
+    { LineIndex: int
+      Text: string
+      Range: Range
+      X: float32
+      Y: float32
+      Height: float32
+      StartVisualColumn: int
+      Style: TextStyle }
 
 /// Represents a styled token ready for rendering.
 type VisibleToken =
-    { LineIndex: int; Range: Range; Style: TextStyle; XStart: float32; XEnd: float32; Y: float32 }
+    { LineIndex: int
+      Range: Range
+      Style: TextStyle
+      XStart: float32
+      XEnd: float32
+      Y: float32 }
 
 /// Represents the geometry of a selection range.
 type SelectionGeometry = { Range: Range; Rects: list<Rect> }
+
+type SearchHighlightGeometry =
+    { Range: Range
+      Rects: list<Rect>
+      IsActive: bool }
 
 /// Represents the geometry of a cursor.
 type CursorGeometry =
@@ -105,6 +122,7 @@ type RenderingModel =
         VisibleLines: list<VisibleLine>
         TextRuns: list<VisibleTextRun>
         VisibleTokens: list<VisibleToken>
+        SearchHighlights: list<SearchHighlightGeometry>
         Selections: list<SelectionGeometry>
         Cursors: list<CursorGeometry>
         Diagnostics: list<VisibleDiagnostic>
@@ -122,6 +140,7 @@ module RenderingModel =
         { VisibleLines = []
           TextRuns = []
           VisibleTokens = []
+          SearchHighlights = []
           Selections = []
           Cursors = []
           Diagnostics = []

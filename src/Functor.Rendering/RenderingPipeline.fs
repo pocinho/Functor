@@ -82,6 +82,13 @@ module RenderingPipeline =
                   XEnd = t.XEnd
                   Y = t.Y })
 
+          SearchHighlights =
+            layout.SearchHighlights
+            |> List.map (fun highlight ->
+                { Range = highlight.Range
+                  Rects = highlight.Rects
+                  IsActive = highlight.IsActive })
+
           Selections = layout.Selections |> List.map (fun s -> { Range = s.Range; Rects = s.Rects })
 
           Cursors =

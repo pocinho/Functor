@@ -207,6 +207,21 @@ module RenderingSurface =
         // ------------------------------------------------------------
         // 2. Selection(s)
         // ------------------------------------------------------------
+        let inactiveSearchBrush =
+            SolidColorBrush(colorFromArgb (palette.Selection &&& 0x40FFFFFFu))
+
+        let activeSearchBrush = SolidColorBrush(colorFromArgb palette.Selection)
+
+        for highlight in model.SearchHighlights do
+            let brush =
+                if highlight.IsActive then
+                    activeSearchBrush
+                else
+                    inactiveSearchBrush
+
+            for rect in highlight.Rects do
+                context.FillRectangle(brush, Rect(float rect.X, float rect.Y, float rect.Width, float rect.Height))
+
         let selectionBrush = SolidColorBrush(colorFromArgb palette.Selection)
 
         for selection in model.Selections do

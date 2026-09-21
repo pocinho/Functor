@@ -3,6 +3,7 @@ namespace Functor.Application
 open Functor.Domain.Core
 open Functor.Domain.Document
 open Functor.Domain.Editing
+open Functor.Domain.Search
 open Functor.Workspace
 
 /// High-level application commands emitted by the UI layer.
@@ -35,6 +36,16 @@ type AppCommand =
     | TokenizationCompleted of TokenizationResult
     | ToggleAgentPanel
     | SetAgentOpen of documentId: DocumentId * isOpen: bool
+    | SearchQueryChanged of query: string
+    | SearchOptionsChanged of options: SearchOptions
+    | RefreshSearchRequested
+    | NextSearchResultRequested
+    | PreviousSearchResultRequested
+    | SearchResultActivated of result: SearchMatch
+    | ClearSearchRequested
+    | OpenDocumentsSearchRequested
+    | WorkspaceSearchRequested
+    | WorkspaceSearchCompleted of result: WorkspaceSearchResult
 
 module AppCommand =
     let toCoreEvent (event: CoreEvent) = ExecuteCoreEvent event
@@ -91,3 +102,23 @@ module AppCommand =
     let toggleAgentPanel = ToggleAgentPanel
 
     let setAgentOpen documentId isOpen = SetAgentOpen(documentId, isOpen)
+
+    let searchQueryChanged query = SearchQueryChanged query
+
+    let searchOptionsChanged options = SearchOptionsChanged options
+
+    let refreshSearch = RefreshSearchRequested
+
+    let nextSearchResult = NextSearchResultRequested
+
+    let previousSearchResult = PreviousSearchResultRequested
+
+    let activateSearchResult result = SearchResultActivated result
+
+    let clearSearch = ClearSearchRequested
+
+    let searchOpenDocuments = OpenDocumentsSearchRequested
+
+    let workspaceSearch = WorkspaceSearchRequested
+
+    let workspaceSearchCompleted result = WorkspaceSearchCompleted result

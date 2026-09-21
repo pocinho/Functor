@@ -1,6 +1,7 @@
 namespace Functor.Tests.Domain
 
 open Functor.Domain.Navigation
+open Functor.Domain.Search
 open Xunit
 open TestFixtures
 
@@ -41,11 +42,40 @@ type NavigationTests() =
 
         let model =
             NavigationModel.create ()
-            |> applyNavigation (SetSearchQuery "term")
-            |> applyNavigation (SetSearchResults results)
-            |> applyNavigation NextSearchResult
-            |> applyNavigation NextSearchResult
+            |> applyNavigation (NavigationEvent.SetSearchQuery "term")
+            |> applyNavigation (NavigationEvent.SetSearchResults results)
+            |> applyNavigation NavigationEvent.NextSearchResult
+            |> applyNavigation NavigationEvent.NextSearchResult
 
-        Assert.Equal(Some "term", model.SearchQuery)
-        Assert.Equal(Some 1, model.SearchIndex)
+        Assert.Equal(Some "term", model.Search.Query)
+        Assert.Equal(Some 1, model.Search.Index)
         Assert.False(model.IsDirty)
+
+    [<Fact>]
+    member _.``editing invalidates exact search matches``() =
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "term" ] }
+
+        let matches = SearchEngine.findInDocument (SearchOptions.create "term") document
+
+        let model =
+            NavigationModel.create ()
+            |> applyNavigation (NavigationEvent.SetSearchMatches(0L, matches))
+            |> applyNavigation NavigationEvent.InvalidateSearch
+
+        Assert.Empty(model.Search.Matches)
+        Assert.True(model.IsDirty)
+
+    [<Fact>]
+    member _.``empty search query clears the query and exact matches``() =
+        let model =
+            NavigationModel.create ()
+            |> applyNavigation (NavigationEvent.SetSearchQuery "term")
+            |> applyNavigation (NavigationEvent.SetSearchQuery "")
+
+        Assert.Equal(None, model.Search.Query)
+        Assert.Empty(model.Search.Matches)
+        Assert.Equal("", model.Search.Options.Query)

@@ -18,6 +18,14 @@ type FileService() =
                     return Error ex.Message
             }
 
+        member _.EnumerateFiles(rootPath: string) =
+            async {
+                try
+                    return Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories) |> Seq.toList |> Ok
+                with ex ->
+                    return Error ex.Message
+            }
+
         member _.WriteText(path: string, contents: string) =
             async {
                 try

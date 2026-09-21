@@ -1,8 +1,10 @@
 namespace Functor.Tests.Application
 
+open System
 open Functor.Application
 open Functor.Domain.Core
 open Functor.Domain.Editing
+open Functor.Domain.Search
 open Xunit
 
 
@@ -44,6 +46,250 @@ type EditorSessionTests() =
         Assert.Equal({ Width = 800; Height = 600 }, session.State.Model.View.Viewport)
         Assert.Single(publishedStates) |> ignore
         Assert.Equal(session.State, publishedStates[0])
+
+    [<Fact>]
+    member _.``search command uses the unsaved active buffer``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "disk")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " unsaved")))
+
+        session.DispatchCommand(AppCommand.searchQueryChanged "unsaved")
+
+        let search = session.State.Model.Navigation.Search
+        Assert.Equal(Some "unsaved", search.Query)
+        Assert.Single(search.Matches) |> ignore
+        Assert.Equal(1, search.Matches[0].Column)
+        Assert.Equal(session.State.Model.Editing.Revision, search.Revision.Value)
+
+    [<Fact>]
+    member _.``search defaults to every open in-memory tab without a workspace``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\first.fs" "needle in first")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\second.fs" "needle in second")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+
+        let matches = session.State.Model.Navigation.Search.Matches
+
+        Assert.Equal(2, matches.Length)
+        Assert.Equal(Some "C:\work\first.fs", matches[0].Path)
+        Assert.Equal(Some "C:\work\second.fs", matches[1].Path)
+
+    [<Fact>]
+    member _.``search remains global when switching documents``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\first.fs" "needle in first")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\second.fs" "needle in second")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+
+        let matchesBeforeSwitch = session.State.Model.Navigation.Search.Matches
+        session.Dispatch(CoreEvent.SwitchDocument session.State.Workspace.TabOrder.Head)
+
+        let searchAfterSwitch = session.State.Model.Navigation.Search
+        Assert.Equal(Some "needle", searchAfterSwitch.Query)
+        Assert.Equal<SearchMatch list>(matchesBeforeSwitch, searchAfterSwitch.Matches)
+
+    [<Fact>]
+    member _.``next and previous search results select and reveal the active match``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term here\nterm again")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        session.DispatchCommand(AppCommand.nextSearchResult)
+
+        Assert.Equal(Some 1, session.State.Model.Navigation.Search.Index)
+
+        Assert.Equal(
+            Some
+                { Start = { Line = 1; Column = 0 }
+                  End = { Line = 1; Column = 4 } },
+            session.State.Model.Editing.Selection
+        )
+
+        Assert.Equal(1, session.State.Model.View.VerticalOffset)
+
+        session.DispatchCommand(AppCommand.previousSearchResult)
+
+        Assert.Equal(Some 0, session.State.Model.Navigation.Search.Index)
+        Assert.Equal(0, session.State.Model.Editing.Selection.Value.Start.Line)
+        Assert.Equal(0, session.State.Model.View.VerticalOffset)
+
+    [<Fact>]
+    member _.``activating an open workspace result selects its exact range``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\result.fs" "first\nneedle here")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+
+        let result = session.State.Model.Navigation.Search.Matches[0]
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.Equal(Some result.DocumentId, session.State.Workspace.ActiveDocumentId)
+        Assert.Equal(Some result.Range, session.State.Model.Editing.Selection)
+        Assert.Equal(result.Line, session.State.Model.View.VerticalOffset)
+
+    [<Fact>]
+    member _.``activating an unopened workspace result opens and selects its range``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+
+        let result: SearchMatch =
+            { DocumentId = Guid.NewGuid()
+              Path = Some "C:\work\unopened.fs"
+              Name = "unopened.fs"
+              Line = 1
+              Column = 2
+              Length = 3
+              Range =
+                { Start = { Line = 1; Column = 2 }
+                  End = { Line = 1; Column = 5 } }
+              Preview = "needle" }
+
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.Contains(
+            requestedEffects |> Seq.collect id,
+            fun effect -> effect = AppEffect.ReadFile "C:\work\unopened.fs"
+        )
+
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\unopened.fs" "x\n  needle")
+
+        Assert.Equal(Some result.Range, session.State.Model.Editing.Selection)
+        Assert.Equal(1, session.State.Model.View.VerticalOffset)
+
+    [<Fact>]
+    member _.``activating an already open workspace result does not reread the file``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\open.fs" "needle")
+        let documentId = session.State.Model.ActiveDocument.Value.Id
+        requestedEffects.Clear()
+
+        let result: SearchMatch =
+            { DocumentId = documentId
+              Path = Some "C:\work\open.fs"
+              Name = "open.fs"
+              Line = 0
+              Column = 0
+              Length = 6
+              Range =
+                { Start = { Line = 0; Column = 0 }
+                  End = { Line = 0; Column = 6 } }
+              Preview = "needle" }
+
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.DoesNotContain(
+            requestedEffects |> Seq.collect id,
+            fun effect ->
+                match effect with
+                | ReadFile _ -> true
+                | _ -> false
+        )
+
+        Assert.Equal(Some documentId, session.State.Workspace.ActiveDocumentId)
+
+    [<Fact>]
+    member _.``activating a result preserves an already open dirty document``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\dirty.fs" "original")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " unsaved")))
+        let documentId = session.State.Model.ActiveDocument.Value.Id
+
+        let result: SearchMatch =
+            { DocumentId = documentId
+              Path = Some "C:\work\dirty.fs"
+              Name = "dirty.fs"
+              Line = 0
+              Column = 0
+              Length = 8
+              Range =
+                { Start = { Line = 0; Column = 0 }
+                  End = { Line = 0; Column = 8 } }
+              Preview = "original" }
+
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.Equal(Some documentId, session.State.Workspace.ActiveDocumentId)
+        Assert.True(session.State.Model.Editing.IsDirty)
+        Assert.Equal(" unsavedoriginal", String.concat "\n" session.State.Model.Editing.Buffer)
+
+    [<Fact>]
+    member _.``activating a result after switching tabs returns to the matching document``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\first.fs" "needle")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+        let result = session.State.Model.Navigation.Search.Matches[0]
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\second.fs" "other")
+
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.Equal(Some result.DocumentId, session.State.Workspace.ActiveDocumentId)
+        Assert.Equal(Some result.Range, session.State.Model.Editing.Selection)
+
+    [<Fact>]
+    member _.``opening a new workspace clears existing search results``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.folderOpened "C:\work\first")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\first\file.fs" "needle")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+        Assert.NotEmpty(session.State.Model.Navigation.Search.Matches)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work\second")
+
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
+        Assert.Empty(session.State.Model.Navigation.Search.Results)
+        Assert.Equal(None, session.State.Model.Navigation.Search.Query)
+
+    [<Fact>]
+    member _.``search options persist before a workspace document is opened``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+
+        session.DispatchCommand(
+            AppCommand.searchOptionsChanged
+                { Query = "needle"
+                  CaseSensitive = true }
+        )
+
+        let search = session.State.Model.Navigation.Search
+        Assert.Equal(Some "needle", search.Query)
+        Assert.Equal("needle", search.Options.Query)
+        Assert.True(search.Options.CaseSensitive)
+
+    [<Fact>]
+    member _.``workspace search request includes open in-memory documents``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\open.fs" "unsaved")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\second.fs" "second unsaved")
+        session.DispatchCommand(AppCommand.searchQueryChanged "unsaved")
+        requestedEffects.Clear()
+        session.DispatchCommand(AppCommand.workspaceSearch)
+
+        let searchEffects =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.toList
+
+        match searchEffects with
+        | [ request ] ->
+            Assert.Equal(session.State.Workspace.Id, request.WorkspaceId)
+            Assert.Equal("C:\work", request.RootPath)
+            Assert.Equal(2, request.OpenDocuments.Length)
+            Assert.True([ "unsaved" ] = request.OpenDocuments[0].Lines)
+            Assert.True([ "second unsaved" ] = request.OpenDocuments[1].Lines)
+            Assert.True(request.OpenDocumentPaths.Contains "C:\work\open.fs")
+            Assert.True(request.OpenDocumentPaths.Contains "C:\work\second.fs")
+        | _ -> Assert.True(false, "Expected one workspace search effect.")
 
     [<Fact>]
     member _.``status command updates state and publishes status``() =
@@ -98,6 +344,21 @@ type EditorSessionTests() =
         session.DispatchCommand(AppCommand.openDocument "C:\\work\\file.fs")
 
         Assert.True([ AppEffect.readFile "C:\\work\\file.fs" ] = requestedEffects[0])
+
+    [<Fact>]
+    member _.``opening an unsupported file reports status without reading it``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.openDocument "C:\\work\\image.png")
+
+        Assert.Empty(requestedEffects)
+
+        Assert.Equal(
+            Some "Unsupported or binary file cannot be opened: C:\\work\\image.png",
+            session.State.Status.Message
+        )
 
     [<Fact>]
     member _.``opening an already open path activates the existing document``() =

@@ -6,6 +6,8 @@ open System.Threading.Tasks
 open Functor.Domain.Core
 open Functor.Domain.Document
 open Functor.Domain.Syntax
+open Functor.Domain.Navigation
+open Functor.Domain.Search
 
 type EditorSession(initialModel: CoreModel) =
     let mutable state = AppSessionState.empty initialModel
@@ -15,6 +17,9 @@ type EditorSession(initialModel: CoreModel) =
     let effectsRequested = Event<AppEffect list>()
 
     let pendingSaves = EditorSessionPersistence()
+    let mutable workspaceSearchRequestId: Guid option = None
+    let mutable pendingSearchActivation: SearchMatch option = None
+    let mutable globalSearch = initialModel.Navigation.Search
 
     let queuePendingSave documentId revision expectedPath buffer =
         pendingSaves.Queue(documentId, revision, expectedPath, buffer)
@@ -39,6 +44,19 @@ type EditorSession(initialModel: CoreModel) =
 
     let updateModel event =
         state <- EditorSessionUpdate.apply event state
+
+        match event with
+        | ApplyNavigationEvent _
+        | ApplyEditingEvent _ -> globalSearch <- state.Model.Navigation.Search
+        | _ -> ()
+
+        state <-
+            { state with
+                Model =
+                    { state.Model with
+                        Navigation =
+                            { state.Model.Navigation with
+                                Search = globalSearch } } }
 
         publishState ()
         publishEditorStatus ()
@@ -99,15 +117,147 @@ type EditorSession(initialModel: CoreModel) =
             requestEffects [ AppEffect.openFile ]
 
     let requestOpenDocument path =
-        match Functor.Workspace.WorkspaceModel.tryFindDocumentByPath path state.Workspace with
-        | Some existing -> updateModel (SwitchDocument existing.Document.Id)
-        | None when isDirty () ->
-            setPendingAction
-                (PendingAction.OpenDocument path)
-                "Unsaved changes must be confirmed before opening another file."
-        | None -> requestEffects [ AppEffect.readFile path ]
+        let canonicalPath = DocumentModel.canonicalizePath path
+
+        if not (FileType.isSearchablePath canonicalPath) then
+            state <-
+                AppSessionState.withMessage
+                    (sprintf "Unsupported or binary file cannot be opened: %s" canonicalPath)
+                    state
+
+            publishState ()
+            publishStatus ()
+        else
+            match Functor.Workspace.WorkspaceModel.tryFindDocumentByPath canonicalPath state.Workspace with
+            | Some existing -> updateModel (SwitchDocument existing.Document.Id)
+            | None when isDirty () ->
+                setPendingAction
+                    (PendingAction.OpenDocument canonicalPath)
+                    "Unsaved changes must be confirmed before opening another file."
+            | None -> requestEffects [ AppEffect.readFile canonicalPath ]
 
     let requestOpenFolder () = requestEffects [ AppEffect.openFolder ]
+
+    let refreshActiveSearch () =
+        match state.Model.ActiveDocument with
+        | Some document ->
+            let options = state.Model.Navigation.Search.Options
+
+            let searchDocument: SearchDocument =
+                { Id = document.Id
+                  Path = document.Metadata.Path
+                  Name = document.Metadata.Name
+                  Lines = state.Model.Editing.Buffer }
+
+            let matches = SearchEngine.findInDocument options searchDocument
+
+            updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, matches)))
+        | None -> updateModel (ApplyNavigationEvent NavigationEvent.InvalidateSearch)
+
+    let revealActiveSearchMatch () =
+        match state.Model.Navigation.Search.Index with
+        | Some index when index >= 0 && index < state.Model.Navigation.Search.Matches.Length ->
+            let matchValue = state.Model.Navigation.Search.Matches[index]
+            updateModel (ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.SetSelection(Some matchValue.Range)))
+
+            state <-
+                { state with
+                    Model =
+                        { state.Model with
+                            View =
+                                { state.Model.View with
+                                    VerticalOffset = matchValue.Line } } }
+
+            publishState ()
+        | _ -> ()
+
+    let activateSearchMatch (matchValue: SearchMatch) =
+        let activate documentId =
+            updateModel (SwitchDocument documentId)
+            updateModel (ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.SetSelection(Some matchValue.Range)))
+
+            state <-
+                { state with
+                    Model =
+                        { state.Model with
+                            View =
+                                { state.Model.View with
+                                    VerticalOffset = matchValue.Line } } }
+
+            publishState ()
+
+        match matchValue.Path with
+        | Some path ->
+            let canonicalPath = DocumentModel.canonicalizePath path
+
+            match Functor.Workspace.WorkspaceModel.tryFindDocumentByPath canonicalPath state.Workspace with
+            | Some document -> activate document.Document.Id
+            | None ->
+                pendingSearchActivation <- Some matchValue
+                requestOpenDocument canonicalPath
+        | None ->
+            match Functor.Workspace.WorkspaceModel.tryFindDocument matchValue.DocumentId state.Workspace with
+            | Some document -> activate document.Document.Id
+            | None -> ()
+
+    let requestWorkspaceSearch () =
+        match state.Workspace.RootPath with
+        | None ->
+            state <- AppSessionState.withMessage "Open a workspace before searching workspace files." state
+            publishState ()
+            publishStatus ()
+        | Some rootPath ->
+            let requestId = Guid.NewGuid()
+
+            let openDocuments =
+                state.Workspace.TabOrder
+                |> List.choose (fun documentId ->
+                    state.Workspace.Documents
+                    |> Map.tryFind documentId
+                    |> Option.map (fun documentState ->
+                        { Id = documentState.Document.Id
+                          Path = documentState.Document.Metadata.Path
+                          Name = documentState.Document.Metadata.Name
+                          Lines = documentState.Editing.Buffer }))
+
+            let openDocumentPaths =
+                openDocuments
+                |> List.choose (fun document -> document.Path)
+                |> List.map DocumentModel.canonicalizePath
+                |> Set.ofList
+
+            let request: WorkspaceSearchRequest =
+                { RequestId = requestId
+                  WorkspaceId = state.Workspace.Id
+                  RootPath = rootPath
+                  Options = state.Model.Navigation.Search.Options
+                  OpenDocuments = openDocuments
+                  OpenDocumentPaths = openDocumentPaths }
+
+            workspaceSearchRequestId <- Some requestId
+            requestEffects [ AppEffect.searchWorkspace request ]
+
+    let searchOpenDocuments () =
+        let documents =
+            state.Workspace.TabOrder
+            |> List.choose (fun documentId ->
+                state.Workspace.Documents
+                |> Map.tryFind documentId
+                |> Option.map (fun documentState ->
+                    { Id = documentState.Document.Id
+                      Path = documentState.Document.Metadata.Path
+                      Name = documentState.Document.Metadata.Name
+                      Lines = documentState.Editing.Buffer }))
+
+        let matches =
+            SearchEngine.findInDocuments state.Model.Navigation.Search.Options documents
+
+        updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, matches)))
+
+    let searchCurrentScope () =
+        match state.Workspace.RootPath with
+        | Some _ -> requestWorkspaceSearch ()
+        | None -> searchOpenDocuments ()
 
     let replaceWorkspace path =
         tokenization.Reset()
@@ -117,6 +267,10 @@ type EditorSession(initialModel: CoreModel) =
             { state with
                 Model = CoreModel.empty
                 Workspace = Functor.Workspace.WorkspaceModel.create (Some path) }
+
+        globalSearch <- SearchModel.create ()
+
+        workspaceSearchRequestId <- None
 
         publishState ()
         publishEditorStatus ()
@@ -246,6 +400,19 @@ type EditorSession(initialModel: CoreModel) =
                             state.Workspace }
 
             publishState ()
+
+            match pendingSearchActivation with
+            | Some matchValue when
+                matchValue.Path
+                |> Option.map DocumentModel.canonicalizePath
+                |> Option.exists (fun expected -> expected = DocumentModel.canonicalizePath path)
+                ->
+                pendingSearchActivation <- None
+
+                activateSearchMatch
+                    { matchValue with
+                        Path = Some(DocumentModel.canonicalizePath path) }
+            | _ -> ()
         | FolderOpened path ->
             if isDirty () then
                 setPendingAction
@@ -394,6 +561,39 @@ type EditorSession(initialModel: CoreModel) =
                             state.Workspace }
 
             publishState ()
+        | SearchQueryChanged query ->
+            updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchQuery query))
+            refreshActiveSearch ()
+            searchCurrentScope ()
+        | SearchOptionsChanged options ->
+            updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchOptions options))
+            refreshActiveSearch ()
+            searchCurrentScope ()
+        | RefreshSearchRequested -> refreshActiveSearch ()
+        | NextSearchResultRequested ->
+            updateModel (ApplyNavigationEvent NavigationEvent.NextSearchResult)
+            revealActiveSearchMatch ()
+        | PreviousSearchResultRequested ->
+            updateModel (ApplyNavigationEvent NavigationEvent.PrevSearchResult)
+            revealActiveSearchMatch ()
+        | SearchResultActivated result -> activateSearchMatch result
+        | ClearSearchRequested -> updateModel (ApplyNavigationEvent NavigationEvent.ClearSearch)
+        | OpenDocumentsSearchRequested -> searchOpenDocuments ()
+        | WorkspaceSearchRequested -> requestWorkspaceSearch ()
+        | WorkspaceSearchCompleted result ->
+            let isCurrentRequest = workspaceSearchRequestId = Some result.RequestId
+            let isCurrentWorkspace = state.Workspace.Id = result.WorkspaceId
+            let isCurrentOptions = state.Model.Navigation.Search.Options = result.Options
+
+            if isCurrentRequest && isCurrentWorkspace && isCurrentOptions then
+                updateModel (
+                    ApplyNavigationEvent(NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, result.Matches))
+                )
+
+                if not result.Errors.IsEmpty then
+                    state <- AppSessionState.withMessage (String.concat "\n" result.Errors) state
+                    publishState ()
+                    publishStatus ()
 
     member _.DispatchEffect(effect: AppEffect) =
         match effect with
@@ -416,6 +616,7 @@ type EditorSession(initialModel: CoreModel) =
         | SaveFileForDocument _ -> ()
         | WriteFile _ -> ()
         | WriteFileForDocument _ -> ()
+        | SearchWorkspace _ -> ()
         | Tokenize _ -> ()
 
     member _.SetStatus(message: string) =

@@ -61,4 +61,18 @@ Or you can run **build-release-win-x64.fsx**, which invokes the reusable script 
 dotnet fsi .\build\build-release-win-x64.fsx
 ```
 
+### Code coverage
+
+Run the platform-neutral test projects with Microsoft Testing Platform coverage and generate the HTML report with the pinned ReportGenerator tool:
+
+```
+.\build\coverage.ps1
+```
+
+The report is written to `coverage/report/index.html`. Avalonia headless tests remain a separate behavior suite because their pinned adapter has a different xUnit compatibility requirement:
+
+```
+dotnet test --project src/Functor.Tests/Functor.Tests.Avalonia/Functor.Tests.Avalonia.fsproj
+```
+
 ---

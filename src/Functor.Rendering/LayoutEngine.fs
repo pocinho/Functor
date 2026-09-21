@@ -4,6 +4,7 @@ open Functor.Domain.Core
 open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Domain.Diagnostics
+open Functor.Domain.Search
 
 /// Represents a laid-out line in pixel space.
 type LineLayout =
@@ -25,6 +26,11 @@ type TokenLayout =
 /// Represents laid-out selection geometry (rectangles in pixel space).
 type SelectionLayout = { Range: Range; Rects: list<Rect> }
 
+type SearchHighlightLayout =
+    { Range: Range
+      Rects: list<Rect>
+      IsActive: bool }
+
 /// Represents laid-out cursor geometry.
 type CursorLayout =
     { Position: Position
@@ -44,6 +50,7 @@ type DiagnosticLayout =
 type LayoutResult =
     { Lines: list<LineLayout>
       Tokens: list<TokenLayout>
+      SearchHighlights: list<SearchHighlightLayout>
       Selections: list<SelectionLayout>
       Cursors: list<CursorLayout>
       Diagnostics: list<DiagnosticLayout>
@@ -300,6 +307,25 @@ module LayoutEngine =
 
             { Range = selection; Rects = rects })
 
+    let layoutSearchHighlights
+        (measurer: TextMeasurer)
+        (horizontalOffset: int)
+        (lines: list<LineLayout>)
+        (matches: list<SearchMatch * bool>)
+        : list<SearchHighlightLayout> =
+        matches
+        |> List.map (fun (matchValue, isActive) ->
+            let range: Range =
+                { Start = matchValue.Range.Start
+                  End = matchValue.Range.End }
+
+            let selection =
+                layoutSelections measurer horizontalOffset lines [ range ] |> List.exactlyOne
+
+            { Range = selection.Range
+              Rects = selection.Rects
+              IsActive = isActive })
+
     /// Layout cursors into pixel geometry.
     let layoutCursors
         (measurer: TextMeasurer)
@@ -428,6 +454,10 @@ module LayoutEngine =
         : LayoutResult =
         let lines = layoutLinesWithGutter measurer gutterWidth horizontalOffset sliced.Lines
         let tokens = layoutTokens measurer lines sliced.Tokens
+
+        let searchHighlights =
+            layoutSearchHighlights measurer horizontalOffset lines sliced.SearchMatches
+
         let selections = layoutSelections measurer horizontalOffset lines sliced.Selections
         let cursors = layoutCursors measurer horizontalOffset lines sliced.Cursors
         let diagnostics = layoutDiagnostics measurer lines sliced.Diagnostics
@@ -437,6 +467,7 @@ module LayoutEngine =
 
         { Lines = lines
           Tokens = tokens
+          SearchHighlights = searchHighlights
           Selections = selections
           Cursors = cursors
           Diagnostics = diagnostics

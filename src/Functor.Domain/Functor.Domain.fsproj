@@ -16,6 +16,11 @@
     <Compile Include="syntax\SyntaxModel.fs" />
     <Compile Include="syntax\SyntaxEvent.fs" />
     <Compile Include="syntax\SyntaxLogic.fs" />
+    <Folder Include="Search\" />
+    <Compile Include="search\SearchModel.fs" />
+    <Compile Include="search\SearchEvent.fs" />
+    <Compile Include="search\SearchLogic.fs" />
+    <Compile Include="search\SearchEngine.fs" />
     <Folder Include="Navigation\" />
     <Compile Include="navigation\NavigationModel.fs" />
     <Compile Include="navigation\NavigationEvent.fs" />

@@ -10,11 +10,13 @@
     <Compile Include="EditingTests.fs" />
     <Compile Include="DocumentTests.fs" />
     <Compile Include="NavigationTests.fs" />
+    <Compile Include="SearchTests.fs" />
     <Compile Include="SyntaxTests.fs" />
     <Compile Include="DiagnosticsTests.fs" />
     <Compile Include="CoreLogicTests.fs" />
     <ProjectReference Include="..\..\Functor.Domain\Functor.Domain.fsproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />
     <PackageReference Include="xunit.v3" Version="4.0.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

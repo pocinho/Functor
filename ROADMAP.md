@@ -234,6 +234,12 @@ opens on the right through the command palette.
 - Replace functionality
 - Search history
 
+#### Search mode sequencing
+- Keep Phase 7.1 literal and line-local; multiline literal queries remain deferred.
+- Add whole-word matching first as the next small extension to the literal matcher.
+- Add regex search after replacement, stale-result handling, and search-state contracts are stable; treat regex as a separate search mode with explicit invalid-pattern and replacement semantics.
+- Add fuzzy matching later as a ranked search mode, primarily for file, symbol, or command discovery rather than precise in-document replacement.
+
 ### Phase 7.2 — Advanced Navigation
 - Jump list implementation
 - Symbol navigation index

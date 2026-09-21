@@ -1,6 +1,7 @@
 namespace Functor.Domain.Navigation
 
 open Functor.Domain.Editing
+open Functor.Domain.Search
 
 /// Events related to navigation:
 /// - jump list operations
@@ -16,13 +17,6 @@ type JumpListEvent =
     | JumpBack
     | JumpForward
     | ClearJumpList
-
-type SearchEvent =
-    | SetSearchQuery of query: string
-    | SetSearchResults of results: SearchResult list
-    | NextSearchResult
-    | PrevSearchResult
-    | ClearSearch
 
 type SymbolEvent = SetSymbols of symbols: (string * Position) list
 
@@ -47,9 +41,16 @@ type NavigationEvent =
     static member SetSearchResults results =
         Search(SearchEvent.SetSearchResults results)
 
+    static member SetSearchMatches(revision, matches) =
+        Search(SearchEvent.SetSearchMatches(revision, matches))
+
+    static member SetSearchOptions options =
+        Search(SearchEvent.SetSearchOptions options)
+
     static member NextSearchResult = Search SearchEvent.NextSearchResult
     static member PrevSearchResult = Search SearchEvent.PrevSearchResult
     static member ClearSearch = Search SearchEvent.ClearSearch
+    static member InvalidateSearch = Search SearchEvent.InvalidateSearch
     static member SetSymbols symbols = Symbols(SymbolEvent.SetSymbols symbols)
 
     static member MarkNavigationDirty =
@@ -68,8 +69,15 @@ module NavigationEventConstructors =
     let SetSearchResults results =
         NavigationEvent.SetSearchResults results
 
+    let SetSearchMatches (revision, matches) =
+        NavigationEvent.SetSearchMatches(revision, matches)
+
+    let SetSearchOptions options =
+        NavigationEvent.SetSearchOptions options
+
     let NextSearchResult = NavigationEvent.NextSearchResult
     let PrevSearchResult = NavigationEvent.PrevSearchResult
     let ClearSearch = NavigationEvent.ClearSearch
+    let InvalidateSearch = NavigationEvent.InvalidateSearch
     let SetSymbols symbols = NavigationEvent.SetSymbols symbols
     let MarkNavigationDirty = NavigationEvent.MarkNavigationDirty

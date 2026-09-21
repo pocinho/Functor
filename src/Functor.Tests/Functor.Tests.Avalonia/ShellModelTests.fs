@@ -36,8 +36,8 @@ type ShellModelTests() =
         Assert.Equal("Workspace", (ToolDescriptor.get WorkspaceTool).Title)
 
     [<Fact>]
-    member _.``search has an explicit empty panel state``() =
-        Assert.Equal(ToolPanelEmpty "Search is not available yet.", ToolPanelState.forTool SearchTool)
+    member _.``search has a ready panel state``() =
+        Assert.Equal(ToolPanelReady, ToolPanelState.forTool SearchTool)
 
     [<Fact>]
     member _.``tool switching preserves the shared panel width``() =

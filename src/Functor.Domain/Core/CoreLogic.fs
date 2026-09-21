@@ -51,6 +51,11 @@ module CoreLogic =
                 | true, Some change ->
                     SyntaxModel.markDirtyRange editing.Revision change.StartLine System.Int32.MaxValue model.Syntax
                 | _ -> model.Syntax
+            Navigation =
+                if bufferChanged then
+                    NavigationLogic.update NavigationEvent.InvalidateSearch model.Navigation
+                else
+                    model.Navigation
             ActiveDocument = activeDocument
             OpenDocuments =
                 model.OpenDocuments

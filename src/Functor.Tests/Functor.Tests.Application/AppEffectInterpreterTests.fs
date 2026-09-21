@@ -3,7 +3,10 @@ namespace Functor.Tests.Application
 open System
 open System.Threading
 open Functor.Application
+open Functor.Domain.Document
+open Functor.Domain.Search
 open Functor.Domain.Syntax
+open Functor.Workspace
 open Xunit
 
 type private InterpreterFileService(readResult: Result<string, string>, writeResult: Result<unit, string>) =
@@ -14,11 +17,30 @@ type private InterpreterFileService(readResult: Result<string, string>, writeRes
     interface IFileService with
         member _.ReadText _ = async { return readResult }
 
+        member _.EnumerateFiles _ = async { return Ok [] }
+
         member _.WriteText(path, contents) =
             async {
                 writes.Add(path, contents)
                 return writeResult
             }
+
+type private WorkspaceSearchFileService() =
+    interface IFileService with
+        member _.ReadText path =
+            async {
+                if path.EndsWith("other.fs", StringComparison.OrdinalIgnoreCase) then
+                    return Ok "disk term"
+                else
+                    return Ok "disk term"
+            }
+
+        member _.EnumerateFiles _ =
+            async {
+                return Ok [ "C:\work\open.fs"; "C:\work\other.fs"; "C:\work\ignored.bin"; "C:\outside.fs" ]
+            }
+
+        member _.WriteText(_, _) = async { return Ok() }
 
 type private InterpreterDialogService(openPath: string option, savePath: string option) =
     interface IDialogService with
@@ -52,6 +74,45 @@ type private CancelingInterpreterTokenizerService() =
             async { return raise (OperationCanceledException()) }
 
 type AppEffectInterpreterTests() =
+    [<Fact>]
+    member _.``workspace search prefers open buffers and filters unsupported files``() =
+        let commands = ResizeArray<AppCommand>()
+        let workspaceId = Guid.NewGuid()
+        let documentId = Guid.NewGuid()
+        let options = SearchOptions.create "term"
+
+        let request: WorkspaceSearchRequest =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = workspaceId
+              RootPath = "C:\work"
+              Options = options
+              OpenDocuments =
+                [ { Id = documentId
+                    Path = Some "C:\work\open.fs"
+                    Name = "open.fs"
+                    Lines = [ "unsaved term" ] } ]
+              OpenDocumentPaths = Set.ofList [ "C:\work\open.fs" ] }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                WorkspaceSearchFileService(),
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.searchWorkspace request) |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceSearchCompleted result ] ->
+            Assert.Equal(workspaceId, result.WorkspaceId)
+            Assert.Equal(2, result.Matches.Length)
+            Assert.True(result.Matches |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\open.fs"))
+            Assert.True(result.Matches |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\other.fs"))
+            Assert.DoesNotContain(result.Matches, fun matchValue -> matchValue.Path = Some "C:\work\ignored.bin")
+            Assert.DoesNotContain(result.Matches, fun matchValue -> matchValue.Path = Some "C:\outside.fs")
+        | _ -> Assert.True(false, "Expected one workspace search completion.")
+
     [<Fact>]
     member _.``no effect does not dispatch an application command``() =
         let commands = ResizeArray<AppCommand>()

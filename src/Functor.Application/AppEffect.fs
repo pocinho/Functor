@@ -18,6 +18,7 @@ type AppEffect =
     | SaveFileForDocument of documentId: DocumentId * revision: int64 * suggestedName: string option * contents: string
     | WriteFile of path: string * contents: string
     | WriteFileForDocument of documentId: DocumentId * revision: int64 * path: string * contents: string
+    | SearchWorkspace of request: WorkspaceSearchRequest * cancellationToken: CancellationToken
     | Tokenize of request: TokenizationRequest * cancellationToken: CancellationToken
 
 module AppEffect =
@@ -48,6 +49,11 @@ module AppEffect =
 
     let writeFileForDocument documentId revision path contents =
         WriteFileForDocument(documentId, revision, path, contents)
+
+    let searchWorkspace request = SearchWorkspace(request, CancellationToken.None)
+
+    let searchWorkspaceWithCancellation request cancellationToken =
+        SearchWorkspace(request, cancellationToken)
 
     let tokenize request =
         Tokenize(request, CancellationToken.None)

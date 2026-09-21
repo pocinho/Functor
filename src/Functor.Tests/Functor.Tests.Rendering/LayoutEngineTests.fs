@@ -5,6 +5,7 @@ open Functor.Domain.Core
 open Functor.Domain.Editing
 open Functor.Domain.Syntax
 open Functor.Rendering
+open Functor.Domain.Search
 open Xunit
 open TestFixtures
 
@@ -18,7 +19,9 @@ type LayoutEngineTests() =
     member _.``horizontal offset is bounded by measured content and gutter``() =
         let measurer = createMeasurer ()
         let gutter = LayoutEngine.gutterWidth measurer 10
-        let maximum = LayoutEngine.maxHorizontalOffset measurer 80.0f gutter [ "1234567890" ]
+
+        let maximum =
+            LayoutEngine.maxHorizontalOffset measurer 80.0f gutter [ "1234567890" ]
 
         Assert.True(maximum > 0)
         Assert.Equal(0, LayoutEngine.maxHorizontalOffset measurer 200.0f gutter [ "short" ])
@@ -63,11 +66,13 @@ type LayoutEngineTests() =
     member _.``styled runs cover tokenized and unstyled text``() =
         let measurer = createMeasurer ()
         let lines = LayoutEngine.layoutLines measurer 0 [ 0, "let value" ]
+
         let token =
             { Kind = "keyword"
               Line = 0
               Column = 0
               Length = 3 }
+
         let tokens = LayoutEngine.layoutTokens measurer lines [ token ]
         let runs = LayoutEngine.layoutTextRuns measurer lines tokens
 
@@ -81,13 +86,18 @@ type LayoutEngineTests() =
     member _.``token ranges use utf16 offsets and tab visual columns``() =
         let measurer = createMeasurer ()
         let lines = LayoutEngine.layoutLines measurer 0 [ 0, "😀\tlet" ]
+
         let token =
             { Kind = "keyword"
               Line = 0
               Column = 3
               Length = 3 }
+
         let tokens = LayoutEngine.layoutTokens measurer lines [ token ]
-        let run = LayoutEngine.layoutTextRuns measurer lines tokens |> List.find (fun item -> item.Text = "let")
+
+        let run =
+            LayoutEngine.layoutTextRuns measurer lines tokens
+            |> List.find (fun item -> item.Text = "let")
 
         Assert.Equal(3, run.Range.Start.Column)
         Assert.Equal(6, run.Range.End.Column)
@@ -97,16 +107,17 @@ type LayoutEngineTests() =
     [<Fact>]
     member _.``cursor and selection geometry use backend grapheme advances``() =
         let measurer =
-            TextMeasurer.create
-                (TextMetrics.createWithGraphemeAdvance
-                    16.0f
-                    8.0f
-                    4
-                    (fun _ grapheme ->
-                        if grapheme = "🚧" then 16.0f else 8.0f))
+            TextMeasurer.create (
+                TextMetrics.createWithGraphemeAdvance 16.0f 8.0f 4 (fun _ grapheme ->
+                    if grapheme = "🚧" then 16.0f else 8.0f)
+            )
 
         let lines = LayoutEngine.layoutLines measurer 0 [ 0, "a🚧b" ]
-        let cursor = LayoutEngine.layoutCursors measurer 0 lines [ { Line = 0; Column = 3 } ] |> List.exactlyOne
+
+        let cursor =
+            LayoutEngine.layoutCursors measurer 0 lines [ { Line = 0; Column = 3 } ]
+            |> List.exactlyOne
+
         let selection =
             LayoutEngine.layoutSelections
                 measurer
@@ -125,33 +136,100 @@ type LayoutEngineTests() =
     member _.``overlapping and malformed tokens produce non-overlapping clamped runs``() =
         let measurer = createMeasurer ()
         let lines = LayoutEngine.layoutLines measurer 0 [ 0, "abcdef" ]
+
         let tokens =
-            [ { Kind = "keyword"; Line = 0; Column = -2; Length = 5 }
-              { Kind = "string"; Line = 0; Column = 2; Length = 20 } ]
+            [ { Kind = "keyword"
+                Line = 0
+                Column = -2
+                Length = 5 }
+              { Kind = "string"
+                Line = 0
+                Column = 2
+                Length = 20 } ]
             |> LayoutEngine.layoutTokens measurer lines
+
         let runs = LayoutEngine.layoutTextRuns measurer lines tokens
 
         Assert.Equal("abcdef", runs |> List.map (fun run -> run.Text) |> String.concat "")
-        Assert.True(runs |> List.pairwise |> List.forall (fun (left, right) -> left.Range.End.Column = right.Range.Start.Column))
+
+        Assert.True(
+            runs
+            |> List.pairwise
+            |> List.forall (fun (left, right) -> left.Range.End.Column = right.Range.Start.Column)
+        )
 
     [<Fact>]
     member _.``token slicing returns only lines inside the viewport``() =
         let syntax =
             { SyntaxModel.empty with
                 Tokens =
-                    [ { Line = 0; Tokens = [ { Kind = "first"; Line = 0; Column = 0; Length = 1 } ] }
-                      { Line = 2; Tokens = [ { Kind = "third"; Line = 2; Column = 0; Length = 1 } ] } ] }
+                    [ { Line = 0
+                        Tokens =
+                          [ { Kind = "first"
+                              Line = 0
+                              Column = 0
+                              Length = 1 } ] }
+                      { Line = 2
+                        Tokens =
+                          [ { Kind = "third"
+                              Line = 2
+                              Column = 0
+                              Length = 1 } ] } ] }
+
         let input =
             { Buffer = [ "a"; "b"; "c" ]
-              View = { Viewport = { Width = 80; Height = 16 }; VerticalOffset = 2; HorizontalOffset = 0 }
+              View =
+                { Viewport = { Width = 80; Height = 16 }
+                  VerticalOffset = 2
+                  HorizontalOffset = 0 }
               Editing = EditingModel.create ()
               Syntax = syntax
-              Diagnostics = DiagnosticsModel.create () }
+              Diagnostics = DiagnosticsModel.create ()
+              Search = SearchModel.create () }
 
         let tokens = SlicingEngine.sliceTokens 1 input
 
         Assert.Single(tokens) |> ignore
         Assert.Equal("third", tokens.Head.Kind)
+
+    [<Fact>]
+    member _.``search matches become visible active and inactive highlight geometry``() =
+        let measurer = createMeasurer ()
+
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "term here"; "term again" ] }
+
+        let matches = SearchEngine.findInDocument (SearchOptions.create "term") document
+
+        let search =
+            { SearchModel.create () with
+                Matches = matches
+                Index = Some 1 }
+
+        let input =
+            { Buffer = document.Lines
+              View =
+                { Viewport = { Width = 80; Height = 32 }
+                  VerticalOffset = 0
+                  HorizontalOffset = 0 }
+              Editing = EditingModel.create ()
+              Syntax = SyntaxModel.empty
+              Diagnostics = DiagnosticsModel.create ()
+              Search = search }
+
+        let sliced = SlicingEngine.sliceAll 2 input
+        let lines = LayoutEngine.layoutLines measurer 0 sliced.Lines
+
+        let highlights =
+            LayoutEngine.layoutSearchHighlights measurer 0 lines sliced.SearchMatches
+
+        Assert.Equal(2, highlights.Length)
+        Assert.False(highlights[0].IsActive)
+        Assert.True(highlights[1].IsActive)
+        Assert.Equal(32.0f, highlights[1].Rects.Head.Width)
 
     [<Fact>]
     member _.``diagnostics produce glyphs and multiline underlines``() =
@@ -202,7 +280,10 @@ type LayoutEngineTests() =
     member _.``gutter width remains stable for multi-digit document positions``() =
         let measurer = createMeasurer ()
         let gutter = LayoutEngine.gutterWidth measurer 120
-        let lines = LayoutEngine.layoutLinesWithGutter measurer gutter 0 [ 8, "ninth"; 99, "hundredth" ]
+
+        let lines =
+            LayoutEngine.layoutLinesWithGutter measurer gutter 0 [ 8, "ninth"; 99, "hundredth" ]
+
         let numbers = LayoutEngine.layoutLineNumbersWithGutter measurer gutter lines
 
         Assert.True(numbers.[0].X > numbers.[1].X)

@@ -3,6 +3,7 @@ namespace Functor.Avalonia
 open Functor.Application
 open Functor.Avalonia.Controls
 open Functor.Domain.Document
+open Functor.Domain.Search
 open Functor.Workspace
 
 type ShellScrollPresentation =
@@ -18,6 +19,7 @@ type ShellViewInput =
       FileTree: WorkspaceFileTreeNode
       HasActiveDocument: bool
       ActiveDocumentId: DocumentId option
+      Search: SearchModel
       AgentIsOpen: bool
       Status: EditorStatus
       Scroll: ShellScrollPresentation }
@@ -33,6 +35,7 @@ module ShellProjection =
           FileTree = fileTree
           HasActiveDocument = state.Model.ActiveDocument.IsSome
           ActiveDocumentId = state.Workspace.ActiveDocumentId
+          Search = state.Model.Navigation.Search
           AgentIsOpen =
             state.Workspace
             |> WorkspaceModel.activeDocument

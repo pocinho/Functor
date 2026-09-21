@@ -3,6 +3,7 @@ namespace Functor.Avalonia.Views
 open Avalonia.Controls
 open Avalonia.Markup.Xaml
 open Functor.Avalonia
+open Functor.Application
 open Functor.Avalonia.Controls
 open Functor.Domain.Document
 
@@ -17,6 +18,7 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (commandRequested: AppCommand -> unit)
         =
         match model.Layout.ActiveTool, model.Layout.IsToolPanelOpen with
         | Some tool, true ->
@@ -46,6 +48,21 @@ type ShellView() as this =
                             workspaceView.FileOpenRequested.Add(fileOpenRequested)
 
                         workspaceView :> Control
+                    elif tool = SearchTool then
+                        let searchView, isNewView =
+                            match host.CachedSearchContent with
+                            | Some(:? SearchPanelControl as existing) -> existing, false
+                            | _ ->
+                                let created = SearchPanelControl()
+                                host.CachedSearchContent <- Some(created :> Control)
+                                created, true
+
+                        searchView.ApplySearch(input.Search)
+
+                        if isNewView then
+                            searchView.CommandRequested.Add(commandRequested)
+
+                        searchView :> Control
                     else
                         TextBlock(Text = toolTitle tool) :> Control
         | _ ->
@@ -79,11 +96,12 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (commandRequested: AppCommand -> unit)
         =
         let nodes = ShellViewNode.describe model input
         view.ApplyShellInput input
 
-        applyToolPanel sidePanelHost model input documentActivated fileOpenRequested
+        applyToolPanel sidePanelHost model input documentActivated fileOpenRequested commandRequested
         applyAuxiliaryPanel auxiliaryPanelHost input
 
         nodes
@@ -97,6 +115,7 @@ type ShellView() as this =
         (auxiliaryPanelHost: SidePanelControl)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (commandRequested: AppCommand -> unit)
         =
         this.ApplyModelTo(
             this :> IShellProjectionTarget,
@@ -105,7 +124,8 @@ type ShellView() as this =
             model,
             input,
             documentActivated,
-            fileOpenRequested
+            fileOpenRequested,
+            commandRequested
         )
 
     static member applyModel
@@ -116,6 +136,7 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (commandRequested: AppCommand -> unit)
         =
         let shellView = ShellView()
 
@@ -126,7 +147,8 @@ type ShellView() as this =
             model,
             input,
             documentActivated,
-            fileOpenRequested
+            fileOpenRequested,
+            commandRequested
         )
 
     interface IShellProjectionTarget with
@@ -140,8 +162,17 @@ type ShellView() as this =
             model: ShellModel,
             input: ShellViewInput,
             documentActivated: DocumentId -> unit,
-            fileOpenRequested: string -> unit
+            fileOpenRequested: string -> unit,
+            commandRequested: AppCommand -> unit
         ) =
-        applyModelCore view sidePanelHost auxiliaryPanelHost model input documentActivated fileOpenRequested
+        applyModelCore
+            view
+            sidePanelHost
+            auxiliaryPanelHost
+            model
+            input
+            documentActivated
+            fileOpenRequested
+            commandRequested
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)
