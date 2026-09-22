@@ -56,6 +56,12 @@ module SearchLogic =
             Index = if matches.IsEmpty then None else Some 0
             IsDirty = false }
 
+    let private setSearchIndex (model: SearchModel) index =
+        if index >= 0 && index < model.Matches.Length then
+            { model with Index = Some index }
+        else
+            model
+
     let private nextSearchResult (model: SearchModel) =
         match model.Index with
         | None -> model
@@ -100,6 +106,7 @@ module SearchLogic =
         | SetSearchQuery query -> setSearchQuery model query
         | SetSearchResults results -> setSearchResults model results
         | SetSearchMatches(revision, matches) -> setSearchMatches model revision matches
+        | SetSearchIndex index -> setSearchIndex model index
         | SetSearchOptions options -> setSearchOptions model options
         | NextSearchResult -> nextSearchResult model
         | PrevSearchResult -> prevSearchResult model

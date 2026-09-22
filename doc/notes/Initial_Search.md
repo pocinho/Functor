@@ -15,6 +15,14 @@ Implement the Phase 7.1 search workflow across the domain, application, renderin
 
 The implementation should preserve the existing UTF-16 document-offset contract and the existing workspace/document identity model.
 
+## Implemented Behavior
+
+- Search is literal and line-local. It is ordinal case-insensitive by default and supports an explicit case-sensitive option. Regex, fuzzy, whole-word, structural, and multiline matching remain outside this phase.
+- Active and open documents are searched from their current in-memory buffers, so unsaved edits take precedence over disk content. Workspace search is constrained to the canonical workspace root and applies the configured text-file and binary-file filters.
+- Workspace search reads unopened files in bounded batches. The Search panel scrolls its results, and reaching the end requests the next batch; continuation requests reuse the candidate path list instead of re-enumerating the workspace.
+- Workspace replacement uses the captured source snapshots. Open documents are edited through normal editor events only when their captured revision is still current. Unopened files are reread before writing; changed files are reported as stale and are not overwritten. Read and write failures are reported separately from stale files.
+- Search history is session-only, bounded, deduplicated, excludes empty queries, and is cleared explicitly.
+
 ## Current Baseline
 
 The repository already provides several foundations that Phase 7.1 should extend rather than replace:

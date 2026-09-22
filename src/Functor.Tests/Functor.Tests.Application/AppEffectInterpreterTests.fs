@@ -47,6 +47,7 @@ type private WorkspaceSearchFileService() =
                     Ok
                         [ "C:\work\open.fs"
                           "C:\work\other.fs"
+                          "C:\work\project.fsproj"
                           "C:\work\ignored.bin"
                           "C:\outside.fs" ]
             }
@@ -104,7 +105,10 @@ type AppEffectInterpreterTests() =
                     Name = "open.fs"
                     Lines = [ "unsaved term" ] } ]
               OpenDocumentPaths = Set.ofList [ "C:\work\open.fs" ]
-              OpenDocumentRevisions = Map.ofList [ documentId, 0L ] }
+              OpenDocumentRevisions = Map.ofList [ documentId, 0L ]
+              CandidatePaths = []
+              Offset = 0
+              BatchSize = 64 }
 
         let interpreter =
             AppEffectInterpreter(
@@ -119,17 +123,20 @@ type AppEffectInterpreterTests() =
         match commands |> Seq.toList with
         | [ WorkspaceSearchCompleted result ] ->
             Assert.Equal(workspaceId, result.WorkspaceId)
-            Assert.Equal(2, result.Matches.Length)
+            Assert.Equal(3, result.Matches.Length)
+            Assert.True(result.IsComplete)
+            Assert.Equal(5, result.NextOffset)
+            Assert.Equal(5, result.CandidatePaths.Length)
 
             Assert.Equal<string list>(
-                [ "C:\work\open.fs"; "C:\work\other.fs" ],
+                [ "C:\work\open.fs"; "C:\work\other.fs"; "C:\work\project.fsproj" ],
                 result.Documents |> List.map (fun document -> document.Path.Value)
             )
 
             Assert.Equal("disk term", result.Sources["C:\work\other.fs"])
 
             Assert.Equal<string list>(
-                [ "C:\work\open.fs"; "C:\work\other.fs" ],
+                [ "C:\work\open.fs"; "C:\work\other.fs"; "C:\work\project.fsproj" ],
                 result.Matches |> List.map (fun matchValue -> matchValue.Path.Value)
             )
 
@@ -147,6 +154,42 @@ type AppEffectInterpreterTests() =
             Assert.DoesNotContain(result.Matches, fun matchValue -> matchValue.Path = Some "C:\outside.fs")
             Assert.DoesNotContain("C:\work\open.fs", fileService.Reads)
             Assert.Contains("C:\work\other.fs", fileService.Reads)
+        | _ -> Assert.True(false, "Expected one workspace search completion.")
+
+    [<Fact>]
+    member _.``workspace search reads one bounded batch at a time``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = WorkspaceSearchFileService()
+
+        let request: WorkspaceSearchRequest =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              RootPath = "C:\work"
+              Options = SearchOptions.create "term"
+              OpenDocuments = []
+              OpenDocumentPaths = Set.empty
+              OpenDocumentRevisions = Map.empty
+              CandidatePaths = [ "C:\work\other.fs"; "C:\work\second.fs" ]
+              Offset = 0
+              BatchSize = 1 }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.searchWorkspace request) |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceSearchCompleted result ] ->
+            Assert.False(result.IsComplete)
+            Assert.Equal(1, result.NextOffset)
+            Assert.Single(result.Matches) |> ignore
+            Assert.Single(fileService.Reads) |> ignore
+            Assert.Equal("C:\work\other.fs", fileService.Reads[0])
         | _ -> Assert.True(false, "Expected one workspace search completion.")
 
     [<Fact>]

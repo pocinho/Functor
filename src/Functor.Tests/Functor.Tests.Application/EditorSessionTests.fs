@@ -157,7 +157,10 @@ type EditorSessionTests() =
                   Sources = Map.empty
                   Matches = staleMatches
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions
+                  CandidatePaths = request.CandidatePaths
+                  NextOffset = request.Offset
+                  IsComplete = true }
         )
 
         Assert.Empty(session.State.Model.Navigation.Search.Matches)
@@ -210,7 +213,10 @@ type EditorSessionTests() =
                   Sources = Map.ofList [ "C:\work\unopened.fs", "term" ]
                   Matches = [ matchValue ]
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions
+                  CandidatePaths = request.CandidatePaths
+                  NextOffset = request.Offset
+                  IsComplete = true }
         )
 
         requestedEffects.Clear()
@@ -222,6 +228,49 @@ type EditorSessionTests() =
             | AppEffect.ReplaceWorkspace(replacement, _) -> replacement.Replacements["C:\work\unopened.fs"] = "word"
             | _ -> false
         )
+
+    [<Fact>]
+    member _.``workspace replace-all reports stale open documents``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\open.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let request =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        let staleMatches =
+            request.OpenDocuments
+            |> List.collect (SearchEngine.findInDocument request.Options)
+
+        session.DispatchCommand(
+            AppCommand.workspaceSearchCompleted
+                { RequestId = request.RequestId
+                  WorkspaceId = request.WorkspaceId
+                  Options = request.Options
+                  Documents = request.OpenDocuments
+                  Sources = Map.empty
+                  Matches = staleMatches
+                  Errors = []
+                  OpenDocumentRevisions = request.OpenDocumentRevisions
+                  CandidatePaths = request.CandidatePaths
+                  NextOffset = request.Offset
+                  IsComplete = true }
+        )
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
+        session.DispatchCommand(AppCommand.replaceAllSearch "word")
+
+        Assert.Equal<string list>([ " changedterm" ], session.State.Model.Editing.Buffer)
+        Assert.Equal(Some "Skipped 1 stale file(s).", session.State.Status.Message)
 
     [<Fact>]
     member _.``next and previous search results select and reveal the active match``() =
@@ -258,6 +307,7 @@ type EditorSessionTests() =
         session.DispatchCommand(AppCommand.activateSearchResult result)
 
         Assert.Equal(Some result.DocumentId, session.State.Workspace.ActiveDocumentId)
+        Assert.Equal(Some 0, session.State.Model.Navigation.Search.Index)
         Assert.Equal(Some result.Range, session.State.Model.Editing.Selection)
         Assert.Equal(result.Line, session.State.Model.View.VerticalOffset)
 

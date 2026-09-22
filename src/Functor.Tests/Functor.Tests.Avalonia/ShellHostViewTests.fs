@@ -95,9 +95,9 @@ type ShellHostViewTests() =
         let panel =
             host.FindControl<SidePanelControl>("SidePanelHost").PanelContent :?> SearchPanelControl
 
-        let content = panel.Content :?> StackPanel
+        let content = panel.Content :?> Grid
         let queryBox = content.Children[0] :?> TextBox
-        let caseSensitive = content.Children[1] :?> CheckBox
+        let caseSensitive = content.Children[2] :?> CheckBox
         let commands = ResizeArray<AppCommand>()
         panel.CommandRequested.Add(commands.Add)
 

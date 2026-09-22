@@ -12,7 +12,10 @@ type WorkspaceSearchRequest =
       Options: SearchOptions
       OpenDocuments: SearchDocument list
       OpenDocumentPaths: Set<string>
-      OpenDocumentRevisions: Map<DocumentId, int64> }
+      OpenDocumentRevisions: Map<DocumentId, int64>
+      CandidatePaths: string list
+      Offset: int
+      BatchSize: int }
 
 type WorkspaceSearchResult =
     { RequestId: Guid
@@ -22,7 +25,10 @@ type WorkspaceSearchResult =
       Sources: Map<string, string>
       Matches: SearchMatch list
       Errors: string list
-      OpenDocumentRevisions: Map<DocumentId, int64> }
+      OpenDocumentRevisions: Map<DocumentId, int64>
+      CandidatePaths: string list
+      NextOffset: int
+      IsComplete: bool }
 
 type WorkspaceReplacementRequest =
     { RequestId: Guid

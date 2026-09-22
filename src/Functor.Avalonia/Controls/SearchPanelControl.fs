@@ -1,8 +1,12 @@
 namespace Functor.Avalonia.Controls
 
 open System
+open System.Threading
+open System.Threading.Tasks
+open Avalonia
 open Avalonia.Automation
 open Avalonia.Controls
+open Avalonia.Controls.Primitives
 open Avalonia.Layout
 open Avalonia.Threading
 open Functor.Application
@@ -15,38 +19,77 @@ type SearchPanelControl() as this =
     let queryBox = TextBox(PlaceholderText = "Search")
     let replacementBox = TextBox(PlaceholderText = "Replace")
     let caseSensitive = CheckBox(Content = "Case sensitive")
-    let previousButton = Button(Content = "Previous")
-    let nextButton = Button(Content = "Next")
-    let openDocumentsButton = Button(Content = "Open files")
     let clearButton = Button(Content = "Clear")
     let replaceButton = Button(Content = "Replace")
     let replaceAllButton = Button(Content = "Replace all")
     let clearHistoryButton = Button(Content = "Clear history")
     let countText = TextBlock()
     let resultsPanel = StackPanel(Spacing = 4.0)
+
+    let resultsScroller =
+        ScrollViewer(VerticalScrollBarVisibility = ScrollBarVisibility.Auto)
+
     let commandRequested = Event<AppCommand>()
     let mutable applying = false
+    let mutable queryDebounce = new CancellationTokenSource()
+    let mutable renderedMatches: SearchMatch list = []
+    let renderedButtons = System.Collections.Generic.Dictionary<SearchMatch, Button>()
 
     let onUiThread action =
         Dispatcher.UIThread.Post(Action action) |> ignore
 
+    let scheduleQuerySearch query =
+        queryDebounce.Cancel()
+        queryDebounce.Dispose()
+        queryDebounce <- new CancellationTokenSource()
+        let cancellationToken = queryDebounce.Token
+
+        Async.StartImmediate(
+            async {
+                try
+                    do! Task.Delay(250, cancellationToken) |> Async.AwaitTask
+
+                    if not cancellationToken.IsCancellationRequested then
+                        onUiThread (fun () ->
+                            if
+                                not cancellationToken.IsCancellationRequested
+                                && not applying
+                                && not (isNull (TopLevel.GetTopLevel(this)))
+                            then
+                                commandRequested.Trigger(AppCommand.searchQueryChanged query))
+                with :? OperationCanceledException ->
+                    ()
+            },
+            cancellationToken
+        )
+
     let content =
         let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 6.0)
-        buttons.Children.Add(previousButton) |> ignore
-        buttons.Children.Add(nextButton) |> ignore
-        buttons.Children.Add(openDocumentsButton) |> ignore
         buttons.Children.Add(clearButton) |> ignore
         buttons.Children.Add(replaceButton) |> ignore
         buttons.Children.Add(replaceAllButton) |> ignore
         buttons.Children.Add(clearHistoryButton) |> ignore
 
-        let panel = StackPanel(Spacing = 8.0)
+        let panel = Grid(RowSpacing = 8.0)
+        panel.RowDefinitions.Add(RowDefinition(GridLength.Auto))
+        panel.RowDefinitions.Add(RowDefinition(GridLength.Auto))
+        panel.RowDefinitions.Add(RowDefinition(GridLength.Auto))
+        panel.RowDefinitions.Add(RowDefinition(GridLength.Auto))
+        panel.RowDefinitions.Add(RowDefinition(GridLength.Auto))
+        panel.RowDefinitions.Add(RowDefinition(GridLength(1.0, GridUnitType.Star)))
+
         panel.Children.Add(queryBox) |> ignore
+        Grid.SetRow(replacementBox, 1)
         panel.Children.Add(replacementBox) |> ignore
+        Grid.SetRow(caseSensitive, 2)
         panel.Children.Add(caseSensitive) |> ignore
+        Grid.SetRow(buttons, 3)
         panel.Children.Add(buttons) |> ignore
+        Grid.SetRow(countText, 4)
         panel.Children.Add(countText) |> ignore
-        panel.Children.Add(resultsPanel) |> ignore
+        resultsScroller.Content <- resultsPanel
+        Grid.SetRow(resultsScroller, 5)
+        panel.Children.Add(resultsScroller) |> ignore
         panel
 
     do
@@ -61,9 +104,6 @@ type SearchPanelControl() as this =
         AutomationProperties.SetName(queryBox, "Search query")
         AutomationProperties.SetName(replacementBox, "Replacement text")
         AutomationProperties.SetName(caseSensitive, "Case sensitive search")
-        AutomationProperties.SetName(previousButton, "Previous search result")
-        AutomationProperties.SetName(nextButton, "Next search result")
-        AutomationProperties.SetName(openDocumentsButton, "Search open documents")
         AutomationProperties.SetName(clearButton, "Clear search")
         AutomationProperties.SetName(replaceButton, "Replace current search result")
         AutomationProperties.SetName(replaceAllButton, "Replace all search results")
@@ -73,7 +113,7 @@ type SearchPanelControl() as this =
             if not applying then
                 onUiThread (fun () ->
                     if not applying && not (isNull (TopLevel.GetTopLevel(this))) then
-                        commandRequested.Trigger(AppCommand.searchQueryChanged queryBox.Text)))
+                        scheduleQuerySearch queryBox.Text))
 
         caseSensitive.IsCheckedChanged.Add(fun _ ->
             if not applying then
@@ -85,13 +125,21 @@ type SearchPanelControl() as this =
                                   CaseSensitive = caseSensitive.IsChecked.GetValueOrDefault() }
                         )))
 
-        previousButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.previousSearchResult))
-        nextButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.nextSearchResult))
-        openDocumentsButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.searchOpenDocuments))
         clearButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.clearSearch))
         replaceButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceCurrentSearch replacementBox.Text))
         replaceAllButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceAllSearch replacementBox.Text))
         clearHistoryButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.clearSearchHistory))
+
+        resultsScroller.PropertyChanged.Add(
+            (fun args ->
+                if
+                    args.Property = ScrollViewer.OffsetProperty
+                    && resultsScroller.Extent.Height > resultsScroller.Viewport.Height
+                    && resultsScroller.Offset.Y + resultsScroller.Viewport.Height
+                       >= resultsScroller.Extent.Height - 24.0
+                then
+                    commandRequested.Trigger(AppCommand.searchWorkspaceMore))
+        )
 
     member _.CommandRequested = commandRequested.Publish
 
@@ -105,14 +153,20 @@ type SearchPanelControl() as this =
             search.Index |> Option.map (fun index -> index + 1) |> Option.defaultValue 0
 
         countText.Text <- sprintf "%d of %d" current search.Matches.Length
-        previousButton.IsEnabled <- search.Matches.Length > 0
-        nextButton.IsEnabled <- search.Matches.Length > 0
         clearButton.IsEnabled <- search.Query.IsSome
 
-        resultsPanel.Children.Clear()
+        let canReuse =
+            search.Matches.Length >= renderedMatches.Length
+            && List.forall2 (=) renderedMatches (search.Matches |> List.take renderedMatches.Length)
+
+        if not canReuse then
+            resultsPanel.Children.Clear()
+            renderedButtons.Clear()
+            renderedMatches <- []
 
         search.Matches
-        |> List.iteri (fun index matchValue ->
+        |> List.skip renderedMatches.Length
+        |> List.iter (fun matchValue ->
             let path = matchValue.Path |> Option.defaultValue matchValue.Name
 
             let label =
@@ -121,6 +175,12 @@ type SearchPanelControl() as this =
             let resultButton =
                 Button(Content = label, HorizontalContentAlignment = HorizontalAlignment.Left)
 
-            resultButton.Classes.Set("selected", search.Index = Some index)
             resultButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.activateSearchResult matchValue))
+            renderedButtons[matchValue] <- resultButton
             resultsPanel.Children.Add(resultButton) |> ignore)
+
+        renderedMatches <- search.Matches
+
+        search.Matches
+        |> List.iteri (fun index matchValue ->
+            renderedButtons[matchValue].Classes.Set("selected", search.Index = Some index))

@@ -18,6 +18,8 @@ type EditorSession(initialModel: CoreModel) =
 
     let pendingSaves = EditorSessionPersistence()
     let mutable workspaceSearchRequestId: Guid option = None
+    let mutable workspaceSearchRequest: WorkspaceSearchRequest option = None
+    let mutable workspaceSearchBatchInFlight = false
     let mutable workspaceReplacementRequestId: Guid option = None
     let mutable workspaceSearchResult: WorkspaceSearchResult option = None
     let mutable pendingSearchActivation: SearchMatch option = None
@@ -174,6 +176,10 @@ type EditorSession(initialModel: CoreModel) =
         | _ -> ()
 
     let activateSearchMatch (matchValue: SearchMatch) =
+        state.Model.Navigation.Search.Matches
+        |> List.tryFindIndex ((=) matchValue)
+        |> Option.iter (fun index -> updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchIndex index)))
+
         let activate documentId =
             updateModel (SwitchDocument documentId)
             updateModel (ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.SetSelection(Some matchValue.Range)))
@@ -280,6 +286,10 @@ type EditorSession(initialModel: CoreModel) =
 
     let replaceWorkspaceSearch replacement =
         match state.Workspace.RootPath, workspaceSearchResult with
+        | Some _, Some result when not result.IsComplete ->
+            state <- AppSessionState.withMessage "Load all workspace search results before replacing." state
+            publishState ()
+            publishStatus ()
         | Some _, Some result ->
             let openDocumentIds =
                 state.Workspace.Documents |> Map.toSeq |> Seq.map fst |> Set.ofSeq
@@ -294,6 +304,13 @@ type EditorSession(initialModel: CoreModel) =
             if unopenedMatches.IsEmpty then
                 if openReplacementCount > 0 then
                     updateModel (ApplyNavigationEvent NavigationEvent.InvalidateSearch)
+
+                if not staleOpenPaths.IsEmpty then
+                    state <-
+                        AppSessionState.withMessage (sprintf "Skipped %d stale file(s)." staleOpenPaths.Length) state
+
+                    publishState ()
+                    publishStatus ()
             else
                 match WorkspaceReplacement.apply replacement result.Sources unopenedMatches with
                 | Error errors ->
@@ -357,9 +374,14 @@ type EditorSession(initialModel: CoreModel) =
                   Options = state.Model.Navigation.Search.Options
                   OpenDocuments = openDocuments
                   OpenDocumentPaths = openDocumentPaths
-                  OpenDocumentRevisions = openDocumentRevisions }
+                  OpenDocumentRevisions = openDocumentRevisions
+                  CandidatePaths = []
+                  Offset = 0
+                  BatchSize = 64 }
 
             workspaceSearchRequestId <- Some requestId
+            workspaceSearchRequest <- Some request
+            workspaceSearchBatchInFlight <- true
             requestEffects [ AppEffect.searchWorkspace request ]
 
     let searchOpenDocuments () =
@@ -386,6 +408,19 @@ type EditorSession(initialModel: CoreModel) =
         | Some _ -> requestWorkspaceSearch ()
         | None -> searchOpenDocuments ()
 
+    let requestWorkspaceSearchMore () =
+        match workspaceSearchRequest, workspaceSearchResult with
+        | Some request, Some result when not workspaceSearchBatchInFlight && not result.IsComplete ->
+            let nextRequest =
+                { request with
+                    CandidatePaths = result.CandidatePaths
+                    Offset = result.NextOffset }
+
+            workspaceSearchRequest <- Some nextRequest
+            workspaceSearchBatchInFlight <- true
+            requestEffects [ AppEffect.searchWorkspace nextRequest ]
+        | _ -> ()
+
     let replaceWorkspace path =
         tokenization.Reset()
         pendingSaves.Reset()
@@ -398,6 +433,8 @@ type EditorSession(initialModel: CoreModel) =
         globalSearch <- SearchModel.create ()
 
         workspaceSearchRequestId <- None
+        workspaceSearchRequest <- None
+        workspaceSearchBatchInFlight <- false
         workspaceReplacementRequestId <- None
         workspaceSearchResult <- None
 
@@ -716,6 +753,7 @@ type EditorSession(initialModel: CoreModel) =
         | ClearSearchHistoryRequested -> updateModel (ApplyNavigationEvent NavigationEvent.ClearSearchHistory)
         | OpenDocumentsSearchRequested -> searchOpenDocuments ()
         | WorkspaceSearchRequested -> requestWorkspaceSearch ()
+        | WorkspaceSearchMoreRequested -> requestWorkspaceSearchMore ()
         | WorkspaceSearchCompleted result ->
             let isCurrentRequest = workspaceSearchRequestId = Some result.RequestId
             let isCurrentWorkspace = state.Workspace.Id = result.WorkspaceId
@@ -734,16 +772,35 @@ type EditorSession(initialModel: CoreModel) =
                 && isCurrentOptions
                 && areOpenDocumentRevisionsCurrent
             then
-                workspaceSearchResult <- Some result
+                workspaceSearchBatchInFlight <- false
+
+                let combinedResult =
+                    match workspaceSearchResult with
+                    | None -> result
+                    | Some previous ->
+                        { result with
+                            Documents = previous.Documents @ result.Documents
+                            Sources =
+                                result.Sources
+                                |> Map.fold (fun sources path contents -> sources.Add(path, contents)) previous.Sources
+                            Matches = previous.Matches @ result.Matches
+                            Errors = previous.Errors @ result.Errors }
+
+                workspaceSearchResult <- Some combinedResult
 
                 updateModel (
-                    ApplyNavigationEvent(NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, result.Matches))
+                    ApplyNavigationEvent(
+                        NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, combinedResult.Matches)
+                    )
                 )
 
-                if not result.Errors.IsEmpty then
-                    state <- AppSessionState.withMessage (String.concat "\n" result.Errors) state
+                if not combinedResult.Errors.IsEmpty then
+                    state <- AppSessionState.withMessage (String.concat "\n" combinedResult.Errors) state
                     publishState ()
                     publishStatus ()
+
+                if combinedResult.Matches.IsEmpty && not combinedResult.IsComplete then
+                    requestWorkspaceSearchMore ()
         | WorkspaceReplacementCompleted result when workspaceReplacementRequestId = Some result.RequestId ->
             workspaceReplacementRequestId <- None
             workspaceSearchResult <- None

@@ -48,6 +48,7 @@ type AppCommand =
     | ClearSearchHistoryRequested
     | OpenDocumentsSearchRequested
     | WorkspaceSearchRequested
+    | WorkspaceSearchMoreRequested
     | WorkspaceSearchCompleted of result: WorkspaceSearchResult
     | WorkspaceReplacementCompleted of result: WorkspaceReplacementResult
 
@@ -128,6 +129,8 @@ module AppCommand =
     let clearSearchHistory = ClearSearchHistoryRequested
 
     let searchOpenDocuments = OpenDocumentsSearchRequested
+
+    let searchWorkspaceMore = WorkspaceSearchMoreRequested
 
     let workspaceSearch = WorkspaceSearchRequested
 

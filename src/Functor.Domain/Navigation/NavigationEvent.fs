@@ -44,6 +44,9 @@ type NavigationEvent =
     static member SetSearchMatches(revision, matches) =
         Search(SearchEvent.SetSearchMatches(revision, matches))
 
+    static member SetSearchIndex index =
+        Search(SearchEvent.SetSearchIndex index)
+
     static member SetSearchOptions options =
         Search(SearchEvent.SetSearchOptions options)
 
@@ -72,6 +75,8 @@ module NavigationEventConstructors =
 
     let SetSearchMatches (revision, matches) =
         NavigationEvent.SetSearchMatches(revision, matches)
+
+    let SetSearchIndex index = NavigationEvent.SetSearchIndex index
 
     let SetSearchOptions options =
         NavigationEvent.SetSearchOptions options

@@ -225,24 +225,24 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 
 ### Workspace replacement
 
-- [ ] Group replacements by document.
-- [ ] Apply replacements only to unchanged search snapshots.
+- [x] Group replacements by document.
+- [x] Apply replacements only to unchanged search snapshots.
 - [ ] Route dirty documents through normal dirty-state and save flows.
-- [ ] Avoid direct writes that bypass file-service error handling.
-- [ ] Report stale documents separately from write failures.
+- [x] Avoid direct writes that bypass file-service error handling.
+- [x] Report stale documents separately from write failures.
 - [ ] Define partial-failure behavior and user-visible status.
 
 ### Tests
 
 - [x] Test replacement text containing Unicode.
 - [x] Test replacement length changes.
-- [ ] Test zero matches.
+- [x] Test zero matches.
 - [x] Test current-match replace.
 - [x] Test current-document replace-all.
-- [ ] Test replace-all across multiple files.
+- [x] Test replace-all across multiple files.
 - [ ] Test dirty documents.
 - [x] Test stale revisions.
-- [ ] Test write failures.
+- [x] Test write failures.
 - [ ] Test partial failure reporting.
 - [ ] Test undo/redo behavior.
 
@@ -273,10 +273,10 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 
 ### Documentation
 
-- [ ] Document literal-search limitations.
-- [ ] Document file filtering and workspace scope.
-- [ ] Document replacement revision-safety behavior.
-- [ ] Document search history scope.
+- [x] Document literal-search limitations.
+- [x] Document file filtering and workspace scope.
+- [x] Document replacement revision-safety behavior.
+- [x] Document search history scope.
 - [ ] Update relevant architecture notes after implementation is complete.
 - [ ] Mark completed Phase 7.1 items in `ROADMAP.md` only after acceptance checks pass.
 
