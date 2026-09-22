@@ -65,7 +65,7 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Test option changes reset results and selection.
 - [x] Test edits invalidate old ranges.
 - [x] Test global search state across document tab switches.
-- [ ] Test next/previous bounds and no-result behavior.
+- [x] Test next/previous bounds and no-result behavior.
 - [x] Test clear-search behavior.
 - [x] Test stale-result rejection.
 
@@ -98,11 +98,11 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Test active-buffer search sees unsaved edits.
 - [x] Test open documents are not reread from disk.
 - [x] Test unopened files are read through the abstraction.
-- [ ] Test cancellation and stale results.
+- [x] Test cancellation and stale results.
 - [x] Test out-of-root files are excluded.
-- [ ] Test inaccessible files produce recoverable status.
+- [x] Test inaccessible files produce recoverable status.
 - [x] Test deterministic workspace ordering.
-- [ ] Test workspace identity prevents old results from being applied.
+- [x] Test workspace identity prevents old results from being applied.
 
 ## Slice 4 - Rendering Search Highlights
 
@@ -210,7 +210,7 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Test unsaved open-file precedence.
 - [x] Test workspace switching.
 - [x] Test tab switching.
-- [ ] Test result identity after refresh.
+- [x] Test result identity after refresh.
 
 ## Slice 8 - Safe Replacement
 

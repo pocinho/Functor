@@ -188,12 +188,21 @@
             <Setter Property="Foreground" Value="{DynamicResource Theme.Border}" />
         </Style>
 
+        <Style Selector="ScrollBar.editor-scrollbar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        
         <Style Selector="ScrollBar:pointerover">
             <Setter Property="Foreground" Value="{DynamicResource Theme.Focus}" />
         </Style>
 
         <Style Selector="ScrollBar:focus-visible">
             <Setter Property="Foreground" Value="{DynamicResource Theme.Focus}" />
+        </Style>
+
+        <Style Selector="Control.editor-minimap">
+            <Setter Property="Opacity" Value="0.78" />
         </Style>
 
         <Style Selector="ToolTip">

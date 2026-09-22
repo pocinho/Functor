@@ -3,7 +3,6 @@ namespace Functor.Avalonia.Views
 open System
 open Avalonia
 open Avalonia.Controls
-open Avalonia.Controls.Primitives
 open Avalonia.Layout
 open Avalonia.Media
 open Avalonia.Markup.Xaml
@@ -20,8 +19,6 @@ type ShellHostView() as this =
 
     let editor = lazy (this.FindControl<EditorControl>("EditorControl"))
     let welcomeView = lazy (this.FindControl<WelcomeView>("WelcomeView"))
-    let verticalScrollBar = lazy (this.FindControl<ScrollBar>("VerticalScrollBar"))
-    let horizontalScrollBar = lazy (this.FindControl<ScrollBar>("HorizontalScrollBar"))
     let statusBar = lazy (this.FindControl<Border>("StatusBar"))
     let positionText = lazy (this.FindControl<TextBlock>("PositionText"))
     let fileTypeText = lazy (this.FindControl<TextBlock>("FileTypeText"))
@@ -79,24 +76,6 @@ type ShellHostView() as this =
                 (fun active -> settingsActive <- active),
                 (fun () -> editor.Value.Focus() |> ignore)
             ))
-
-    let updateScrollBarFromProjection (scroll: ShellScrollPresentation) =
-        let verticalScrollBar = verticalScrollBar.Value
-        let horizontalScrollBar = horizontalScrollBar.Value
-
-        verticalScrollBar.Maximum <- scroll.VerticalMaximum
-        verticalScrollBar.ViewportSize <- scroll.VerticalViewport
-        verticalScrollBar.LargeChange <- max 1.0 scroll.VerticalViewport
-        verticalScrollBar.IsEnabled <- scroll.VerticalMaximum > 0.0
-        verticalScrollBar.Value <- scroll.VerticalOffset
-        horizontalScrollBar.Maximum <- scroll.HorizontalMaximum
-        horizontalScrollBar.ViewportSize <- scroll.HorizontalViewport
-        horizontalScrollBar.LargeChange <- max 1.0 scroll.HorizontalViewport
-        horizontalScrollBar.IsEnabled <- scroll.HorizontalMaximum > 0.0
-        horizontalScrollBar.Value <- scroll.HorizontalOffset
-
-    let updateScrollBar () =
-        updateScrollBarFromProjection (ShellProjection.fromEditor editor.Value).Scroll
 
     let updateEditorStatus (status: Functor.Application.EditorStatus) =
         positionText.Value.Text <- sprintf "Ln %d, Col %d" status.Line status.Column
@@ -250,24 +229,10 @@ type ShellHostView() as this =
         requestRefresh <- refreshOnUiThread
 
         let editor = editor.Value
-        let verticalScrollBar = verticalScrollBar.Value
-        let horizontalScrollBar = horizontalScrollBar.Value
 
         editor.StatusChanged.Add(fun status ->
             if status.PendingAction.IsSome && not confirmationOpen then
                 showDiscardDialog ())
-
-        verticalScrollBar.ValueChanged.Add(fun args ->
-            let offset = int (Math.Round(args.NewValue))
-
-            if offset <> editor.VerticalOffset then
-                editor.ScrollVerticalTo(offset))
-
-        horizontalScrollBar.ValueChanged.Add(fun args ->
-            let offset = int (Math.Round(args.NewValue))
-
-            if offset <> editor.HorizontalOffset then
-                editor.ScrollHorizontalTo(offset))
 
         welcomeView.Value.NewFileRequested.Add(fun _ -> commandRequested.Trigger(AppCommand.newDocument))
 
@@ -275,7 +240,6 @@ type ShellHostView() as this =
 
         welcomeView.Value.OpenFolderRequested.Add(fun _ -> commandRequested.Trigger(AppCommand.openFolder))
 
-        updateScrollBar ()
         updateEditorStatus editor.EditorStatus
         updateTabs editor.SessionState
         updateEmptyState editor.SessionState
@@ -378,7 +342,6 @@ type ShellHostView() as this =
             updateTabsFromProjection input.Tabs
             updateEmptyStateFromProjection input.HasActiveDocument
             updateEditorStatus input.Status
-            updateScrollBarFromProjection input.Scroll
 
     member _.Model = model
 

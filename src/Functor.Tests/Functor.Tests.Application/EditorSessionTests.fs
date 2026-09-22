@@ -167,6 +167,100 @@ type EditorSessionTests() =
         Assert.True(session.State.Model.Navigation.Search.IsDirty)
 
     [<Fact>]
+    member _.``workspace search completion is rejected after workspace replacement``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work\old")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\old\file.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let request =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work\new")
+
+        let staleMatch =
+            request.OpenDocuments
+            |> List.collect (SearchEngine.findInDocument request.Options)
+
+        session.DispatchCommand(
+            AppCommand.workspaceSearchCompleted
+                { RequestId = request.RequestId
+                  WorkspaceId = request.WorkspaceId
+                  Options = request.Options
+                  Documents = request.OpenDocuments
+                  Sources = Map.empty
+                  Matches = staleMatch
+                  Errors = []
+                  OpenDocumentRevisions = request.OpenDocumentRevisions
+                  CandidatePaths = request.CandidatePaths
+                  NextOffset = request.Offset
+                  IsComplete = true }
+        )
+
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
+        Assert.Null(session.State.Model.Navigation.Search.Query)
+
+    [<Fact>]
+    member _.``workspace search completion is rejected after refresh``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let firstRequest =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        let matchesBeforeRefresh = session.State.Model.Navigation.Search.Matches
+        session.DispatchCommand(AppCommand.refreshSearch)
+
+        let secondRequest =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        Assert.NotEqual(firstRequest.RequestId, secondRequest.RequestId)
+
+        let staleMatches =
+            firstRequest.OpenDocuments
+            |> List.collect (SearchEngine.findInDocument firstRequest.Options)
+
+        session.DispatchCommand(
+            AppCommand.workspaceSearchCompleted
+                { RequestId = firstRequest.RequestId
+                  WorkspaceId = firstRequest.WorkspaceId
+                  Options = firstRequest.Options
+                  Documents = firstRequest.OpenDocuments
+                  Sources = Map.empty
+                  Matches = staleMatches
+                  Errors = []
+                  OpenDocumentRevisions = firstRequest.OpenDocumentRevisions
+                  CandidatePaths = firstRequest.CandidatePaths
+                  NextOffset = firstRequest.Offset
+                  IsComplete = true }
+        )
+
+        Assert.Equal<SearchMatch list>(matchesBeforeRefresh, session.State.Model.Navigation.Search.Matches)
+
+    [<Fact>]
     member _.``workspace replace-all requests a safe effect for unopened matches``() =
         let session = EditorSession()
         let requestedEffects = ResizeArray<AppEffect list>()

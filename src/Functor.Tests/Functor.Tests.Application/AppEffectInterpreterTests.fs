@@ -54,6 +54,21 @@ type private WorkspaceSearchFileService() =
 
         member _.WriteText(_, _) = async { return Ok() }
 
+type private RecoverableWorkspaceSearchFileService() =
+    interface IFileService with
+        member _.ReadText path =
+            async {
+                if path.EndsWith("missing.fs", StringComparison.OrdinalIgnoreCase) then
+                    return Error "access denied"
+                else
+                    return Ok "term"
+            }
+
+        member _.EnumerateFiles _ =
+            async { return Ok [ "C:\work\available.fs"; "C:\work\missing.fs" ] }
+
+        member _.WriteText(_, _) = async { return Ok() }
+
 type private InterpreterDialogService(openPath: string option, savePath: string option) =
     interface IDialogService with
         member _.OpenFile() = async { return openPath }
@@ -190,6 +205,74 @@ type AppEffectInterpreterTests() =
             Assert.Single(result.Matches) |> ignore
             Assert.Single(fileService.Reads) |> ignore
             Assert.Equal("C:\work\other.fs", fileService.Reads[0])
+        | _ -> Assert.True(false, "Expected one workspace search completion.")
+
+    [<Fact>]
+    member _.``workspace search honors cancellation before traversal``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = WorkspaceSearchFileService()
+
+        let request: WorkspaceSearchRequest =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              RootPath = "C:\work"
+              Options = SearchOptions.create "term"
+              OpenDocuments = []
+              OpenDocumentPaths = Set.empty
+              OpenDocumentRevisions = Map.empty
+              CandidatePaths = []
+              Offset = 0
+              BatchSize = 1 }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        use cancellation = new CancellationTokenSource()
+        cancellation.Cancel()
+
+        interpreter.Execute(AppEffect.searchWorkspaceWithCancellation request cancellation.Token)
+        |> Async.RunSynchronously
+
+        Assert.Empty(commands)
+        Assert.Empty(fileService.Reads)
+
+    [<Fact>]
+    member _.``workspace search reports read failures as recoverable errors``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = RecoverableWorkspaceSearchFileService()
+
+        let request: WorkspaceSearchRequest =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              RootPath = "C:\work"
+              Options = SearchOptions.create "term"
+              OpenDocuments = []
+              OpenDocumentPaths = Set.empty
+              OpenDocumentRevisions = Map.empty
+              CandidatePaths = [ "C:\work\available.fs"; "C:\work\missing.fs" ]
+              Offset = 0
+              BatchSize = 64 }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.searchWorkspace request) |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceSearchCompleted result ] ->
+            Assert.Single(result.Errors) |> ignore
+            Assert.Contains("missing.fs", result.Errors[0])
+            Assert.Contains("access denied", result.Errors[0])
         | _ -> Assert.True(false, "Expected one workspace search completion.")
 
     [<Fact>]

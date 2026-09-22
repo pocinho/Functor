@@ -78,8 +78,7 @@ module LayoutEngine =
     let gutterWidth (measurer: TextMeasurer) (lineCount: int) =
         gutterWidthWithMetrics measurer lineCount 4.0f 16.0f
 
-    let maxVerticalOffset (visibleLineCount: int) (buffer: string list) =
-        max 0 (buffer.Length - max 1 visibleLineCount)
+    let maxVerticalOffset (_visibleLineCount: int) (buffer: string list) = max 0 (buffer.Length - 1)
 
     let maxHorizontalOffset
         (measurer: TextMeasurer)

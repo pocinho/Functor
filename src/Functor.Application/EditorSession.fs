@@ -737,7 +737,7 @@ type EditorSession(initialModel: CoreModel) =
             updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchOptions options))
             refreshActiveSearch ()
             searchCurrentScope ()
-        | RefreshSearchRequested -> refreshActiveSearch ()
+        | RefreshSearchRequested -> searchCurrentScope ()
         | NextSearchResultRequested ->
             updateModel (ApplyNavigationEvent NavigationEvent.NextSearchResult)
             revealActiveSearchMatch ()

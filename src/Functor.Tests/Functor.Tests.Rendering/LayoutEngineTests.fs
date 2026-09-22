@@ -11,9 +11,9 @@ open TestFixtures
 
 type LayoutEngineTests() =
     [<Fact>]
-    member _.``vertical offset is bounded by content``() =
-        Assert.Equal(90, LayoutEngine.maxVerticalOffset 10 (List.replicate 100 "line"))
-        Assert.Equal(0, LayoutEngine.maxVerticalOffset 10 (List.replicate 5 "line"))
+    member _.``vertical offset can scroll the final line to the top``() =
+        Assert.Equal(99, LayoutEngine.maxVerticalOffset 10 (List.replicate 100 "line"))
+        Assert.Equal(4, LayoutEngine.maxVerticalOffset 10 (List.replicate 5 "line"))
 
     [<Fact>]
     member _.``horizontal offset is bounded by measured content and gutter``() =

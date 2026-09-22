@@ -6,11 +6,11 @@
              Background="{DynamicResource Theme.SurfaceBackground}"
              Foreground="{DynamicResource Theme.TextPrimary}">
     <Grid>
-        <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+        <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="Auto,Auto,*,Auto">
             <Border x:Name="TabBar"
                     Grid.Row="0"
                     Grid.Column="2"
-                    Grid.ColumnSpan="3"
+                    Grid.ColumnSpan="2"
                         BorderThickness="{DynamicResource Theme.SeparatorBottomThickness}"
                         Padding="{DynamicResource Theme.TabBarPadding}"
                         Background="{DynamicResource Theme.PanelBackground}"
@@ -84,25 +84,9 @@
                                  Grid.Column="3"
                                  PanelWidth="0"
                                  IsOpen="False" />
-            <ScrollBar x:Name="VerticalScrollBar"
-                              Grid.Row="1"
-                              Grid.Column="4"
-                       Orientation="Vertical"
-                       Minimum="0"
-                       Maximum="0"
-                       ViewportSize="1"
-                       IsEnabled="False" />
-            <ScrollBar x:Name="HorizontalScrollBar"
-                       Grid.Row="2"
-                       Grid.Column="2"
-                       Orientation="Horizontal"
-                       Minimum="0"
-                       Maximum="0"
-                       ViewportSize="1"
-                       IsEnabled="False" />
             <Border x:Name="StatusBar"
                     Grid.Row="3"
-                    Grid.ColumnSpan="5"
+                    Grid.ColumnSpan="4"
                     BorderThickness="{DynamicResource Theme.SeparatorTopThickness}"
                     Padding="{DynamicResource Theme.StatusBarPadding}"
                     Background="{DynamicResource Theme.PanelBackground}"

@@ -4,7 +4,9 @@ open System
 open System.Threading.Tasks
 open Avalonia
 open Avalonia.Controls
+open Avalonia.Controls.Primitives
 open Avalonia.Input
+open Avalonia.Layout
 open Avalonia.Media
 open Avalonia.Skia
 
@@ -17,8 +19,100 @@ open Functor.Avalonia.Rendering
 open Functor.Avalonia.Services
 open Functor.Rendering
 
-type EditorControl() as this =
+type private EditorRenderSurface() =
     inherit Control()
+
+    let mutable renderCallback: DrawingContext -> unit = ignore
+
+    member this.SetRenderCallback(callback: DrawingContext -> unit) = renderCallback <- callback
+
+    override this.Render(context: DrawingContext) =
+        base.Render(context)
+        renderCallback context
+
+type private EditorMiniMap() =
+    inherit Control()
+
+    let mutable linesProvider: unit -> string list = fun () -> []
+    let mutable viewportProvider: unit -> int * int = fun () -> 0, 1
+    let mutable scrollCallback: float -> unit = ignore
+    let mutable palette = Theme.defaultPalette
+    let mutable isDragging = false
+
+    let colorFromArgb (argb: uint32) =
+        let a = byte ((argb >>> 24) &&& 0xFFu)
+        let r = byte ((argb >>> 16) &&& 0xFFu)
+        let g = byte ((argb >>> 8) &&& 0xFFu)
+        let b = byte (argb &&& 0xFFu)
+        Color.FromArgb(a, r, g, b)
+
+    member this.SetProviders(lines: unit -> string list, viewport: unit -> int * int, scroll: float -> unit) =
+        linesProvider <- lines
+        viewportProvider <- viewport
+        scrollCallback <- scroll
+
+    member this.SetPalette(value: ThemePalette) = palette <- value
+
+    member private this.ScrollToPoint(point: Point) =
+        let lineCount = max 1 (linesProvider ()).Length
+        let visibleLines = max 1 (snd (viewportProvider ()))
+        let lineHeight = min 3.0 (this.Bounds.Height / float lineCount)
+        let contentHeight = max 1.0 (lineHeight * float lineCount)
+        let ratio = max 0.0 (min 1.0 (point.Y / contentHeight))
+        let targetLine = ratio * float lineCount - (float visibleLines / 2.0)
+        scrollCallback (max 0.0 (min (float (max 0 (lineCount - 1))) targetLine))
+
+    override this.OnPointerPressed(e: PointerPressedEventArgs) =
+        base.OnPointerPressed(e)
+        isDragging <- true
+        e.Pointer.Capture(this) |> ignore
+        this.ScrollToPoint(e.GetCurrentPoint(this).Position)
+        e.Handled <- true
+
+    override this.OnPointerMoved(e: PointerEventArgs) =
+        base.OnPointerMoved(e)
+
+        if isDragging then
+            this.ScrollToPoint(e.GetCurrentPoint(this).Position)
+            e.Handled <- true
+
+    override this.OnPointerReleased(e: PointerReleasedEventArgs) =
+        base.OnPointerReleased(e)
+
+        if isDragging then
+            isDragging <- false
+            e.Pointer.Capture(null) |> ignore
+            e.Handled <- true
+
+    override this.Render(context: DrawingContext) =
+        base.Render(context)
+
+        let bounds = Rect(0.0, 0.0, this.Bounds.Width, this.Bounds.Height)
+        let lineList = linesProvider ()
+        let lineCount = max 1 lineList.Length
+        let lineHeight = min 3.0 (bounds.Height / float lineCount)
+        let contentHeight = max 1.0 (lineHeight * float lineCount)
+        let foreground = SolidColorBrush(colorFromArgb (palette.Foreground &&& 0x80FFFFFFu))
+        let background = SolidColorBrush(colorFromArgb palette.GutterBackground)
+
+        let viewportBrush =
+            SolidColorBrush(colorFromArgb (palette.Selection &&& 0x30FFFFFFu))
+
+        context.FillRectangle(background, bounds)
+
+        lineList
+        |> List.iteri (fun index line ->
+            let widthRatio = min 1.0 (float (max 1 line.Length) / 120.0)
+            let width = max 2.0 ((bounds.Width - 8.0) * widthRatio)
+            context.FillRectangle(foreground, Rect(4.0, float index * lineHeight, width, max 1.0 (lineHeight * 0.55))))
+
+        let offset, visibleLines = viewportProvider ()
+        let viewportTop = float offset * lineHeight
+        let viewportHeight = max 3.0 (float visibleLines * lineHeight)
+        context.FillRectangle(viewportBrush, Rect(0.0, viewportTop, bounds.Width, min contentHeight viewportHeight))
+
+type EditorControl() as this =
+    inherit Panel()
 
     // ------------------------------------------------------------
     // Internal state
@@ -40,13 +134,57 @@ type EditorControl() as this =
     let scrollStateChanged = Event<unit>()
     let workspaceStructureChanged = Event<unit>()
 
+    let verticalScrollBar =
+        ScrollBar(
+            Orientation = Orientation.Vertical,
+            Minimum = 0.0,
+            Maximum = 0.0,
+            ViewportSize = 1.0,
+            IsEnabled = false,
+            ZIndex = 1
+        )
+
+    let horizontalScrollBar =
+        ScrollBar(
+            Orientation = Orientation.Horizontal,
+            Minimum = 0.0,
+            Maximum = 0.0,
+            ViewportSize = 1.0,
+            IsEnabled = false,
+            ZIndex = 1
+        )
+
+    let miniMap = EditorMiniMap(Width = 72.0, ZIndex = 1)
+    let renderSurface = EditorRenderSurface()
+
+    do
+        miniMap.Classes.Add("editor-minimap")
+        verticalScrollBar.Classes.Add("editor-scrollbar")
+        horizontalScrollBar.Classes.Add("editor-scrollbar")
+        this.Children.Add(renderSurface) |> ignore
+        this.Children.Add(miniMap) |> ignore
+        this.Children.Add(verticalScrollBar) |> ignore
+        this.Children.Add(horizontalScrollBar) |> ignore
+
+        miniMap.SetProviders(
+            (fun () -> session.Model.Editing.Buffer),
+            (fun () -> session.Model.View.VerticalOffset, this.VisibleLineCount),
+            (fun offset -> this.ScrollVerticalTo(int (Math.Round(offset))))
+        )
+
+        renderSurface.SetRenderCallback(fun context -> this.RenderEditor(context))
+
+    let invalidateEditorSurface () = renderSurface.InvalidateVisual()
+
     let mutable previousDocumentPaths =
         session.State.Workspace.Documents
         |> Map.map (fun _ documentState -> documentState.Document.Metadata.Path)
 
     do
         session.StateChanged.Add(fun state ->
-            this.InvalidateVisual()
+            invalidateEditorSurface ()
+            this.UpdateScrollBars()
+            this.UpdateMiniMap()
             scrollStateChanged.Trigger()
 
             let pathChanged =
@@ -90,7 +228,9 @@ type EditorControl() as this =
             themeSettings <- value
             RenderingSurface.setUiTheme value.Ui
             renderingConfig <- createRenderingConfig value.Ui
-            this.InvalidateVisual()
+            miniMap.SetPalette(value.ThemeSource.Resolve())
+            miniMap.InvalidateVisual()
+            invalidateEditorSurface ()
 
     member this.ThemeSource
         with get () = themeSettings.ThemeSource
@@ -135,7 +275,7 @@ type EditorControl() as this =
 
     member private this.ApplyEditingEvent(event: EditingEvent) =
         session.Dispatch(CoreEvent.ApplyEditingEvent event)
-        this.InvalidateVisual()
+        invalidateEditorSurface ()
         this.NotifyScrollStateChanged()
 
     member private this.CopySelection() =
@@ -247,14 +387,32 @@ type EditorControl() as this =
     member this.ScrollVerticalTo(offset: int) =
         let clamped = max 0 (min this.VerticalScrollMaximum offset)
         session.Dispatch(CoreEvent.ScrollVerticalTo clamped)
-        this.InvalidateVisual()
+        invalidateEditorSurface ()
         this.NotifyScrollStateChanged()
 
     member this.ScrollHorizontalTo(offset: int) =
         let clamped = max 0 (min this.HorizontalScrollMaximum offset)
         session.Dispatch(CoreEvent.ScrollHorizontalTo clamped)
-        this.InvalidateVisual()
+        invalidateEditorSurface ()
         this.NotifyScrollStateChanged()
+
+    member private this.UpdateScrollBars() =
+        verticalScrollBar.Maximum <- float this.VerticalScrollMaximum
+        verticalScrollBar.ViewportSize <- float this.VerticalScrollViewport
+        verticalScrollBar.LargeChange <- float this.VerticalScrollViewport
+        verticalScrollBar.IsEnabled <- this.VerticalScrollMaximum > 0
+        verticalScrollBar.Value <- float this.VerticalOffset
+        horizontalScrollBar.Maximum <- float this.HorizontalScrollMaximum
+        horizontalScrollBar.ViewportSize <- this.HorizontalScrollViewport
+        horizontalScrollBar.LargeChange <- this.HorizontalScrollViewport
+        horizontalScrollBar.IsEnabled <- this.HorizontalScrollMaximum > 0
+        horizontalScrollBar.Value <- float this.HorizontalOffset
+
+    member private this.UpdateMiniMap() =
+        miniMap.SetPalette(themeSettings.ThemeSource.Resolve())
+        miniMap.IsVisible <- true
+        miniMap.IsHitTestVisible <- session.Model.Editing.Buffer.Length > 1
+        miniMap.InvalidateVisual()
 
     // ------------------------------------------------------------
     // Helpers
@@ -272,29 +430,77 @@ type EditorControl() as this =
 
         if e.Property = Control.BoundsProperty then
             this.UpdateViewport()
-            this.InvalidateVisual()
+            invalidateEditorSurface ()
+            this.UpdateScrollBars()
+            this.UpdateMiniMap()
             this.NotifyScrollStateChanged()
         elif e.Property = Visual.IsVisibleProperty && this.IsVisible then
             // A hidden control is never laid out, so Bounds can still be stale/zero here.
             this.UpdateViewport()
-            this.InvalidateVisual()
+            invalidateEditorSurface ()
+            this.UpdateScrollBars()
+            this.UpdateMiniMap()
             this.NotifyScrollStateChanged()
+
+    override this.MeasureOverride(availableSize) =
+        miniMap.Measure(availableSize)
+        verticalScrollBar.Measure(availableSize)
+        horizontalScrollBar.Measure(availableSize)
+        availableSize
+
+    override this.ArrangeOverride(finalSize) =
+        let verticalWidth = verticalScrollBar.DesiredSize.Width
+        let horizontalHeight = horizontalScrollBar.DesiredSize.Height
+        let miniMapWidth = miniMap.DesiredSize.Width
+
+        renderSurface.Arrange(Rect(0.0, 0.0, finalSize.Width, finalSize.Height))
+
+        miniMap.Arrange(Rect(finalSize.Width - verticalWidth - miniMapWidth, 0.0, miniMapWidth, finalSize.Height))
+
+        verticalScrollBar.Arrange(
+            Rect(finalSize.Width - verticalWidth, 0.0, verticalWidth, max 0.0 (finalSize.Height - horizontalHeight))
+        )
+
+        horizontalScrollBar.Arrange(
+            Rect(
+                0.0,
+                finalSize.Height - horizontalHeight,
+                max 0.0 (finalSize.Width - verticalWidth - miniMapWidth),
+                horizontalHeight
+            )
+        )
+
+        finalSize
 
     override this.OnAttachedToVisualTree(e: VisualTreeAttachmentEventArgs) =
         base.OnAttachedToVisualTree(e)
 
+        verticalScrollBar.ValueChanged.Add(fun args ->
+            let offset = int (Math.Round(args.NewValue))
+
+            if offset <> this.VerticalOffset then
+                this.ScrollVerticalTo(offset))
+
+        horizontalScrollBar.ValueChanged.Add(fun args ->
+            let offset = int (Math.Round(args.NewValue))
+
+            if offset <> this.HorizontalOffset then
+                this.ScrollHorizontalTo(offset))
+
         if session.Model.ActiveDocument.IsNone then
             this.NewDocument()
 
+        this.UpdateScrollBars()
+        this.UpdateMiniMap()
         this.Focus() |> ignore
 
     override this.OnGotFocus(e: FocusChangedEventArgs) =
         base.OnGotFocus(e)
-        this.InvalidateVisual()
+        invalidateEditorSurface ()
 
     override this.OnLostFocus(e: FocusChangedEventArgs) =
         base.OnLostFocus(e)
-        this.InvalidateVisual()
+        invalidateEditorSurface ()
 
     override this.OnTextInput(e: TextInputEventArgs) =
         base.OnTextInput(e)
@@ -445,8 +651,7 @@ type EditorControl() as this =
 
             e.Handled <- true
 
-    override this.Render(context: DrawingContext) =
-        base.Render(context)
+    member private this.RenderEditor(context: DrawingContext) =
 
         let frame: RenderingModel =
             RenderingPipeline.render renderingConfig session.Model
