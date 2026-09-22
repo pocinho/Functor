@@ -35,6 +35,7 @@ type SearchModel =
       Results: SearchResult list
       Matches: SearchMatch list
       Options: SearchOptions
+      History: SearchOptions list
       Revision: int64 option
       Index: int option
       IsDirty: bool }
@@ -45,6 +46,7 @@ module SearchModel =
           Results = []
           Matches = []
           Options = SearchOptions.create ""
+          History = []
           Revision = None
           Index = None
           IsDirty = false }

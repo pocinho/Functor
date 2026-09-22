@@ -1,6 +1,7 @@
 namespace Functor.Tests.Avalonia
 
 open System
+open Avalonia.Automation
 open Avalonia.Controls
 open Avalonia.Interactivity
 open Functor.Avalonia.Controls
@@ -18,11 +19,65 @@ type SearchPanelControlTests() =
         panel.CommandRequested.Add(commands.Add)
 
         let content = panel.Content :?> StackPanel
-        let buttons = content.Children[2] :?> StackPanel
+        let buttons = content.Children[3] :?> StackPanel
         let openDocumentsButton = buttons.Children[2] :?> Button
         openDocumentsButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
 
         Assert.Contains(AppCommand.searchOpenDocuments, commands)
+
+    [<Fact>]
+    member _.``navigation buttons dispatch previous and next search commands``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let content = panel.Content :?> StackPanel
+        let buttons = content.Children[3] :?> StackPanel
+        (buttons.Children[0] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        (buttons.Children[1] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(AppCommand.previousSearchResult, commands)
+        Assert.Contains(AppCommand.nextSearchResult, commands)
+
+    [<Fact>]
+    member _.``search controls expose accessible names``() =
+        let panel = SearchPanelControl()
+        let content = panel.Content :?> StackPanel
+        let buttons = content.Children[3] :?> StackPanel
+
+        Assert.Equal("Search query", AutomationProperties.GetName(content.Children[0]))
+        Assert.Equal("Replacement text", AutomationProperties.GetName(content.Children[1]))
+        Assert.Equal("Case sensitive search", AutomationProperties.GetName(content.Children[2]))
+        Assert.Equal("Previous search result", AutomationProperties.GetName(buttons.Children[0]))
+        Assert.Equal("Next search result", AutomationProperties.GetName(buttons.Children[1]))
+
+    [<Fact>]
+    member _.``replacement buttons dispatch replacement commands``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let content = panel.Content :?> StackPanel
+        let replacementBox = content.Children[1] :?> TextBox
+        replacementBox.Text <- "word"
+        let buttons = content.Children[3] :?> StackPanel
+        (buttons.Children[4] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        (buttons.Children[5] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(AppCommand.replaceCurrentSearch "word", commands)
+        Assert.Contains(AppCommand.replaceAllSearch "word", commands)
+
+    [<Fact>]
+    member _.``clear history button dispatches clear history``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let content = panel.Content :?> StackPanel
+        let buttons = content.Children[3] :?> StackPanel
+        (buttons.Children[6] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(AppCommand.clearSearchHistory, commands)
 
     [<Fact>]
     member _.``search result activation dispatches the selected match``() =
@@ -55,7 +110,7 @@ type SearchPanelControlTests() =
         panel.ApplySearch search
 
         let content = panel.Content :?> StackPanel
-        let results = content.Children[4] :?> StackPanel
+        let results = content.Children[5] :?> StackPanel
         let resultButton = results.Children[0] :?> Button
         resultButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
 

@@ -107,15 +107,28 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
 
                     match pathsResult with
                     | Error message ->
+                        let openDocumentMatches =
+                            request.OpenDocuments
+                            |> List.collect (SearchEngine.findInDocument request.Options)
+
+                        let sources =
+                            request.OpenDocuments
+                            |> List.choose (fun document ->
+                                document.Path
+                                |> Option.map (fun path ->
+                                    DocumentModel.canonicalizePath path, String.concat "\n" document.Lines))
+                            |> Map.ofList
+
                         dispatch (
                             AppCommand.workspaceSearchCompleted
                                 { RequestId = request.RequestId
                                   WorkspaceId = request.WorkspaceId
                                   Options = request.Options
-                                  Matches =
-                                    request.OpenDocuments
-                                    |> List.collect (SearchEngine.findInDocument request.Options)
-                                  Errors = [ message ] }
+                                  Documents = request.OpenDocuments
+                                  Sources = sources
+                                  Matches = openDocumentMatches
+                                  Errors = [ message ]
+                                  OpenDocumentRevisions = request.OpenDocumentRevisions }
                         )
                     | Ok paths ->
                         let openPaths = request.OpenDocumentPaths
@@ -128,6 +141,16 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                         let mutable matches =
                             request.OpenDocuments
                             |> List.collect (SearchEngine.findInDocument request.Options)
+
+                        let mutable documents = request.OpenDocuments
+
+                        let mutable sources =
+                            request.OpenDocuments
+                            |> List.choose (fun document ->
+                                document.Path
+                                |> Option.map (fun path ->
+                                    DocumentModel.canonicalizePath path, String.concat "\n" document.Lines))
+                            |> Map.ofList
 
                         let errors = ResizeArray<string>()
 
@@ -153,6 +176,8 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                                             contents.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
                                             |> Array.toList }
 
+                                    documents <- documents @ [ document ]
+                                    sources <- sources.Add(canonicalPath, contents)
                                     matches <- matches @ SearchEngine.findInDocument request.Options document
                                 | Error message -> errors.Add(sprintf "%s: %s" canonicalPath message)
 
@@ -161,9 +186,44 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                                 { RequestId = request.RequestId
                                   WorkspaceId = request.WorkspaceId
                                   Options = request.Options
+                                  Documents = documents
+                                  Sources = sources
                                   Matches = matches
-                                  Errors = List.ofSeq errors }
+                                  Errors = List.ofSeq errors
+                                  OpenDocumentRevisions = request.OpenDocumentRevisions }
                         )
+                | ReplaceWorkspace(request, cancellationToken) ->
+                    cancellationToken.ThrowIfCancellationRequested()
+                    let replacedPaths = ResizeArray<string>()
+                    let stalePaths = ResizeArray<string>(request.StalePaths)
+                    let errors = ResizeArray<string>()
+
+                    for path, replacement in request.Replacements |> Map.toList do
+                        cancellationToken.ThrowIfCancellationRequested()
+
+                        match request.Sources.TryFind path with
+                        | None -> errors.Add(sprintf "%s: source snapshot is unavailable." path)
+                        | Some snapshot ->
+                            let! readResult = services.File.ReadText path
+
+                            match readResult with
+                            | Error message -> errors.Add(sprintf "%s: %s" path message)
+                            | Ok current when current <> snapshot -> stalePaths.Add path
+                            | Ok _ ->
+                                let! writeResult = services.File.WriteText(path, replacement)
+
+                                match writeResult with
+                                | Ok() -> replacedPaths.Add path
+                                | Error message -> errors.Add(sprintf "%s: %s" path message)
+
+                    dispatch (
+                        AppCommand.workspaceReplacementCompleted
+                            { RequestId = request.RequestId
+                              WorkspaceId = request.WorkspaceId
+                              ReplacedPaths = List.ofSeq replacedPaths
+                              StalePaths = List.ofSeq stalePaths
+                              Errors = List.ofSeq errors }
+                    )
                 | Tokenize(request, cancellationToken) ->
                     match services.Tokenizer with
                     | Some service ->

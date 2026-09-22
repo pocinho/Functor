@@ -8,4 +8,5 @@ type SearchEvent =
     | NextSearchResult
     | PrevSearchResult
     | ClearSearch
+    | ClearSearchHistory
     | InvalidateSearch

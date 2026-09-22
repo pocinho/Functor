@@ -62,6 +62,42 @@ type EditorSessionTests() =
         Assert.Equal(session.State.Model.Editing.Revision, search.Revision.Value)
 
     [<Fact>]
+    member _.``replace current search match uses the exact range``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term 🚧 term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        session.DispatchCommand(AppCommand.replaceCurrentSearch "word")
+
+        Assert.Equal<string list>([ "word 🚧 term" ], session.State.Model.Editing.Buffer)
+        Assert.Single(session.State.Model.Navigation.Search.Matches) |> ignore
+        Assert.Equal(8, session.State.Model.Navigation.Search.Matches[0].Column)
+
+    [<Fact>]
+    member _.``replace all search matches applies descending edits and refreshes search``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        session.DispatchCommand(AppCommand.replaceAllSearch "🚧")
+
+        Assert.Equal<string list>([ "🚧 🚧" ], session.State.Model.Editing.Buffer)
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
+        Assert.Equal(session.State.Model.Editing.Revision, session.State.Model.Navigation.Search.Revision.Value)
+
+    [<Fact>]
+    member _.``replace all with zero matches leaves the document unchanged``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "unchanged")
+        session.DispatchCommand(AppCommand.searchQueryChanged "missing")
+        let revision = session.State.Model.Editing.Revision
+
+        session.DispatchCommand(AppCommand.replaceAllSearch "replacement")
+
+        Assert.Equal<string list>([ "unchanged" ], session.State.Model.Editing.Buffer)
+        Assert.Equal(revision, session.State.Model.Editing.Revision)
+
+    [<Fact>]
     member _.``search defaults to every open in-memory tab without a workspace``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\work\first.fs" "needle in first")
@@ -87,6 +123,105 @@ type EditorSessionTests() =
         let searchAfterSwitch = session.State.Model.Navigation.Search
         Assert.Equal(Some "needle", searchAfterSwitch.Query)
         Assert.Equal<SearchMatch list>(matchesBeforeSwitch, searchAfterSwitch.Matches)
+
+    [<Fact>]
+    member _.``workspace search completion is rejected after an open document edit``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let request =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
+
+        let staleMatches =
+            request.OpenDocuments
+            |> List.collect (SearchEngine.findInDocument request.Options)
+
+        session.DispatchCommand(
+            AppCommand.workspaceSearchCompleted
+                { RequestId = request.RequestId
+                  WorkspaceId = request.WorkspaceId
+                  Options = request.Options
+                  Documents = request.OpenDocuments
+                  Sources = Map.empty
+                  Matches = staleMatches
+                  Errors = []
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
+        )
+
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
+        Assert.True(session.State.Model.Navigation.Search.IsDirty)
+
+    [<Fact>]
+    member _.``workspace replace-all requests a safe effect for unopened matches``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\open.fs" "open")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let request =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, _) -> Some request
+                | _ -> None)
+            |> Seq.last
+
+        let unopenedId = Guid.NewGuid()
+
+        let unopenedDocument: SearchDocument =
+            { Id = unopenedId
+              Path = Some "C:\work\unopened.fs"
+              Name = "unopened.fs"
+              Lines = [ "term" ] }
+
+        let matchValue: SearchMatch =
+            { DocumentId = unopenedId
+              Path = unopenedDocument.Path
+              Name = unopenedDocument.Name
+              Line = 0
+              Column = 0
+              Length = 4
+              Range =
+                { Start = { Line = 0; Column = 0 }
+                  End = { Line = 0; Column = 4 } }
+              Preview = "term" }
+
+        session.DispatchCommand(
+            AppCommand.workspaceSearchCompleted
+                { RequestId = request.RequestId
+                  WorkspaceId = request.WorkspaceId
+                  Options = request.Options
+                  Documents = request.OpenDocuments @ [ unopenedDocument ]
+                  Sources = Map.ofList [ "C:\work\unopened.fs", "term" ]
+                  Matches = [ matchValue ]
+                  Errors = []
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
+        )
+
+        requestedEffects.Clear()
+        session.DispatchCommand(AppCommand.replaceAllSearch "word")
+
+        Assert.Contains(
+            requestedEffects |> Seq.collect id,
+            function
+            | AppEffect.ReplaceWorkspace(replacement, _) -> replacement.Replacements["C:\work\unopened.fs"] = "word"
+            | _ -> false
+        )
 
     [<Fact>]
     member _.``next and previous search results select and reveal the active match``() =

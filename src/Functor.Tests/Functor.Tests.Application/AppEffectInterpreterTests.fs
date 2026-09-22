@@ -26,9 +26,15 @@ type private InterpreterFileService(readResult: Result<string, string>, writeRes
             }
 
 type private WorkspaceSearchFileService() =
+    let reads = ResizeArray<string>()
+
+    member _.Reads = reads
+
     interface IFileService with
         member _.ReadText path =
             async {
+                reads.Add(path)
+
                 if path.EndsWith("other.fs", StringComparison.OrdinalIgnoreCase) then
                     return Ok "disk term"
                 else
@@ -37,7 +43,12 @@ type private WorkspaceSearchFileService() =
 
         member _.EnumerateFiles _ =
             async {
-                return Ok [ "C:\work\open.fs"; "C:\work\other.fs"; "C:\work\ignored.bin"; "C:\outside.fs" ]
+                return
+                    Ok
+                        [ "C:\work\open.fs"
+                          "C:\work\other.fs"
+                          "C:\work\ignored.bin"
+                          "C:\outside.fs" ]
             }
 
         member _.WriteText(_, _) = async { return Ok() }
@@ -77,6 +88,7 @@ type AppEffectInterpreterTests() =
     [<Fact>]
     member _.``workspace search prefers open buffers and filters unsupported files``() =
         let commands = ResizeArray<AppCommand>()
+        let fileService = WorkspaceSearchFileService()
         let workspaceId = Guid.NewGuid()
         let documentId = Guid.NewGuid()
         let options = SearchOptions.create "term"
@@ -91,12 +103,13 @@ type AppEffectInterpreterTests() =
                     Path = Some "C:\work\open.fs"
                     Name = "open.fs"
                     Lines = [ "unsaved term" ] } ]
-              OpenDocumentPaths = Set.ofList [ "C:\work\open.fs" ] }
+              OpenDocumentPaths = Set.ofList [ "C:\work\open.fs" ]
+              OpenDocumentRevisions = Map.ofList [ documentId, 0L ] }
 
         let interpreter =
             AppEffectInterpreter(
                 Unchecked.defaultof<IClipboardService>,
-                WorkspaceSearchFileService(),
+                fileService,
                 Unchecked.defaultof<IDialogService>,
                 commands.Add
             )
@@ -107,11 +120,95 @@ type AppEffectInterpreterTests() =
         | [ WorkspaceSearchCompleted result ] ->
             Assert.Equal(workspaceId, result.WorkspaceId)
             Assert.Equal(2, result.Matches.Length)
-            Assert.True(result.Matches |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\open.fs"))
-            Assert.True(result.Matches |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\other.fs"))
+
+            Assert.Equal<string list>(
+                [ "C:\work\open.fs"; "C:\work\other.fs" ],
+                result.Documents |> List.map (fun document -> document.Path.Value)
+            )
+
+            Assert.Equal("disk term", result.Sources["C:\work\other.fs"])
+
+            Assert.Equal<string list>(
+                [ "C:\work\open.fs"; "C:\work\other.fs" ],
+                result.Matches |> List.map (fun matchValue -> matchValue.Path.Value)
+            )
+
+            Assert.True(
+                result.Matches
+                |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\open.fs")
+            )
+
+            Assert.True(
+                result.Matches
+                |> List.exists (fun matchValue -> matchValue.Path = Some "C:\work\other.fs")
+            )
+
             Assert.DoesNotContain(result.Matches, fun matchValue -> matchValue.Path = Some "C:\work\ignored.bin")
             Assert.DoesNotContain(result.Matches, fun matchValue -> matchValue.Path = Some "C:\outside.fs")
+            Assert.DoesNotContain("C:\work\open.fs", fileService.Reads)
+            Assert.Contains("C:\work\other.fs", fileService.Reads)
         | _ -> Assert.True(false, "Expected one workspace search completion.")
+
+    [<Fact>]
+    member _.``workspace replacement skips stale snapshots``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = InterpreterFileService(Ok "changed", Ok())
+        let path = "C:\work\file.fs"
+
+        let request =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              StalePaths = []
+              Sources = Map.ofList [ path, "original" ]
+              Replacements = Map.ofList [ path, "replacement" ] }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.replaceWorkspace request)
+        |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceReplacementCompleted result ] ->
+            Assert.Equal<string list>([ path ], result.StalePaths)
+            Assert.Empty(result.ReplacedPaths)
+            Assert.Empty(fileService.Writes)
+        | _ -> Assert.True(false, "Expected one workspace replacement completion.")
+
+    [<Fact>]
+    member _.``workspace replacement reports write failures``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = InterpreterFileService(Ok "original", Error "access denied")
+        let path = "C:\work\file.fs"
+
+        let request =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              StalePaths = []
+              Sources = Map.ofList [ path, "original" ]
+              Replacements = Map.ofList [ path, "replacement" ] }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.replaceWorkspace request)
+        |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceReplacementCompleted result ] ->
+            Assert.Empty(result.ReplacedPaths)
+            Assert.Contains("access denied", result.Errors.Head)
+        | _ -> Assert.True(false, "Expected one workspace replacement completion.")
 
     [<Fact>]
     member _.``no effect does not dispatch an application command``() =

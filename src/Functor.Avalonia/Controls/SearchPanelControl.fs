@@ -1,6 +1,7 @@
 namespace Functor.Avalonia.Controls
 
 open System
+open Avalonia.Automation
 open Avalonia.Controls
 open Avalonia.Layout
 open Avalonia.Threading
@@ -12,11 +13,15 @@ type SearchPanelControl() as this =
     inherit UserControl()
 
     let queryBox = TextBox(PlaceholderText = "Search")
+    let replacementBox = TextBox(PlaceholderText = "Replace")
     let caseSensitive = CheckBox(Content = "Case sensitive")
     let previousButton = Button(Content = "Previous")
     let nextButton = Button(Content = "Next")
     let openDocumentsButton = Button(Content = "Open files")
     let clearButton = Button(Content = "Clear")
+    let replaceButton = Button(Content = "Replace")
+    let replaceAllButton = Button(Content = "Replace all")
+    let clearHistoryButton = Button(Content = "Clear history")
     let countText = TextBlock()
     let resultsPanel = StackPanel(Spacing = 4.0)
     let commandRequested = Event<AppCommand>()
@@ -31,9 +36,13 @@ type SearchPanelControl() as this =
         buttons.Children.Add(nextButton) |> ignore
         buttons.Children.Add(openDocumentsButton) |> ignore
         buttons.Children.Add(clearButton) |> ignore
+        buttons.Children.Add(replaceButton) |> ignore
+        buttons.Children.Add(replaceAllButton) |> ignore
+        buttons.Children.Add(clearHistoryButton) |> ignore
 
         let panel = StackPanel(Spacing = 8.0)
         panel.Children.Add(queryBox) |> ignore
+        panel.Children.Add(replacementBox) |> ignore
         panel.Children.Add(caseSensitive) |> ignore
         panel.Children.Add(buttons) |> ignore
         panel.Children.Add(countText) |> ignore
@@ -46,7 +55,19 @@ type SearchPanelControl() as this =
         this.IsHitTestVisible <- true
         queryBox.Focusable <- true
         queryBox.IsHitTestVisible <- true
+        replacementBox.IsHitTestVisible <- true
         caseSensitive.IsHitTestVisible <- true
+
+        AutomationProperties.SetName(queryBox, "Search query")
+        AutomationProperties.SetName(replacementBox, "Replacement text")
+        AutomationProperties.SetName(caseSensitive, "Case sensitive search")
+        AutomationProperties.SetName(previousButton, "Previous search result")
+        AutomationProperties.SetName(nextButton, "Next search result")
+        AutomationProperties.SetName(openDocumentsButton, "Search open documents")
+        AutomationProperties.SetName(clearButton, "Clear search")
+        AutomationProperties.SetName(replaceButton, "Replace current search result")
+        AutomationProperties.SetName(replaceAllButton, "Replace all search results")
+        AutomationProperties.SetName(clearHistoryButton, "Clear search history")
 
         queryBox.TextChanged.Add(fun args ->
             if not applying then
@@ -68,6 +89,9 @@ type SearchPanelControl() as this =
         nextButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.nextSearchResult))
         openDocumentsButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.searchOpenDocuments))
         clearButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.clearSearch))
+        replaceButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceCurrentSearch replacementBox.Text))
+        replaceAllButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceAllSearch replacementBox.Text))
+        clearHistoryButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.clearSearchHistory))
 
     member _.CommandRequested = commandRequested.Publish
 

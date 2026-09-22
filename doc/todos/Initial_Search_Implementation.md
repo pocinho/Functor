@@ -38,10 +38,10 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Test default case-insensitive matching.
 - [x] Test case-sensitive matching.
 - [x] Test emoji and surrogate-pair UTF-16 offsets.
-- [ ] Test combining-mark text and exact range boundaries.
+- [x] Test combining-mark text and exact range boundaries.
 - [x] Test preview generation at the start and end of a document.
-- [ ] Test deterministic ordering.
-- [ ] Test a large plain-text input without indexing.
+- [x] Test deterministic ordering.
+- [x] Test a large plain-text input without indexing.
 
 ## Slice 2 - Navigation and Session State
 
@@ -56,18 +56,18 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Reset the active match when the query or options change.
 - [x] Clear matches when the query is empty.
 - [x] Invalidate matches when the document buffer revision changes.
-- [ ] Preserve bounded next/previous behavior when there are no results.
-- [ ] Define stale-result behavior for document, workspace, path, and revision mismatches.
+- [x] Preserve bounded next/previous behavior when there are no results.
+- [x] Define stale-result behavior for document, workspace, path, and revision mismatches.
 
 ### Tests
 
 - [x] Test query changes reset results and selection.
-- [ ] Test option changes reset results and selection.
+- [x] Test option changes reset results and selection.
 - [x] Test edits invalidate old ranges.
 - [x] Test global search state across document tab switches.
 - [ ] Test next/previous bounds and no-result behavior.
 - [x] Test clear-search behavior.
-- [ ] Test stale-result rejection.
+- [x] Test stale-result rejection.
 
 ## Slice 3 - Application Search Orchestration
 
@@ -96,12 +96,12 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 ### Tests
 
 - [x] Test active-buffer search sees unsaved edits.
-- [ ] Test open documents are not reread from disk.
-- [ ] Test unopened files are read through the abstraction.
+- [x] Test open documents are not reread from disk.
+- [x] Test unopened files are read through the abstraction.
 - [ ] Test cancellation and stale results.
-- [ ] Test out-of-root files are excluded.
+- [x] Test out-of-root files are excluded.
 - [ ] Test inaccessible files produce recoverable status.
-- [ ] Test deterministic workspace ordering.
+- [x] Test deterministic workspace ordering.
 - [ ] Test workspace identity prevents old results from being applied.
 
 ## Slice 4 - Rendering Search Highlights
@@ -166,10 +166,10 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Add current-match and total-match indicator.
 - [x] Add previous and next buttons.
 - [x] Add an explicit action to search all open in-memory documents without a workspace.
-- [ ] Add replace input and replace/replace-all actions.
+- [x] Add replace input and replace/replace-all actions.
 - [ ] Add close action that restores editor focus.
 - [ ] Add loading, empty, error, and no-results states.
-- [ ] Add search history access.
+- [x] Add search history access.
 - [ ] Add the floating in-editor search widget if the final UX keeps both surfaces.
 - [ ] Reuse existing theme resources and panel sizing.
 - [ ] Keep matching and replacement out of code-behind.
@@ -180,12 +180,12 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [ ] Test query dispatch from the control.
 - [ ] Test case-sensitivity dispatch.
 - [x] Test open-files search dispatch.
-- [ ] Test next/previous dispatch.
+- [x] Test next/previous dispatch.
 - [ ] Test close and focus restoration.
 - [ ] Test loading, empty, error, and no-results states.
 - [ ] Test replacement control dispatch.
 - [ ] Test panel width and layout stability.
-- [ ] Test accessible names/tooltips.
+- [x] Test accessible names/tooltips.
 
 ## Slice 7 - Workspace Results and File Activation
 
@@ -216,12 +216,12 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 
 ### Current-document replacement
 
-- [ ] Define whether replace acts on the current match or the editor selection.
-- [ ] Validate document identity and buffer revision before replacing.
-- [ ] Implement current-match replacement through normal editing events.
-- [ ] Implement replace-all using descending original ranges or a pure batch edit.
+- [x] Define whether replace acts on the current match or the editor selection.
+- [x] Validate document identity and buffer revision before replacing.
+- [x] Implement current-match replacement through normal editing events.
+- [x] Implement replace-all using descending original ranges or a pure batch edit.
 - [ ] Preserve or explicitly define undo/redo granularity.
-- [ ] Recompute/invalidate search ranges after replacement.
+- [x] Recompute/invalidate search ranges after replacement.
 
 ### Workspace replacement
 
@@ -234,14 +234,14 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 
 ### Tests
 
-- [ ] Test replacement text containing Unicode.
-- [ ] Test replacement length changes.
+- [x] Test replacement text containing Unicode.
+- [x] Test replacement length changes.
 - [ ] Test zero matches.
-- [ ] Test current-match replace.
-- [ ] Test current-document replace-all.
+- [x] Test current-match replace.
+- [x] Test current-document replace-all.
 - [ ] Test replace-all across multiple files.
 - [ ] Test dirty documents.
-- [ ] Test stale revisions.
+- [x] Test stale revisions.
 - [ ] Test write failures.
 - [ ] Test partial failure reporting.
 - [ ] Test undo/redo behavior.
@@ -250,24 +250,24 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 
 ### History policy
 
-- [ ] Decide and document session-only history for the initial implementation.
-- [ ] Define maximum history length.
-- [ ] Deduplicate history entries.
-- [ ] Exclude empty queries.
-- [ ] Record completed searches rather than every keystroke.
-- [ ] Define whether case-sensitivity is part of a history entry.
-- [ ] Keep history independent of document tabs and workspace replacement.
-- [ ] Add explicit history clear behavior.
+- [x] Decide and document session-only history for the initial implementation.
+- [x] Define maximum history length.
+- [x] Deduplicate history entries.
+- [x] Exclude empty queries.
+- [x] Record completed searches rather than every keystroke.
+- [x] Define whether case-sensitivity is part of a history entry.
+- [x] Keep history independent of document tabs and workspace replacement.
+- [x] Add explicit history clear behavior.
 
 ### Tests
 
-- [ ] Test deduplication.
-- [ ] Test ordering.
-- [ ] Test bounded length.
-- [ ] Test empty-query exclusion.
-- [ ] Test option handling.
-- [ ] Test tab/workspace changes.
-- [ ] Test reset behavior.
+- [x] Test deduplication.
+- [x] Test ordering.
+- [x] Test bounded length.
+- [x] Test empty-query exclusion.
+- [x] Test option handling.
+- [x] Test tab/workspace changes.
+- [x] Test reset behavior.
 
 ## Slice 10 - Documentation and Acceptance
 

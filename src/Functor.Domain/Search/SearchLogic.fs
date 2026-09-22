@@ -3,6 +3,15 @@ namespace Functor.Domain.Search
 open System
 
 module SearchLogic =
+    let private historyLimit = 20
+
+    let private recordHistory (model: SearchModel) (options: SearchOptions) =
+        if String.IsNullOrEmpty options.Query then
+            model.History
+        else
+            options :: (model.History |> List.filter ((<>) options))
+            |> List.truncate historyLimit
+
     let private setSearchQuery (model: SearchModel) (query: string) =
         { model with
             Query = if String.IsNullOrEmpty query then None else Some query
@@ -42,6 +51,7 @@ module SearchLogic =
                       Column = matchValue.Column
                       Preview = matchValue.Preview })
             Matches = matches
+            History = recordHistory model model.Options
             Revision = Some revision
             Index = if matches.IsEmpty then None else Some 0
             IsDirty = false }
@@ -75,6 +85,8 @@ module SearchLogic =
             Revision = None
             Index = None }
 
+    let private clearSearchHistory (model: SearchModel) = { model with History = [] }
+
     let private invalidateSearch (model: SearchModel) =
         { model with
             Matches = []
@@ -92,4 +104,5 @@ module SearchLogic =
         | NextSearchResult -> nextSearchResult model
         | PrevSearchResult -> prevSearchResult model
         | ClearSearch -> clearSearch model
+        | ClearSearchHistory -> clearSearchHistory model
         | InvalidateSearch -> invalidateSearch model

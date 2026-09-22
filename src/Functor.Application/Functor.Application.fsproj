@@ -19,6 +19,7 @@
     <Compile Include="Tokenizers\MarkdownTokenizer.fs" />
     <Compile Include="DefaultTokenizerService.fs" />
     <Compile Include="SearchRequest.fs" />
+    <Compile Include="WorkspaceReplacement.fs" />
     <Compile Include="AppCommand.fs" />
     <Compile Include="TokenizationCoordinator.fs" />
     <Compile Include="AppEffect.fs" />

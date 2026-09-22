@@ -42,10 +42,14 @@ type AppCommand =
     | NextSearchResultRequested
     | PreviousSearchResultRequested
     | SearchResultActivated of result: SearchMatch
+    | ReplaceCurrentSearch of replacement: string
+    | ReplaceAllSearch of replacement: string
     | ClearSearchRequested
+    | ClearSearchHistoryRequested
     | OpenDocumentsSearchRequested
     | WorkspaceSearchRequested
     | WorkspaceSearchCompleted of result: WorkspaceSearchResult
+    | WorkspaceReplacementCompleted of result: WorkspaceReplacementResult
 
 module AppCommand =
     let toCoreEvent (event: CoreEvent) = ExecuteCoreEvent event
@@ -115,10 +119,18 @@ module AppCommand =
 
     let activateSearchResult result = SearchResultActivated result
 
+    let replaceCurrentSearch replacement = ReplaceCurrentSearch replacement
+
+    let replaceAllSearch replacement = ReplaceAllSearch replacement
+
     let clearSearch = ClearSearchRequested
+
+    let clearSearchHistory = ClearSearchHistoryRequested
 
     let searchOpenDocuments = OpenDocumentsSearchRequested
 
     let workspaceSearch = WorkspaceSearchRequested
 
     let workspaceSearchCompleted result = WorkspaceSearchCompleted result
+
+    let workspaceReplacementCompleted result = WorkspaceReplacementCompleted result

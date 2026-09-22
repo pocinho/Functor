@@ -18,6 +18,8 @@ type EditorSession(initialModel: CoreModel) =
 
     let pendingSaves = EditorSessionPersistence()
     let mutable workspaceSearchRequestId: Guid option = None
+    let mutable workspaceReplacementRequestId: Guid option = None
+    let mutable workspaceSearchResult: WorkspaceSearchResult option = None
     let mutable pendingSearchActivation: SearchMatch option = None
     let mutable globalSearch = initialModel.Navigation.Search
 
@@ -200,6 +202,120 @@ type EditorSession(initialModel: CoreModel) =
             | Some document -> activate document.Document.Id
             | None -> ()
 
+    let replacementMatchesCurrentDocument matches =
+        match state.Model.ActiveDocument, state.Model.Navigation.Search.Revision with
+        | Some document, Some revision when revision = state.Model.Editing.Revision ->
+            matches
+            |> List.forall (fun matchValue -> matchValue.DocumentId = document.Id)
+            |> fun matchesCurrentDocument -> matchesCurrentDocument, document
+        | _ -> false, Unchecked.defaultof<_>
+
+    let replaceMatches (matches: SearchMatch list) replacement =
+        let matchesCurrentDocument, _ = replacementMatchesCurrentDocument matches
+
+        if matchesCurrentDocument then
+            matches
+            |> List.sortByDescending (fun matchValue -> matchValue.Line, matchValue.Column)
+            |> List.iter (fun matchValue ->
+                updateModel (
+                    ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.SetSelection(Some matchValue.Range))
+                )
+
+                updateModel (ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.InsertString replacement)))
+
+            refreshActiveSearch ()
+
+    let replaceCurrentSearch replacement =
+        match state.Model.Navigation.Search.Index with
+        | Some index when index >= 0 && index < state.Model.Navigation.Search.Matches.Length ->
+            replaceMatches [ state.Model.Navigation.Search.Matches[index] ] replacement
+        | _ -> ()
+
+    let replaceCurrentDocumentAllSearch replacement =
+        replaceMatches state.Model.Navigation.Search.Matches replacement
+
+    let replaceOpenWorkspaceMatches replacement (result: WorkspaceSearchResult) =
+        let openDocumentIds =
+            state.Workspace.Documents |> Map.toSeq |> Seq.map fst |> Set.ofSeq
+
+        let originalDocumentId = state.Workspace.ActiveDocumentId
+        let mutable replacedCount = 0
+        let stalePaths = ResizeArray<string>()
+
+        result.Matches
+        |> List.filter (fun matchValue -> openDocumentIds.Contains matchValue.DocumentId)
+        |> List.groupBy (fun matchValue -> matchValue.DocumentId)
+        |> List.iter (fun (documentId, matches) ->
+            let revisionIsCurrent =
+                result.OpenDocumentRevisions
+                |> Map.tryFind documentId
+                |> Option.exists (fun revision -> state.Workspace.Documents[documentId].Editing.Revision = revision)
+
+            if revisionIsCurrent then
+                if state.Workspace.ActiveDocumentId <> Some documentId then
+                    updateModel (SwitchDocument documentId)
+
+                matches
+                |> List.sortByDescending (fun matchValue -> matchValue.Line, matchValue.Column)
+                |> List.iter (fun matchValue ->
+                    updateModel (
+                        ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.SetSelection(Some matchValue.Range))
+                    )
+
+                    updateModel (ApplyEditingEvent(Functor.Domain.Editing.EditingEvent.InsertString replacement))
+                    replacedCount <- replacedCount + 1)
+            else
+                let path =
+                    state.Workspace.Documents[documentId].Document.Metadata.Path
+                    |> Option.defaultValue (sprintf "document %O" documentId)
+
+                stalePaths.Add path)
+
+        match originalDocumentId with
+        | Some documentId when state.Workspace.ActiveDocumentId <> Some documentId ->
+            updateModel (SwitchDocument documentId)
+        | _ -> ()
+
+        replacedCount, List.ofSeq stalePaths
+
+    let replaceWorkspaceSearch replacement =
+        match state.Workspace.RootPath, workspaceSearchResult with
+        | Some _, Some result ->
+            let openDocumentIds =
+                state.Workspace.Documents |> Map.toSeq |> Seq.map fst |> Set.ofSeq
+
+            let unopenedMatches =
+                result.Matches
+                |> List.filter (fun matchValue -> not (openDocumentIds.Contains matchValue.DocumentId))
+
+            let openReplacementCount, staleOpenPaths =
+                replaceOpenWorkspaceMatches replacement result
+
+            if unopenedMatches.IsEmpty then
+                if openReplacementCount > 0 then
+                    updateModel (ApplyNavigationEvent NavigationEvent.InvalidateSearch)
+            else
+                match WorkspaceReplacement.apply replacement result.Sources unopenedMatches with
+                | Error errors ->
+                    state <- AppSessionState.withError (String.concat "\n" errors) state
+                    publishState ()
+                    publishStatus ()
+                | Ok replacements ->
+                    let requestId = Guid.NewGuid()
+
+                    workspaceReplacementRequestId <- Some requestId
+
+                    requestEffects
+                        [ AppEffect.replaceWorkspace
+                              { RequestId = requestId
+                                WorkspaceId = state.Workspace.Id
+                                StalePaths = staleOpenPaths
+                                Sources = result.Sources
+                                Replacements = replacements } ]
+        | _ -> replaceCurrentDocumentAllSearch replacement
+
+    let replaceAllSearch replacement = replaceWorkspaceSearch replacement
+
     let requestWorkspaceSearch () =
         match state.Workspace.RootPath with
         | None ->
@@ -226,18 +342,29 @@ type EditorSession(initialModel: CoreModel) =
                 |> List.map DocumentModel.canonicalizePath
                 |> Set.ofList
 
+            let openDocumentRevisions =
+                openDocuments
+                |> List.choose (fun document ->
+                    state.Workspace.Documents
+                    |> Map.tryFind document.Id
+                    |> Option.map (fun documentState -> document.Id, documentState.Editing.Revision))
+                |> Map.ofList
+
             let request: WorkspaceSearchRequest =
                 { RequestId = requestId
                   WorkspaceId = state.Workspace.Id
                   RootPath = rootPath
                   Options = state.Model.Navigation.Search.Options
                   OpenDocuments = openDocuments
-                  OpenDocumentPaths = openDocumentPaths }
+                  OpenDocumentPaths = openDocumentPaths
+                  OpenDocumentRevisions = openDocumentRevisions }
 
             workspaceSearchRequestId <- Some requestId
             requestEffects [ AppEffect.searchWorkspace request ]
 
     let searchOpenDocuments () =
+        workspaceSearchResult <- None
+
         let documents =
             state.Workspace.TabOrder
             |> List.choose (fun documentId ->
@@ -271,6 +398,8 @@ type EditorSession(initialModel: CoreModel) =
         globalSearch <- SearchModel.create ()
 
         workspaceSearchRequestId <- None
+        workspaceReplacementRequestId <- None
+        workspaceSearchResult <- None
 
         publishState ()
         publishEditorStatus ()
@@ -562,10 +691,12 @@ type EditorSession(initialModel: CoreModel) =
 
             publishState ()
         | SearchQueryChanged query ->
+            workspaceSearchResult <- None
             updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchQuery query))
             refreshActiveSearch ()
             searchCurrentScope ()
         | SearchOptionsChanged options ->
+            workspaceSearchResult <- None
             updateModel (ApplyNavigationEvent(NavigationEvent.SetSearchOptions options))
             refreshActiveSearch ()
             searchCurrentScope ()
@@ -577,7 +708,12 @@ type EditorSession(initialModel: CoreModel) =
             updateModel (ApplyNavigationEvent NavigationEvent.PrevSearchResult)
             revealActiveSearchMatch ()
         | SearchResultActivated result -> activateSearchMatch result
-        | ClearSearchRequested -> updateModel (ApplyNavigationEvent NavigationEvent.ClearSearch)
+        | ReplaceCurrentSearch replacement -> replaceCurrentSearch replacement
+        | ReplaceAllSearch replacement -> replaceAllSearch replacement
+        | ClearSearchRequested ->
+            workspaceSearchResult <- None
+            updateModel (ApplyNavigationEvent NavigationEvent.ClearSearch)
+        | ClearSearchHistoryRequested -> updateModel (ApplyNavigationEvent NavigationEvent.ClearSearchHistory)
         | OpenDocumentsSearchRequested -> searchOpenDocuments ()
         | WorkspaceSearchRequested -> requestWorkspaceSearch ()
         | WorkspaceSearchCompleted result ->
@@ -585,7 +721,21 @@ type EditorSession(initialModel: CoreModel) =
             let isCurrentWorkspace = state.Workspace.Id = result.WorkspaceId
             let isCurrentOptions = state.Model.Navigation.Search.Options = result.Options
 
-            if isCurrentRequest && isCurrentWorkspace && isCurrentOptions then
+            let areOpenDocumentRevisionsCurrent =
+                result.OpenDocumentRevisions
+                |> Map.forall (fun documentId revision ->
+                    state.Workspace.Documents
+                    |> Map.tryFind documentId
+                    |> Option.exists (fun documentState -> documentState.Editing.Revision = revision))
+
+            if
+                isCurrentRequest
+                && isCurrentWorkspace
+                && isCurrentOptions
+                && areOpenDocumentRevisionsCurrent
+            then
+                workspaceSearchResult <- Some result
+
                 updateModel (
                     ApplyNavigationEvent(NavigationEvent.SetSearchMatches(state.Model.Editing.Revision, result.Matches))
                 )
@@ -594,6 +744,27 @@ type EditorSession(initialModel: CoreModel) =
                     state <- AppSessionState.withMessage (String.concat "\n" result.Errors) state
                     publishState ()
                     publishStatus ()
+        | WorkspaceReplacementCompleted result when workspaceReplacementRequestId = Some result.RequestId ->
+            workspaceReplacementRequestId <- None
+            workspaceSearchResult <- None
+            updateModel (ApplyNavigationEvent NavigationEvent.InvalidateSearch)
+
+            let messages =
+                [ if not result.ReplacedPaths.IsEmpty then
+                      yield sprintf "Replaced matches in %d file(s)." result.ReplacedPaths.Length
+                  if not result.StalePaths.IsEmpty then
+                      yield sprintf "Skipped %d stale file(s)." result.StalePaths.Length
+                  if not result.Errors.IsEmpty then
+                      yield String.concat "\n" result.Errors ]
+
+            if not messages.IsEmpty then
+                state <- AppSessionState.withMessage (String.concat " " messages) state
+                publishState ()
+                publishStatus ()
+
+            if result.StalePaths.IsEmpty && result.Errors.IsEmpty then
+                requestWorkspaceSearch ()
+        | WorkspaceReplacementCompleted _ -> ()
 
     member _.DispatchEffect(effect: AppEffect) =
         match effect with
@@ -617,6 +788,7 @@ type EditorSession(initialModel: CoreModel) =
         | WriteFile _ -> ()
         | WriteFileForDocument _ -> ()
         | SearchWorkspace _ -> ()
+        | ReplaceWorkspace _ -> ()
         | Tokenize _ -> ()
 
     member _.SetStatus(message: string) =

@@ -50,6 +50,7 @@ type NavigationEvent =
     static member NextSearchResult = Search SearchEvent.NextSearchResult
     static member PrevSearchResult = Search SearchEvent.PrevSearchResult
     static member ClearSearch = Search SearchEvent.ClearSearch
+    static member ClearSearchHistory = Search SearchEvent.ClearSearchHistory
     static member InvalidateSearch = Search SearchEvent.InvalidateSearch
     static member SetSymbols symbols = Symbols(SymbolEvent.SetSymbols symbols)
 
@@ -78,6 +79,7 @@ module NavigationEventConstructors =
     let NextSearchResult = NavigationEvent.NextSearchResult
     let PrevSearchResult = NavigationEvent.PrevSearchResult
     let ClearSearch = NavigationEvent.ClearSearch
+    let ClearSearchHistory = NavigationEvent.ClearSearchHistory
     let InvalidateSearch = NavigationEvent.InvalidateSearch
     let SetSymbols symbols = NavigationEvent.SetSymbols symbols
     let MarkNavigationDirty = NavigationEvent.MarkNavigationDirty
