@@ -30,9 +30,44 @@ type SearchPanelControl() as this =
     let commandRequested = Event<AppCommand>()
     let mutable applying = false
     let mutable renderedMatches: SearchMatch list = []
+    let mutable renderedModifiedFiles: string list = []
+    let mutable renderedFileCount = 0
     let renderedButtons = System.Collections.Generic.Dictionary<SearchMatch, Button>()
     let mutable currentSearch = SearchModel.create ()
     let mutable currentStatus: EditorStatus option = None
+
+    let searchOptions () =
+        { Query = queryBox.Text
+          CaseSensitive = caseSensitive.IsChecked.GetValueOrDefault() }
+
+    let replacementText () =
+        if isNull replacementBox.Text then
+            ""
+        else
+            replacementBox.Text
+
+    let clearRenderedResults () =
+        resultsPanel.Children.Clear()
+        renderedButtons.Clear()
+        renderedMatches <- []
+        renderedModifiedFiles <- []
+        renderedFileCount <- 0
+
+    let searchFileCount (matches: SearchMatch list) =
+        matches
+        |> List.map (fun matchValue -> matchValue.Path, matchValue.DocumentId)
+        |> List.distinct
+        |> List.length
+
+    let searchCountText (search: SearchModel) fileCount =
+        match search.Query, search.Matches with
+        | None, _ -> ""
+        | Some _, [] -> "No results"
+        | Some _, matches ->
+            let current =
+                search.Index |> Option.map (fun index -> index + 1) |> Option.defaultValue 0
+
+            sprintf "%d of %d matches in %d file(s)" current matches.Length fileCount
 
     let content =
         let buttons = StackPanel(Orientation = Orientation.Horizontal, Spacing = 6.0)
@@ -82,22 +117,49 @@ type SearchPanelControl() as this =
         AutomationProperties.SetName(replaceButton, "Replace current search result")
         AutomationProperties.SetName(replaceAllButton, "Replace all search results")
 
-        findAllButton.Click.Add(fun _ ->
-            commandRequested.Trigger(
-                AppCommand.searchOptionsChanged
-                    { Query = queryBox.Text
-                      CaseSensitive = caseSensitive.IsChecked.GetValueOrDefault() }
-            ))
+        findAllButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.searchOptionsChanged (searchOptions ())))
 
-        findNextButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.nextSearchResult))
+        findNextButton.Click.Add(fun _ ->
+            let options = searchOptions ()
 
-        clearButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.clearSearch))
-        replaceButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceCurrentSearch replacementBox.Text))
-        replaceAllButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceAllSearch replacementBox.Text))
+            if
+                currentSearch.Query <> Some options.Query
+                || currentSearch.Options.CaseSensitive <> options.CaseSensitive
+                || currentSearch.IsDirty
+            then
+                commandRequested.Trigger(AppCommand.searchOptionsChanged options)
+            else
+                commandRequested.Trigger(AppCommand.nextSearchResult))
+
+        clearButton.Click.Add(fun _ ->
+            queryBox.Text <- ""
+            clearRenderedResults ()
+            commandRequested.Trigger(AppCommand.clearSearch))
+
+        replaceButton.Click.Add(fun _ ->
+            let options = searchOptions ()
+
+            if
+                currentSearch.Query <> Some options.Query
+                || currentSearch.Options.CaseSensitive <> options.CaseSensitive
+                || currentSearch.IsDirty
+            then
+                commandRequested.Trigger(AppCommand.replaceCurrentSearchWithOptions options (replacementText ()))
+            else
+                commandRequested.Trigger(AppCommand.replaceCurrentSearch (replacementText ())))
+
+        replaceAllButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.replaceAllSearch (replacementText ())))
 
     member _.CommandRequested = commandRequested.Publish
 
     member _.ApplySearch(search: SearchModel) =
+        let resultsUnchanged =
+            Object.ReferenceEquals(box search.Matches, box currentSearch.Matches)
+            && search.Index = currentSearch.Index
+            && search.ModifiedFiles = currentSearch.ModifiedFiles
+
+        let modifiedFilesChanged = search.ModifiedFiles <> currentSearch.ModifiedFiles
+
         currentSearch <- search
         applying <- true
         queryBox.Text <- search.Query |> Option.defaultValue search.Options.Query
@@ -107,43 +169,52 @@ type SearchPanelControl() as this =
         let current =
             search.Index |> Option.map (fun index -> index + 1) |> Option.defaultValue 0
 
-        countText.Text <-
-            match search.Query, search.Matches with
-            | None, _ -> ""
-            | Some _, [] -> "No results"
-            | Some _, _ -> sprintf "%d of %d" current search.Matches.Length
+        if modifiedFilesChanged then
+            clearRenderedResults ()
+
+        if not resultsUnchanged then
+            renderedFileCount <- searchFileCount search.Matches
+
+        countText.Text <- searchCountText search renderedFileCount
 
         clearButton.IsEnabled <- search.Query.IsSome
 
-        let canReuse =
-            search.Matches.Length >= renderedMatches.Length
-            && List.forall2 (=) renderedMatches (search.Matches |> List.take renderedMatches.Length)
+        if not resultsUnchanged then
+            let canReuse =
+                search.Matches.Length >= renderedMatches.Length
+                && List.forall2 (=) renderedMatches (search.Matches |> List.take renderedMatches.Length)
 
-        if not canReuse then
-            resultsPanel.Children.Clear()
-            renderedButtons.Clear()
-            renderedMatches <- []
+            if not canReuse then
+                clearRenderedResults ()
 
-        search.Matches
-        |> List.skip renderedMatches.Length
-        |> List.iter (fun matchValue ->
-            let path = matchValue.Path |> Option.defaultValue matchValue.Name
+            search.Matches
+            |> List.skip renderedMatches.Length
+            |> List.iter (fun matchValue ->
+                let path = matchValue.Path |> Option.defaultValue matchValue.Name
 
-            let label =
-                sprintf "%s:%d:%d  %s" path (matchValue.Line + 1) (matchValue.Column + 1) matchValue.Preview
+                let label =
+                    sprintf "%s:%d:%d  %s" path (matchValue.Line + 1) (matchValue.Column + 1) matchValue.Preview
 
-            let resultButton =
-                Button(Content = label, HorizontalContentAlignment = HorizontalAlignment.Left)
+                let resultButton =
+                    Button(Content = label, HorizontalContentAlignment = HorizontalAlignment.Left)
 
-            resultButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.activateSearchResult matchValue))
-            renderedButtons[matchValue] <- resultButton
-            resultsPanel.Children.Add(resultButton) |> ignore)
+                resultButton.Click.Add(fun _ -> commandRequested.Trigger(AppCommand.activateSearchResult matchValue))
+                renderedButtons[matchValue] <- resultButton
+                resultsPanel.Children.Add(resultButton) |> ignore)
 
-        renderedMatches <- search.Matches
+            renderedMatches <- search.Matches
 
-        search.Matches
-        |> List.iteri (fun index matchValue ->
-            renderedButtons[matchValue].Classes.Set("selected", search.Index = Some index))
+            search.Matches
+            |> List.iteri (fun index matchValue ->
+                renderedButtons[matchValue].Classes.Set("selected", search.Index = Some index))
+
+            if search.ModifiedFiles <> renderedModifiedFiles then
+                search.ModifiedFiles
+                |> List.iter (fun path ->
+                    resultsPanel.Children.Add(TextBlock(Text = sprintf "%s (modified)" path))
+                    |> ignore)
+
+                renderedModifiedFiles <- search.ModifiedFiles
 
         match currentStatus with
         | Some status when status.Error.IsSome || status.Message.IsSome ->
@@ -166,7 +237,7 @@ type SearchPanelControl() as this =
                 |> Option.map (fun index -> index + 1)
                 |> Option.defaultValue 0
 
-            countText.Text <- sprintf "%d of %d" current currentSearch.Matches.Length
+            countText.Text <- searchCountText currentSearch renderedFileCount
 
     member _.FocusQuery() = queryBox.Focus() |> ignore
 

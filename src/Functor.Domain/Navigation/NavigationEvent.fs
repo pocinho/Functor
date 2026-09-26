@@ -44,6 +44,9 @@ type NavigationEvent =
     static member SetSearchMatches(revision, matches) =
         Search(SearchEvent.SetSearchMatches(revision, matches))
 
+    static member SetModifiedFiles files =
+        Search(SearchEvent.SetModifiedFiles files)
+
     static member SetSearchIndex index =
         Search(SearchEvent.SetSearchIndex index)
 
@@ -75,6 +78,8 @@ module NavigationEventConstructors =
 
     let SetSearchMatches (revision, matches) =
         NavigationEvent.SetSearchMatches(revision, matches)
+
+    let SetModifiedFiles files = NavigationEvent.SetModifiedFiles files
 
     let SetSearchIndex index = NavigationEvent.SetSearchIndex index
 

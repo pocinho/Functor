@@ -34,6 +34,7 @@ type SearchModel =
     { Query: string option
       Results: SearchResult list
       Matches: SearchMatch list
+      ModifiedFiles: string list
       Options: SearchOptions
       History: SearchOptions list
       Revision: int64 option
@@ -45,6 +46,7 @@ module SearchModel =
         { Query = None
           Results = []
           Matches = []
+          ModifiedFiles = []
           Options = SearchOptions.create ""
           History = []
           Revision = None

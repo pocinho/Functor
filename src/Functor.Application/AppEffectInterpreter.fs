@@ -200,7 +200,9 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                         )
                 | ReplaceWorkspace(request, cancellationToken) ->
                     cancellationToken.ThrowIfCancellationRequested()
-                    let replacedPaths = ResizeArray<string>()
+                    let replacedPaths = ResizeArray<string>(request.AlreadyReplacedPaths)
+                    let mutable replacedMatches = request.AlreadyReplacedMatches
+                    let mutable replacedFiles = request.AlreadyReplacedFiles
                     let stalePaths = ResizeArray<string>(request.StalePaths)
                     let errors = ResizeArray<string>()
 
@@ -219,7 +221,14 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                                 let! writeResult = services.File.WriteText(path, replacement)
 
                                 match writeResult with
-                                | Ok() -> replacedPaths.Add path
+                                | Ok() ->
+                                    replacedPaths.Add path
+
+                                    replacedMatches <-
+                                        replacedMatches
+                                        + (request.MatchCounts |> Map.tryFind path |> Option.defaultValue 0)
+
+                                    replacedFiles <- replacedFiles + 1
                                 | Error message -> errors.Add(sprintf "%s: %s" path message)
 
                     dispatch (
@@ -227,6 +236,8 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                             { RequestId = request.RequestId
                               WorkspaceId = request.WorkspaceId
                               ReplacedPaths = List.ofSeq replacedPaths
+                              ReplacedMatches = replacedMatches
+                              ReplacedFiles = replacedFiles
                               StalePaths = List.ofSeq stalePaths
                               Errors = List.ofSeq errors }
                     )

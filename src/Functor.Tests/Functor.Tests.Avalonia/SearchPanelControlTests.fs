@@ -64,6 +64,55 @@ type SearchPanelControlTests() =
         window.Close()
 
     [<Fact>]
+    member _.``find next starts a search when the textbox has not been searched``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let content = panel.Content :?> Grid
+        let queryBox = content.Children[0] :?> TextBox
+        let buttons = content.Children[3] :?> StackPanel
+        queryBox.Text <- "needle"
+        (buttons.Children[2] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(AppCommand.searchOptionsChanged (SearchOptions.create "needle"), commands)
+
+    [<Fact>]
+    member _.``clear immediately removes the query and rendered results``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let matchValue =
+            { DocumentId = Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Line = 0
+              Column = 0
+              Length = 6
+              Range =
+                { Start = { Line = 0; Column = 0 }
+                  End = { Line = 0; Column = 6 } }
+              Preview = "needle" }
+
+        panel.ApplySearch
+            { SearchModel.create () with
+                Query = Some "needle"
+                Options = SearchOptions.create "needle"
+                Matches = [ matchValue ]
+                Index = Some 0 }
+
+        let content = panel.Content :?> Grid
+        let queryBox = content.Children[0] :?> TextBox
+        let buttons = content.Children[3] :?> StackPanel
+        let results = (content.Children[5] :?> ScrollViewer).Content :?> StackPanel
+        (buttons.Children[0] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Equal("", queryBox.Text)
+        Assert.Empty(results.Children)
+        Assert.Contains(AppCommand.clearSearch, commands)
+
+    [<Fact>]
     member _.``search panel distinguishes empty search from no results``() =
         let panel = SearchPanelControl()
         let content = panel.Content :?> Grid
@@ -145,8 +194,22 @@ type SearchPanelControlTests() =
         (buttons.Children[3] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
         (buttons.Children[4] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
 
-        Assert.Contains(AppCommand.replaceCurrentSearch "word", commands)
+        let expectedOptions: SearchOptions = { Query = null; CaseSensitive = false }
+
+        Assert.Contains(AppCommand.replaceCurrentSearchWithOptions expectedOptions "word", commands)
         Assert.Contains(AppCommand.replaceAllSearch "word", commands)
+
+    [<Fact>]
+    member _.``replace all treats an untouched replacement box as empty text``() =
+        let panel = SearchPanelControl()
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+
+        let content = panel.Content :?> Grid
+        let buttons = content.Children[3] :?> StackPanel
+        (buttons.Children[4] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(AppCommand.replaceAllSearch "", commands)
 
     [<Fact>]
     member _.``search result activation dispatches the selected match``() =

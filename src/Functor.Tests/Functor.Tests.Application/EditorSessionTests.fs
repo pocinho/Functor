@@ -83,6 +83,20 @@ type EditorSessionTests() =
         Assert.Equal(8, session.State.Model.Navigation.Search.Matches[0].Column)
 
     [<Fact>]
+    member _.``replace current search searches before replacing when needed``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term")
+
+        session.DispatchCommand(
+            AppCommand.replaceCurrentSearchWithOptions
+                { Query = "term"
+                  CaseSensitive = false }
+                "word"
+        )
+
+        Assert.Equal<string list>([ "word" ], session.State.Model.Editing.Buffer)
+
+    [<Fact>]
     member _.``replace all search matches applies descending edits and refreshes search``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term term")
@@ -93,6 +107,17 @@ type EditorSessionTests() =
         Assert.Equal<string list>([ "🚧 🚧" ], session.State.Model.Editing.Buffer)
         Assert.Empty(session.State.Model.Navigation.Search.Matches)
         Assert.Equal(session.State.Model.Editing.Revision, session.State.Model.Navigation.Search.Revision.Value)
+
+    [<Fact>]
+    member _.``replace all search matches can delete matches``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        session.DispatchCommand(AppCommand.replaceAllSearch "")
+
+        Assert.Equal<string list>([ " " ], session.State.Model.Editing.Buffer)
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
 
     [<Fact>]
     member _.``replace all with zero matches leaves the document unchanged``() =
@@ -223,6 +248,30 @@ type EditorSessionTests() =
 
         Assert.NotEqual(firstRequest.RequestId, secondRequest.RequestId)
         Assert.False(secondCancellation.IsCancellationRequested)
+
+    [<Fact>]
+    member _.``clearing search cancels the in-flight workspace search``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let cancellationTokenSource =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(_, cancellationToken) -> Some cancellationToken
+                | _ -> None)
+            |> Seq.last
+
+        session.DispatchCommand(AppCommand.clearSearch)
+
+        Assert.True(cancellationTokenSource.IsCancellationRequested)
+        Assert.Equal(None, session.State.Model.Navigation.Search.Query)
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
 
     [<Fact>]
     member _.``activating a match after an emoji preserves its UTF-16 range``() =

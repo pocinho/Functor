@@ -18,6 +18,7 @@ module SearchLogic =
             Options = { model.Options with Query = query }
             Results = []
             Matches = []
+            ModifiedFiles = []
             Revision = None
             Index = None
             IsDirty = true }
@@ -38,6 +39,7 @@ module SearchLogic =
                     Some options.Query
             Results = []
             Matches = []
+            ModifiedFiles = []
             Revision = None
             Index = None
             IsDirty = true }
@@ -55,6 +57,10 @@ module SearchLogic =
             Revision = Some revision
             Index = if matches.IsEmpty then None else Some 0
             IsDirty = false }
+
+    let private setModifiedFiles (model: SearchModel) files =
+        { model with
+            ModifiedFiles = files |> List.distinct }
 
     let private setSearchIndex (model: SearchModel) index =
         if index >= 0 && index < model.Matches.Length then
@@ -87,6 +93,7 @@ module SearchLogic =
             Query = None
             Results = []
             Matches = []
+            ModifiedFiles = []
             Options = SearchOptions.create ""
             Revision = None
             Index = None }
@@ -97,6 +104,7 @@ module SearchLogic =
         { model with
             Matches = []
             Results = []
+            ModifiedFiles = []
             Revision = None
             Index = None
             IsDirty = true }
@@ -106,6 +114,7 @@ module SearchLogic =
         | SetSearchQuery query -> setSearchQuery model query
         | SetSearchResults results -> setSearchResults model results
         | SetSearchMatches(revision, matches) -> setSearchMatches model revision matches
+        | SetModifiedFiles files -> setModifiedFiles model files
         | SetSearchIndex index -> setSearchIndex model index
         | SetSearchOptions options -> setSearchOptions model options
         | NextSearchResult -> nextSearchResult model

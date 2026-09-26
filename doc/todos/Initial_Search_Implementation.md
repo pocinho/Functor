@@ -297,7 +297,7 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Focused domain/application/rendering/workspace tests pass.
 - [x] Headless Avalonia tests pass.
 - [x] The full solution test suite passes.
-- [ ] Desktop smoke testing covers search, navigation, replacement, workspace results, and focus transitions.
+- [x] Desktop smoke testing covers search, navigation, replacement, workspace results, and focus transitions.
 
 ## Recommended Execution Order
 
@@ -310,4 +310,4 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Complete Slice 7 and its workspace activation tests.
 - [x] Complete Slice 8 and its replacement tests.
 - [x] Complete Slice 9 and its history tests.
-- [ ] Complete Slice 10 and record final acceptance results.
+- [x] Complete Slice 10 and record final acceptance results.

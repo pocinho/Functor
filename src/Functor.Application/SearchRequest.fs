@@ -29,11 +29,17 @@ type WorkspaceReplacementRequest =
       WorkspaceId: WorkspaceId
       StalePaths: string list
       Sources: Map<string, string>
-      Replacements: Map<string, string> }
+      Replacements: Map<string, string>
+      MatchCounts: Map<string, int>
+      AlreadyReplacedMatches: int
+      AlreadyReplacedFiles: int
+      AlreadyReplacedPaths: string list }
 
 type WorkspaceReplacementResult =
     { RequestId: Guid
       WorkspaceId: WorkspaceId
       ReplacedPaths: string list
+      ReplacedMatches: int
+      ReplacedFiles: int
       StalePaths: string list
       Errors: string list }

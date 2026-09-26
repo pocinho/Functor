@@ -294,7 +294,11 @@ type AppEffectInterpreterTests() =
               WorkspaceId = Guid.NewGuid()
               StalePaths = []
               Sources = Map.ofList [ path, "original" ]
-              Replacements = Map.ofList [ path, "replacement" ] }
+              Replacements = Map.ofList [ path, "replacement" ]
+              MatchCounts = Map.ofList [ path, 1 ]
+              AlreadyReplacedMatches = 0
+              AlreadyReplacedFiles = 0
+              AlreadyReplacedPaths = [] }
 
         let interpreter =
             AppEffectInterpreter(
@@ -325,7 +329,11 @@ type AppEffectInterpreterTests() =
               WorkspaceId = Guid.NewGuid()
               StalePaths = []
               Sources = Map.ofList [ path, "original" ]
-              Replacements = Map.ofList [ path, "replacement" ] }
+              Replacements = Map.ofList [ path, "replacement" ]
+              MatchCounts = Map.ofList [ path, 1 ]
+              AlreadyReplacedMatches = 0
+              AlreadyReplacedFiles = 0
+              AlreadyReplacedPaths = [] }
 
         let interpreter =
             AppEffectInterpreter(
@@ -356,7 +364,11 @@ type AppEffectInterpreterTests() =
               WorkspaceId = Guid.NewGuid()
               StalePaths = []
               Sources = Map.ofList [ successfulPath, "term"; failedPath, "term" ]
-              Replacements = Map.ofList [ successfulPath, "word"; failedPath, "word" ] }
+              Replacements = Map.ofList [ successfulPath, "word"; failedPath, "word" ]
+              MatchCounts = Map.ofList [ successfulPath, 1; failedPath, 1 ]
+              AlreadyReplacedMatches = 0
+              AlreadyReplacedFiles = 0
+              AlreadyReplacedPaths = [] }
 
         let interpreter =
             AppEffectInterpreter(

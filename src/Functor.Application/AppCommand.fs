@@ -46,6 +46,7 @@ type AppCommand =
     | PreviousSearchResultRequested
     | SearchResultActivated of result: SearchMatch
     | ReplaceCurrentSearch of replacement: string
+    | ReplaceCurrentSearchWithOptions of options: SearchOptions * replacement: string
     | ReplaceAllSearch of replacement: string
     | ClearSearchRequested
     | ClearSearchHistoryRequested
@@ -129,6 +130,9 @@ module AppCommand =
     let activateSearchResult result = SearchResultActivated result
 
     let replaceCurrentSearch replacement = ReplaceCurrentSearch replacement
+
+    let replaceCurrentSearchWithOptions options replacement =
+        ReplaceCurrentSearchWithOptions(options, replacement)
 
     let replaceAllSearch replacement = ReplaceAllSearch replacement
 
