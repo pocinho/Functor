@@ -7,6 +7,7 @@ open System.Globalization
 open System.Runtime.InteropServices
 open System.Text
 open Functor.Application
+open Functor.Domain.Diagnostics
 open Functor.Rendering
 
 /// RenderingSurface is responsible for drawing a complete frame
@@ -85,6 +86,13 @@ module RenderingSurface =
         let g = byte ((argb >>> 8) &&& 0xFFu)
         let b = byte (argb &&& 0xFFu)
         Color.FromArgb(a, r, g, b)
+
+    let private diagnosticColor palette severity =
+        match severity with
+        | DiagnosticSeverity.Error -> palette.DiagnosticError
+        | DiagnosticSeverity.Warning -> palette.DiagnosticWarning
+        | DiagnosticSeverity.Information
+        | DiagnosticSeverity.Hint -> palette.DiagnosticInfo
 
     let measureDefaultAdvance (lineHeight: float32) =
         defaultAdvanceCache.GetOrAdd(
@@ -205,7 +213,9 @@ module RenderingSurface =
             context.PushClip(Rect(gutterWidth, 0.0, max 0.0 (contentBounds.Width - gutterWidth), contentBounds.Height))
 
         // ------------------------------------------------------------
-        // 2. Selection(s)
+        // 2. Overlay precedence: search highlights are the base, selections replace
+        // them, text is drawn above both, diagnostic underlines follow text, and
+        // cursors are drawn last.
         // ------------------------------------------------------------
         let inactiveSearchBrush =
             SolidColorBrush(colorFromArgb (palette.Selection &&& 0x40FFFFFFu))
@@ -276,6 +286,13 @@ module RenderingSurface =
 
         for run in model.TextRuns do
             drawTextRun run
+
+        for diagnostic in model.Diagnostics do
+            let brush =
+                SolidColorBrush(colorFromArgb (diagnosticColor palette diagnostic.Severity))
+
+            for rect in diagnostic.Underline do
+                context.FillRectangle(brush, Rect(float rect.X, float rect.Y, float rect.Width, float rect.Height))
 
         // ------------------------------------------------------------
         // 3. Cursor(s)

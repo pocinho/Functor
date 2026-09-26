@@ -5,6 +5,7 @@ open Avalonia
 open Avalonia.Controls
 open Avalonia.Input
 open Avalonia.Markup.Xaml
+open Functor.Avalonia
 
 type SidePanelControl() as this =
     inherit UserControl()
@@ -37,7 +38,10 @@ type SidePanelControl() as this =
             if isResizing then
                 let parent = this.Parent :?> Control
                 let currentX = args.GetPosition(parent).X
-                let width = max 160.0 (min 720.0 (resizeStartWidth + currentX - resizeStartX))
+
+                let width =
+                    ShellLayoutState.clampSidePanelWidth (resizeStartWidth + currentX - resizeStartX)
+
                 panelWidth <- width
                 this.Width <- width
                 resizeRequested.Trigger(width)

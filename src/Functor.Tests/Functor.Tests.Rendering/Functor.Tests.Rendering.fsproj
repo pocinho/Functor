@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="TestFixtures.fs" />
     <Compile Include="LayoutEngineTests.fs" />
+    <Compile Include="RenderingLayerTests.fs" />
     <Compile Include="TextMeasurerTests.fs" />
     <ProjectReference Include="..\..\Functor.Rendering\Functor.Rendering.fsproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

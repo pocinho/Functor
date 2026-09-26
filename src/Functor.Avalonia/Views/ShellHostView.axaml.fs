@@ -189,6 +189,9 @@ type ShellHostView() as this =
                 closeSettingsForDocumentNavigation ()
                 editor.Value.ActivateDocument(documentId))
             (fun path -> commandRequested.Trigger(AppCommand.openDocument path))
+            (fun () ->
+                this.Dispatch(CloseToolPanel)
+                editor.Value.Focus() |> ignore)
             commandRequested.Trigger
         |> ignore
 
@@ -247,7 +250,16 @@ type ShellHostView() as this =
 
         this.FindControl<Button>("WorkspaceToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool WorkspaceTool))
 
-        this.FindControl<Button>("SearchToolButton").Click.Add(fun _ -> this.Dispatch(ToggleTool SearchTool))
+        this
+            .FindControl<Button>("SearchToolButton")
+            .Click.Add(fun _ ->
+                let isClosingSearch =
+                    model.Layout.IsToolPanelOpen && model.Layout.ActiveTool = Some SearchTool
+
+                this.Dispatch(ToggleTool SearchTool)
+
+                if isClosingSearch then
+                    editor.Focus() |> ignore)
 
         tabsPanel.Value.DocumentActivated.Add(fun documentId ->
             closeSettingsForDocumentNavigation ()
@@ -336,6 +348,18 @@ type ShellHostView() as this =
     member _.CommandRequested = commandRequested.Publish
 
     member _.PrepareForDocumentNavigation() = closeSettingsForDocumentNavigation ()
+
+    member _.OpenSearch(focusReplacement: bool) =
+        this.Dispatch(ToggleTool SearchTool)
+
+        Dispatcher.UIThread.Post(
+            Action(fun () ->
+                match sidePanelHost.Value.PanelContent with
+                | :? SearchPanelControl as search when focusReplacement -> search.FocusReplacement()
+                | :? SearchPanelControl as search -> search.FocusQuery()
+                | _ -> ())
+        )
+        |> ignore
 
     interface IShellProjectionTarget with
         member _.ApplyShellInput(input) =

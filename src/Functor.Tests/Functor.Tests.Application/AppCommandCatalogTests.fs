@@ -40,6 +40,8 @@ type AppCommandCatalogTests() =
     [<Fact>]
     member _.``search navigation commands are available in the command palette``() =
         Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.refresh")
+        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.open")
+        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.replace")
+        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.replaceAll")
         Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.next")
         Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.previous")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.clearHistory")

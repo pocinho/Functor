@@ -69,6 +69,32 @@ type private RecoverableWorkspaceSearchFileService() =
 
         member _.WriteText(_, _) = async { return Ok() }
 
+type private PartialWorkspaceReplacementFileService() =
+    let writes = ResizeArray<string * string>()
+
+    member _.Writes = writes
+
+    interface IFileService with
+        member _.ReadText path =
+            async {
+                if path.EndsWith("failed.fs", StringComparison.OrdinalIgnoreCase) then
+                    return Ok "term"
+                else
+                    return Ok "term"
+            }
+
+        member _.EnumerateFiles _ = async { return Ok [] }
+
+        member _.WriteText(path, contents) =
+            async {
+                writes.Add(path, contents)
+
+                if path.EndsWith("failed.fs", StringComparison.OrdinalIgnoreCase) then
+                    return Error "disk full"
+                else
+                    return Ok()
+            }
+
 type private InterpreterDialogService(openPath: string option, savePath: string option) =
     interface IDialogService with
         member _.OpenFile() = async { return openPath }
@@ -120,10 +146,7 @@ type AppEffectInterpreterTests() =
                     Name = "open.fs"
                     Lines = [ "unsaved term" ] } ]
               OpenDocumentPaths = Set.ofList [ "C:\work\open.fs" ]
-              OpenDocumentRevisions = Map.ofList [ documentId, 0L ]
-              CandidatePaths = []
-              Offset = 0
-              BatchSize = 64 }
+              OpenDocumentRevisions = Map.ofList [ documentId, 0L ] }
 
         let interpreter =
             AppEffectInterpreter(
@@ -139,9 +162,6 @@ type AppEffectInterpreterTests() =
         | [ WorkspaceSearchCompleted result ] ->
             Assert.Equal(workspaceId, result.WorkspaceId)
             Assert.Equal(3, result.Matches.Length)
-            Assert.True(result.IsComplete)
-            Assert.Equal(5, result.NextOffset)
-            Assert.Equal(5, result.CandidatePaths.Length)
 
             Assert.Equal<string list>(
                 [ "C:\work\open.fs"; "C:\work\other.fs"; "C:\work\project.fsproj" ],
@@ -172,7 +192,7 @@ type AppEffectInterpreterTests() =
         | _ -> Assert.True(false, "Expected one workspace search completion.")
 
     [<Fact>]
-    member _.``workspace search reads one bounded batch at a time``() =
+    member _.``workspace search reads all candidate files in one operation``() =
         let commands = ResizeArray<AppCommand>()
         let fileService = WorkspaceSearchFileService()
 
@@ -183,10 +203,7 @@ type AppEffectInterpreterTests() =
               Options = SearchOptions.create "term"
               OpenDocuments = []
               OpenDocumentPaths = Set.empty
-              OpenDocumentRevisions = Map.empty
-              CandidatePaths = [ "C:\work\other.fs"; "C:\work\second.fs" ]
-              Offset = 0
-              BatchSize = 1 }
+              OpenDocumentRevisions = Map.empty }
 
         let interpreter =
             AppEffectInterpreter(
@@ -200,11 +217,8 @@ type AppEffectInterpreterTests() =
 
         match commands |> Seq.toList with
         | [ WorkspaceSearchCompleted result ] ->
-            Assert.False(result.IsComplete)
-            Assert.Equal(1, result.NextOffset)
-            Assert.Single(result.Matches) |> ignore
-            Assert.Single(fileService.Reads) |> ignore
-            Assert.Equal("C:\work\other.fs", fileService.Reads[0])
+            Assert.Equal(3, result.Matches.Length)
+            Assert.Equal(3, fileService.Reads.Count)
         | _ -> Assert.True(false, "Expected one workspace search completion.")
 
     [<Fact>]
@@ -219,10 +233,7 @@ type AppEffectInterpreterTests() =
               Options = SearchOptions.create "term"
               OpenDocuments = []
               OpenDocumentPaths = Set.empty
-              OpenDocumentRevisions = Map.empty
-              CandidatePaths = []
-              Offset = 0
-              BatchSize = 1 }
+              OpenDocumentRevisions = Map.empty }
 
         let interpreter =
             AppEffectInterpreter(
@@ -253,10 +264,7 @@ type AppEffectInterpreterTests() =
               Options = SearchOptions.create "term"
               OpenDocuments = []
               OpenDocumentPaths = Set.empty
-              OpenDocumentRevisions = Map.empty
-              CandidatePaths = [ "C:\work\available.fs"; "C:\work\missing.fs" ]
-              Offset = 0
-              BatchSize = 64 }
+              OpenDocumentRevisions = Map.empty }
 
         let interpreter =
             AppEffectInterpreter(
@@ -334,6 +342,45 @@ type AppEffectInterpreterTests() =
         | [ WorkspaceReplacementCompleted result ] ->
             Assert.Empty(result.ReplacedPaths)
             Assert.Contains("access denied", result.Errors.Head)
+        | _ -> Assert.True(false, "Expected one workspace replacement completion.")
+
+    [<Fact>]
+    member _.``workspace replacement reports partial success and failure``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = PartialWorkspaceReplacementFileService()
+        let successfulPath = "C:\work\successful.fs"
+        let failedPath = "C:\\work\\failed.fs"
+
+        let request =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              StalePaths = []
+              Sources = Map.ofList [ successfulPath, "term"; failedPath, "term" ]
+              Replacements = Map.ofList [ successfulPath, "word"; failedPath, "word" ] }
+
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.replaceWorkspace request)
+        |> Async.RunSynchronously
+
+        match commands |> Seq.toList with
+        | [ WorkspaceReplacementCompleted result ] ->
+            Assert.Equal<string list>([ successfulPath ], result.ReplacedPaths)
+            Assert.Empty(result.StalePaths)
+            Assert.Single(result.Errors) |> ignore
+            Assert.Contains(failedPath, result.Errors.Head)
+            Assert.Contains("disk full", result.Errors.Head)
+
+            Assert.Equal<(string * string) list>(
+                [ failedPath, "word"; successfulPath, "word" ],
+                List.ofSeq fileService.Writes
+            )
         | _ -> Assert.True(false, "Expected one workspace replacement completion.")
 
     [<Fact>]

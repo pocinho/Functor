@@ -79,6 +79,21 @@ module InputAdapterTests =
         )
 
         Assert.Equal(
+            Some ShellAction.OpenSearch,
+            InputAdapter.shellAction Avalonia.Input.Key.F Avalonia.Input.KeyModifiers.Control
+        )
+
+        Assert.Equal(
+            Some ShellAction.NextSearchResult,
+            InputAdapter.shellAction Avalonia.Input.Key.F3 Avalonia.Input.KeyModifiers.None
+        )
+
+        Assert.Equal(
+            Some ShellAction.PreviousSearchResult,
+            InputAdapter.shellAction Avalonia.Input.Key.F3 Avalonia.Input.KeyModifiers.Shift
+        )
+
+        Assert.Equal(
             Some ShellAction.OpenSettings,
             InputAdapter.shellAction Avalonia.Input.Key.OemComma Avalonia.Input.KeyModifiers.Meta
         )

@@ -57,6 +57,10 @@ flowchart TD
 
 `ShellModel` owns global Workspace/Search tool selection and left-panel open state, together with shared panel geometry. The Workspace explorer renders the projected open-file hierarchy from `WorkspaceProjection.fileTree`; selecting a file activates its document. The active tab's workspace state remains the source of truth for Agent visibility in the separate right-side auxiliary host. The workspace layout persists the shared left-panel width, active tool id, and tool-panel open state, while older width-only layout documents remain valid.
 
+Search state is global to the application session while active-document ranges are projected through per-document navigation state. `SearchEngine` performs literal, line-local, ordinal matching with case-insensitive behavior by default and preserves UTF-16 ranges. `EditorSession` searches unsaved open buffers in memory, coordinates one cancellable full-workspace scan, rejects stale workspace results, and routes replacement edits through normal editing events. Unopened workspace files are reread and revision-checked before writes; stale paths and read/write failures are reported without discarding successful results.
+
+The Avalonia Search tool is a reusable left-panel control. It projects query, options, matches, loading/empty/error states, replacement actions, and history commands, while matching and replacement remain in the domain/application layers. The initial UX intentionally does not add a second floating in-editor search widget. Regex, fuzzy, whole-word, structural, semantic, multiline, and indexed search remain deferred extensions.
+
 `EditorControl` remains the composition root for one editor session. It constructs `EditorSession`, concrete clipboard/file/dialog/tokenizer services, and `AppEffectInterpreter`. It translates raw Avalonia input, dispatches editor/application commands, invalidates after state changes, calculates scroll bounds, and invokes the pure rendering pipeline during `Render`.
 
 ## State and Effect Flow

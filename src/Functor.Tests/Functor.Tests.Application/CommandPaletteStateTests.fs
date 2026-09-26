@@ -30,7 +30,7 @@ type CommandPaletteStateTests() =
 
         let selected = CommandPaletteState.selected palette
 
-        Assert.Equal(Some "search.clearHistory", selected |> Option.map (fun command -> command.Id))
+        Assert.Equal(Some "search.previous", selected |> Option.map (fun command -> command.Id))
 
     [<Fact>]
     member _.``empty command lists have no selection``() =

@@ -35,6 +35,15 @@ type ShellHostViewTests() =
         let sidePanel = host.FindControl<SidePanelControl>("SidePanelHost")
 
         host.FindControl<Button>("WorkspaceToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        host.Dispatch(SetSidePanelWidth 100.0)
+        Assert.Equal(ShellLayoutState.MinimumSidePanelWidth, sidePanel.PanelWidth)
+
+        host.Dispatch(SetSidePanelWidth 900.0)
+        Assert.Equal(ShellLayoutState.MaximumSidePanelWidth, sidePanel.PanelWidth)
+
+        host.Dispatch(SetSidePanelWidth 500.0)
+
         Assert.True(sidePanel.IsOpen)
         Assert.Equal("Workspace", sidePanel.Title)
         firstEditor.NewDocument()
@@ -116,8 +125,31 @@ type ShellHostViewTests() =
                 { Query = "needle"
                   CaseSensitive = true }
 
+        let findAllButton = (content.Children[3] :?> StackPanel).Children[1] :?> Button
+        findAllButton.RaiseEvent(RoutedEventArgs(Button.ClickEvent))
         Assert.Contains(commands, fun command -> command = expectedOptionsCommand)
 
+        window.Close()
+
+    [<AvaloniaFact>]
+    member _.``opening search focuses the query and closing returns focus to the editor``() =
+        let host = ShellHostView()
+        let window = Window(Content = host)
+        window.Show()
+
+        host.OpenSearch(false)
+        Dispatcher.UIThread.RunJobs()
+
+        let sidePanel = host.FindControl<SidePanelControl>("SidePanelHost")
+        let panel = sidePanel.PanelContent :?> SearchPanelControl
+        let queryBox = (panel.Content :?> Grid).Children[0] :?> TextBox
+
+        Assert.True(queryBox.Focusable)
+
+        host.FindControl<Button>("SearchToolButton").RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        Dispatcher.UIThread.RunJobs()
+
+        Assert.True(host.Editor.IsFocused)
         window.Close()
 
     [<AvaloniaFact>]

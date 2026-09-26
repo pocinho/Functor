@@ -224,19 +224,19 @@ opens on the right through the command palette.
 - ✅ Verify tooltip/accessibility names and predictable button ordering.
 
 
-### Phase 7.1 — Search Implementation
-- Basic regex-free text search engine (linear scan, defer indexing optimization)
-- Case-insensitive by default, toggleable
-- Highlight all matches in editor (`StyledText` runs)
-- Preview snippet generation (context around match positions)
-- Floating search widget UI (Avalonia control)
-- Search in files across workspace (requires phase 7.0 side panel)
-- Replace functionality
-- Search history
+### ✅ Phase 7.1 — Search Implementation (Completed)
+- ✅ Basic literal, line-local text search engine using a linear scan
+- ✅ Case-insensitive by default with an explicit case-sensitive option
+- ✅ UTF-16-safe inactive and active match highlights in the editor
+- ✅ Bounded preview snippets around match positions
+- ✅ Reusable Avalonia Search tool in the global left panel; floating widget deferred
+- ✅ Cancellable, filtered workspace search with unopened-file activation
+- ✅ Revision-safe current-document and workspace replacement
+- ✅ Session-only bounded search history
 
 #### Search mode sequencing
 - Keep Phase 7.1 literal and line-local; multiline literal queries remain deferred.
-- Add whole-word matching first as the next small extension to the literal matcher.
+- Keep whole-word matching deferred as a separate literal-search extension.
 - Add regex search after replacement, stale-result handling, and search-state contracts are stable; treat regex as a separate search mode with explicit invalid-pattern and replacement semantics.
 - Add fuzzy matching later as a ranked search mode, primarily for file, symbol, or command discovery rather than precise in-document replacement.
 

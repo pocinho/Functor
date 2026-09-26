@@ -24,6 +24,9 @@ type Keymap =
 type ShellAction =
     | OpenCommandPalette
     | OpenSettings
+  | OpenSearch
+  | NextSearchResult
+  | PreviousSearchResult
 
 type EditorAction =
     | Copy
@@ -141,6 +144,12 @@ module Keymap =
             Some ShellAction.OpenCommandPalette
         elif input.Key = Key.Character ',' && commandModifier then
             Some ShellAction.OpenSettings
+        elif input.Key = Key.Character 'f' && commandModifier then
+          Some ShellAction.OpenSearch
+        elif input.Key = Key.F3 && input.Modifiers = KeyModifiers.Shift then
+          Some ShellAction.PreviousSearchResult
+        elif input.Key = Key.F3 && input.Modifiers = KeyModifiers.None then
+          Some ShellAction.NextSearchResult
         else
             None
 

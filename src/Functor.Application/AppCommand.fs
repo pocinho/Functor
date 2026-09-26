@@ -24,6 +24,9 @@ type AppCommand =
     | ReopenRecentDocument of path: string
     | ClearRecentDocumentsRequested
     | OpenCommandPaletteRequested
+    | OpenSearchRequested
+    | OpenSearchReplaceRequested
+    | OpenSearchReplaceAllRequested
     | OpenSettingsRequested
     | ConfirmDiscardChanges
     | CancelPendingOperation
@@ -48,7 +51,6 @@ type AppCommand =
     | ClearSearchHistoryRequested
     | OpenDocumentsSearchRequested
     | WorkspaceSearchRequested
-    | WorkspaceSearchMoreRequested
     | WorkspaceSearchCompleted of result: WorkspaceSearchResult
     | WorkspaceReplacementCompleted of result: WorkspaceReplacementResult
 
@@ -82,6 +84,12 @@ module AppCommand =
     let clearRecentDocuments = ClearRecentDocumentsRequested
 
     let openCommandPalette = OpenCommandPaletteRequested
+
+    let openSearch = OpenSearchRequested
+
+    let openSearchReplace = OpenSearchReplaceRequested
+
+    let openSearchReplaceAll = OpenSearchReplaceAllRequested
 
     let openSettings = OpenSettingsRequested
 
@@ -129,8 +137,6 @@ module AppCommand =
     let clearSearchHistory = ClearSearchHistoryRequested
 
     let searchOpenDocuments = OpenDocumentsSearchRequested
-
-    let searchWorkspaceMore = WorkspaceSearchMoreRequested
 
     let workspaceSearch = WorkspaceSearchRequested
 

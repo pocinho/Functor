@@ -34,6 +34,7 @@ module InputAdapter =
         | Avalonia.Input.Key.Home -> Some Functor.Input.Key.Home
         | Avalonia.Input.Key.End -> Some Functor.Input.Key.End
         | Avalonia.Input.Key.Insert -> Some Functor.Input.Key.Insert
+        | Avalonia.Input.Key.F3 -> Some Functor.Input.Key.F3
         | Avalonia.Input.Key.A -> Some(Functor.Input.Key.Character 'a')
         | Avalonia.Input.Key.Z -> Some(Functor.Input.Key.Character 'z')
         | Avalonia.Input.Key.Y -> Some(Functor.Input.Key.Character 'y')
@@ -71,6 +72,8 @@ module InputAdapter =
             match keyValue with
             | Avalonia.Input.Key.P -> Some(Functor.Input.Key.Character 'p')
             | Avalonia.Input.Key.OemComma -> Some(Functor.Input.Key.Character ',')
+            | Avalonia.Input.Key.F -> Some(Functor.Input.Key.Character 'f')
+            | Avalonia.Input.Key.F3 -> Some Functor.Input.Key.F3
             | _ -> None
 
         semanticKey

@@ -88,11 +88,7 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                 | SearchWorkspace(request, cancellationToken) ->
                     cancellationToken.ThrowIfCancellationRequested()
 
-                    let! pathsResult =
-                        if request.CandidatePaths.IsEmpty then
-                            services.File.EnumerateFiles request.RootPath
-                        else
-                            async { return Ok request.CandidatePaths }
+                    let! pathsResult = services.File.EnumerateFiles request.RootPath
 
                     let canonicalRoot = DocumentModel.canonicalizePath request.RootPath
 
@@ -134,55 +130,37 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                                   Sources = sources
                                   Matches = openDocumentMatches
                                   Errors = [ message ]
-                                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                                  CandidatePaths = []
-                                  NextOffset = request.Offset
-                                  IsComplete = true }
+                                  OpenDocumentRevisions = request.OpenDocumentRevisions }
                         )
                     | Ok paths ->
                         let openPaths = request.OpenDocumentPaths
 
                         let candidatePaths =
-                            if request.CandidatePaths.IsEmpty then
-                                paths
-                                |> List.distinct
-                                |> List.sortWith (fun left right ->
-                                    StringComparer.OrdinalIgnoreCase.Compare(left, right))
-                            else
-                                request.CandidatePaths
-
-                        let batchPaths =
-                            candidatePaths
-                            |> List.skip (min request.Offset candidatePaths.Length)
-                            |> List.truncate (max 1 request.BatchSize)
-
-                        let includeOpenDocuments = request.Offset = 0
+                            paths
+                            |> List.distinct
+                            |> List.sortWith (fun left right -> StringComparer.OrdinalIgnoreCase.Compare(left, right))
 
                         let matches = ResizeArray<SearchMatch>()
                         let documents = ResizeArray<SearchDocument>()
 
-                        if includeOpenDocuments then
-                            documents.AddRange(request.OpenDocuments)
+                        documents.AddRange(request.OpenDocuments)
 
-                            matches.AddRange(
-                                request.OpenDocuments
-                                |> List.collect (SearchEngine.findInDocument request.Options)
-                            )
+                        matches.AddRange(
+                            request.OpenDocuments
+                            |> List.collect (SearchEngine.findInDocument request.Options)
+                        )
 
                         let mutable sources =
-                            if includeOpenDocuments then
-                                request.OpenDocuments
-                                |> List.choose (fun document ->
-                                    document.Path
-                                    |> Option.map (fun path ->
-                                        DocumentModel.canonicalizePath path, String.concat "\n" document.Lines))
-                                |> Map.ofList
-                            else
-                                Map.empty
+                            request.OpenDocuments
+                            |> List.choose (fun document ->
+                                document.Path
+                                |> Option.map (fun path ->
+                                    DocumentModel.canonicalizePath path, String.concat "\n" document.Lines))
+                            |> Map.ofList
 
                         let errors = ResizeArray<string>()
 
-                        for path in batchPaths do
+                        for path in candidatePaths do
                             cancellationToken.ThrowIfCancellationRequested()
                             let canonicalPath = DocumentModel.canonicalizePath path
 
@@ -218,10 +196,7 @@ type AppEffectInterpreter(services: EditorServices, dispatch: AppCommand -> unit
                                   Sources = sources
                                   Matches = List.ofSeq matches
                                   Errors = List.ofSeq errors
-                                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                                  CandidatePaths = candidatePaths
-                                  NextOffset = request.Offset + batchPaths.Length
-                                  IsComplete = request.Offset + batchPaths.Length >= candidatePaths.Length }
+                                  OpenDocumentRevisions = request.OpenDocumentRevisions }
                         )
                 | ReplaceWorkspace(request, cancellationToken) ->
                     cancellationToken.ThrowIfCancellationRequested()

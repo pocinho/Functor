@@ -112,49 +112,49 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Define inactive and active search highlight styles.
 - [x] Convert match ranges to geometry with the existing `TextMeasurer`.
 - [x] Reuse UTF-16 range normalization used by selections and tokens.
-- [ ] Define overlay precedence with syntax, selection, cursor, and diagnostics.
-- [ ] Keep search highlights independent from syntax token caches.
+- [x] Define overlay precedence with syntax, selection, cursor, and diagnostics.
+- [x] Keep search highlights independent from syntax token caches.
 - [x] Update Avalonia drawing in one rendering location.
-- [ ] Ensure scrolling and hit testing remain aligned with highlighted ranges.
+- [x] Ensure scrolling and hit testing remain aligned with highlighted ranges.
 - [x] Document multiline-query behavior if it remains deferred.
 
 ### Tests
 
 - [x] Test visible matches.
-- [ ] Test off-screen matches.
-- [ ] Test multiple matches on one line.
-- [ ] Test match geometry after emoji and combining text.
-- [ ] Test horizontal scrolling.
+- [x] Test off-screen matches.
+- [x] Test multiple matches on one line.
+- [x] Test match geometry after emoji and combining text.
+- [x] Test horizontal scrolling.
 - [x] Test active versus inactive styling.
-- [ ] Test overlap with syntax styling.
-- [ ] Test overlap with editor selection and cursor.
-- [ ] Test empty-result rendering.
+- [x] Test overlap with syntax styling.
+- [x] Test overlap with editor selection and cursor.
+- [x] Test empty-result rendering.
 
 ## Slice 5 - Current-Document Navigation and Commands
 
 ### Editor behavior
 
-- [ ] Define whether opening search initializes from the current selection.
-- [ ] Focus the query input when search opens.
+- [x] Define whether opening search initializes from the current selection (preserve the global query; do not derive it from selection).
+- [x] Focus the query input when search opens.
 - [x] Make next/previous select the active match.
 - [x] Scroll the active editor to reveal the selected match.
 - [x] Activate a result by moving to its exact UTF-16 range.
-- [ ] Preserve grapheme-safe cursor and selection behavior.
-- [ ] Refresh active-document search immediately or according to the selected debounce policy.
-- [ ] Keep workspace searches cancellable/debounced after edits.
-- [ ] Define behavior when no document is active.
-- [ ] Add keyboard shortcuts where the input architecture supports them.
-- [ ] Add command-palette entries for search, next, previous, replace, and replace-all.
-- [ ] Make editor/search focus transitions deterministic.
+- [x] Preserve grapheme-safe cursor and selection behavior.
+- [x] Refresh active-document search immediately or according to the selected debounce policy.
+- [x] Keep workspace searches cancellable/debounced after edits.
+- [x] Define behavior when no document is active.
+- [x] Add keyboard shortcuts where the input architecture supports them.
+- [x] Add command-palette entries for search, next, previous, replace, and replace-all.
+- [x] Make editor/search focus transitions deterministic.
 
 ### Tests
 
-- [ ] Test command routing.
-- [ ] Test search open and close focus behavior.
+- [x] Test command routing.
+- [x] Test search open and close focus behavior.
 - [x] Test next/previous scrolling.
 - [x] Test exact result activation.
-- [ ] Test no-active-document behavior.
-- [ ] Test query changes during editing.
+- [x] Test no-active-document behavior.
+- [x] Test query changes during editing.
 
 ## Slice 6 - Search Widget and Tool Panel
 
@@ -167,24 +167,24 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Add previous and next buttons.
 - [x] Add an explicit action to search all open in-memory documents without a workspace.
 - [x] Add replace input and replace/replace-all actions.
-- [ ] Add close action that restores editor focus.
-- [ ] Add loading, empty, error, and no-results states.
+- [x] Add close action that restores editor focus.
+- [x] Add loading, empty, error, and no-results states.
 - [x] Add search history access.
-- [ ] Add the floating in-editor search widget if the final UX keeps both surfaces.
-- [ ] Reuse existing theme resources and panel sizing.
-- [ ] Keep matching and replacement out of code-behind.
-- [ ] Preserve accessible names and predictable control ordering.
+- [x] Decide against a floating in-editor search widget for the initial UX.
+- [x] Reuse existing theme resources and panel sizing.
+- [x] Keep matching and replacement out of code-behind.
+- [x] Preserve accessible names and predictable control ordering.
 
 ### Tests
 
-- [ ] Test query dispatch from the control.
-- [ ] Test case-sensitivity dispatch.
+- [x] Test query dispatch from the control.
+- [x] Test case-sensitivity dispatch.
 - [x] Test open-files search dispatch.
 - [x] Test next/previous dispatch.
-- [ ] Test close and focus restoration.
-- [ ] Test loading, empty, error, and no-results states.
-- [ ] Test replacement control dispatch.
-- [ ] Test panel width and layout stability.
+- [x] Test close and focus restoration.
+- [x] Test loading, empty, error, and no-results states.
+- [x] Test replacement control dispatch.
+- [x] Test panel width and layout stability.
 - [x] Test accessible names/tooltips.
 
 ## Slice 7 - Workspace Results and File Activation
@@ -199,7 +199,7 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Preserve unsaved open-file precedence during activation.
 - [x] Keep result identity valid across tab switches.
 - [x] Clear or invalidate results on workspace replacement.
-- [ ] Show file filtering/read errors without discarding valid results.
+- [x] Show file filtering/read errors without discarding valid results.
 
 ### Tests
 
@@ -220,17 +220,17 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Validate document identity and buffer revision before replacing.
 - [x] Implement current-match replacement through normal editing events.
 - [x] Implement replace-all using descending original ranges or a pure batch edit.
-- [ ] Preserve or explicitly define undo/redo granularity.
+- [x] Explicitly define undo/redo granularity as one undo step per replacement edit.
 - [x] Recompute/invalidate search ranges after replacement.
 
 ### Workspace replacement
 
 - [x] Group replacements by document.
 - [x] Apply replacements only to unchanged search snapshots.
-- [ ] Route dirty documents through normal dirty-state and save flows.
+- [x] Route dirty documents through normal dirty-state and save flows.
 - [x] Avoid direct writes that bypass file-service error handling.
 - [x] Report stale documents separately from write failures.
-- [ ] Define partial-failure behavior and user-visible status.
+- [x] Define partial-failure behavior and user-visible status.
 
 ### Tests
 
@@ -240,11 +240,11 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Test current-match replace.
 - [x] Test current-document replace-all.
 - [x] Test replace-all across multiple files.
-- [ ] Test dirty documents.
+- [x] Test dirty documents.
 - [x] Test stale revisions.
 - [x] Test write failures.
-- [ ] Test partial failure reporting.
-- [ ] Test undo/redo behavior.
+- [x] Test partial failure reporting.
+- [x] Test undo/redo behavior.
 
 ## Slice 9 - Search History
 
@@ -277,37 +277,37 @@ Source plan: [Initial_Search.md](../notes/Initial_Search.md)
 - [x] Document file filtering and workspace scope.
 - [x] Document replacement revision-safety behavior.
 - [x] Document search history scope.
-- [ ] Update relevant architecture notes after implementation is complete.
-- [ ] Mark completed Phase 7.1 items in `ROADMAP.md` only after acceptance checks pass.
+- [x] Update relevant architecture notes after implementation is complete.
+- [x] Mark completed Phase 7.1 items in `ROADMAP.md` only after acceptance checks pass.
 
 ### Acceptance checks
 
-- [ ] Search works on unsaved active text.
-- [ ] All active-document matches are highlighted.
-- [ ] The selected match is visually distinct.
-- [ ] Next/previous navigation is bounded and scrolls into view.
-- [ ] Workspace search finds eligible unopened files.
-- [ ] Workspace results activate the correct file and range.
-- [ ] Case-insensitive search is the default and can be disabled.
-- [ ] Replace and replace-all preserve UTF-16 and grapheme integrity.
-- [ ] Replacement honors document revision safety.
+- [x] Search works on unsaved active text.
+- [x] All active-document matches are highlighted.
+- [x] The selected match is visually distinct.
+- [x] Next/previous navigation is bounded and scrolls into view.
+- [x] Workspace search finds eligible unopened files.
+- [x] Workspace results activate the correct file and range.
+- [x] Case-insensitive search is the default and can be disabled.
+- [x] Replace and replace-all preserve UTF-16 and grapheme integrity.
+- [x] Replacement honors document revision safety.
 - [x] Search state survives tab switches globally.
-- [ ] Search state clears on workspace replacement.
-- [ ] Focus transitions work from keyboard and mouse flows.
-- [ ] Focused domain/application/rendering/workspace tests pass.
-- [ ] Headless Avalonia tests pass.
-- [ ] The full solution test suite passes.
+- [x] Search state clears on workspace replacement.
+- [x] Focus transitions work from keyboard and mouse flows.
+- [x] Focused domain/application/rendering/workspace tests pass.
+- [x] Headless Avalonia tests pass.
+- [x] The full solution test suite passes.
 - [ ] Desktop smoke testing covers search, navigation, replacement, workspace results, and focus transitions.
 
 ## Recommended Execution Order
 
-- [ ] Complete Slice 1 and its pure engine tests.
-- [ ] Complete Slice 2 and its navigation/session tests.
-- [ ] Complete Slice 3 and its application orchestration tests.
-- [ ] Complete Slice 4 and its rendering tests.
-- [ ] Complete Slice 5 and its editor command tests.
-- [ ] Complete Slice 6 and its Avalonia widget tests.
-- [ ] Complete Slice 7 and its workspace activation tests.
-- [ ] Complete Slice 8 and its replacement tests.
-- [ ] Complete Slice 9 and its history tests.
+- [x] Complete Slice 1 and its pure engine tests.
+- [x] Complete Slice 2 and its navigation/session tests.
+- [x] Complete Slice 3 and its application orchestration tests.
+- [x] Complete Slice 4 and its rendering tests.
+- [x] Complete Slice 5 and its editor command tests.
+- [x] Complete Slice 6 and its Avalonia widget tests.
+- [x] Complete Slice 7 and its workspace activation tests.
+- [x] Complete Slice 8 and its replacement tests.
+- [x] Complete Slice 9 and its history tests.
 - [ ] Complete Slice 10 and record final acceptance results.

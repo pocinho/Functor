@@ -10,6 +10,15 @@ open Xunit
 
 type EditorSessionTests() =
     [<Fact>]
+    member _.``search remains empty when no document is active``() =
+        let session = EditorSession()
+
+        session.DispatchCommand(AppCommand.searchQueryChanged "needle")
+
+        Assert.Equal(Some "needle", session.State.Model.Navigation.Search.Query)
+        Assert.Empty(session.State.Model.Navigation.Search.Matches)
+
+    [<Fact>]
     member _.``session exposes unified application state``() =
         let session = EditorSession()
 
@@ -98,6 +107,24 @@ type EditorSessionTests() =
         Assert.Equal(revision, session.State.Model.Editing.Revision)
 
     [<Fact>]
+    member _.``replace all keeps the document dirty and uses normal undo granularity``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        session.DispatchCommand(AppCommand.replaceAllSearch "word")
+
+        Assert.Equal<string list>([ "word word" ], session.State.Model.Editing.Buffer)
+        Assert.True(session.State.Model.Editing.IsDirty)
+        Assert.Equal(2, session.State.Model.Editing.UndoStack.Length)
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent Undo))
+        Assert.Equal<string list>([ "term word" ], session.State.Model.Editing.Buffer)
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent Redo))
+        Assert.Equal<string list>([ "word word" ], session.State.Model.Editing.Buffer)
+
+    [<Fact>]
     member _.``search defaults to every open in-memory tab without a workspace``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.fileOpened "C:\work\first.fs" "needle in first")
@@ -157,14 +184,61 @@ type EditorSessionTests() =
                   Sources = Map.empty
                   Matches = staleMatches
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                  CandidatePaths = request.CandidatePaths
-                  NextOffset = request.Offset
-                  IsComplete = true }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
         )
 
         Assert.Empty(session.State.Model.Navigation.Search.Matches)
         Assert.True(session.State.Model.Navigation.Search.IsDirty)
+
+    [<Fact>]
+    member _.``editing cancels the in-flight workspace search before the next query``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.folderOpened "C:\work")
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\file.fs" "term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let firstRequest, firstCancellation =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, cancellationToken) -> Some(request, cancellationToken)
+                | _ -> None)
+            |> Seq.last
+
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
+        Assert.True(firstCancellation.IsCancellationRequested)
+
+        session.DispatchCommand(AppCommand.searchQueryChanged "changed")
+
+        let secondRequest, secondCancellation =
+            requestedEffects
+            |> Seq.collect id
+            |> Seq.choose (function
+                | AppEffect.SearchWorkspace(request, cancellationToken) -> Some(request, cancellationToken)
+                | _ -> None)
+            |> Seq.last
+
+        Assert.NotEqual(firstRequest.RequestId, secondRequest.RequestId)
+        Assert.False(secondCancellation.IsCancellationRequested)
+
+    [<Fact>]
+    member _.``activating a match after an emoji preserves its UTF-16 range``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\work\emoji.fs" "😀 term")
+        session.DispatchCommand(AppCommand.searchQueryChanged "term")
+
+        let result = session.State.Model.Navigation.Search.Matches |> List.exactlyOne
+        session.DispatchCommand(AppCommand.activateSearchResult result)
+
+        Assert.Equal(
+            Some
+                { Start = { Line = 0; Column = 3 }
+                  End = { Line = 0; Column = 7 } },
+            session.State.Model.Editing.Selection
+        )
 
     [<Fact>]
     member _.``workspace search completion is rejected after workspace replacement``() =
@@ -199,10 +273,7 @@ type EditorSessionTests() =
                   Sources = Map.empty
                   Matches = staleMatch
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                  CandidatePaths = request.CandidatePaths
-                  NextOffset = request.Offset
-                  IsComplete = true }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
         )
 
         Assert.Empty(session.State.Model.Navigation.Search.Matches)
@@ -252,10 +323,7 @@ type EditorSessionTests() =
                   Sources = Map.empty
                   Matches = staleMatches
                   Errors = []
-                  OpenDocumentRevisions = firstRequest.OpenDocumentRevisions
-                  CandidatePaths = firstRequest.CandidatePaths
-                  NextOffset = firstRequest.Offset
-                  IsComplete = true }
+                  OpenDocumentRevisions = firstRequest.OpenDocumentRevisions }
         )
 
         Assert.Equal<SearchMatch list>(matchesBeforeRefresh, session.State.Model.Navigation.Search.Matches)
@@ -307,10 +375,7 @@ type EditorSessionTests() =
                   Sources = Map.ofList [ "C:\work\unopened.fs", "term" ]
                   Matches = [ matchValue ]
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                  CandidatePaths = request.CandidatePaths
-                  NextOffset = request.Offset
-                  IsComplete = true }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
         )
 
         requestedEffects.Clear()
@@ -354,10 +419,7 @@ type EditorSessionTests() =
                   Sources = Map.empty
                   Matches = staleMatches
                   Errors = []
-                  OpenDocumentRevisions = request.OpenDocumentRevisions
-                  CandidatePaths = request.CandidatePaths
-                  NextOffset = request.Offset
-                  IsComplete = true }
+                  OpenDocumentRevisions = request.OpenDocumentRevisions }
         )
 
         session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
@@ -638,6 +700,16 @@ type EditorSessionTests() =
             Some "Unsupported or binary file cannot be opened: C:\\work\\image.png",
             session.State.Status.Message
         )
+
+    [<Fact>]
+    member _.``opening an unknown workspace text extension requests a read``() =
+        let session = EditorSession()
+        let requestedEffects = ResizeArray<AppEffect list>()
+        session.EffectsRequested.Add(fun effects -> requestedEffects.Add(effects) |> ignore)
+
+        session.DispatchCommand(AppCommand.openDocument "C:\work\script.py")
+
+        Assert.Equal<AppEffect list>([ AppEffect.readFile "C:\work\script.py" ], requestedEffects[0])
 
     [<Fact>]
     member _.``opening an already open path activates the existing document``() =

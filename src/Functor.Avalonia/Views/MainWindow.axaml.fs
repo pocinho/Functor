@@ -159,6 +159,9 @@ type MainWindow() as this =
     and executeCommand (command: AppCommand) =
         match command with
         | OpenCommandPaletteRequested -> showCommandPalette ()
+        | OpenSearchRequested -> shellHostView.Value.OpenSearch false
+        | OpenSearchReplaceRequested -> shellHostView.Value.OpenSearch true
+        | OpenSearchReplaceAllRequested -> shellHostView.Value.OpenSearch true
         | OpenSettingsRequested -> showSettingsDialog ()
         | NewDocumentRequested
         | OpenFileRequested
@@ -313,6 +316,15 @@ type MainWindow() as this =
                 match Functor.Avalonia.InputAdapter.shellAction args.Key args.KeyModifiers with
                 | Some Functor.Input.ShellAction.OpenCommandPalette ->
                     showCommandPalette ()
+                    args.Handled <- true
+                | Some Functor.Input.ShellAction.OpenSearch ->
+                    executeCommand AppCommand.openSearch
+                    args.Handled <- true
+                | Some Functor.Input.ShellAction.NextSearchResult ->
+                    executeCommand AppCommand.nextSearchResult
+                    args.Handled <- true
+                | Some Functor.Input.ShellAction.PreviousSearchResult ->
+                    executeCommand AppCommand.previousSearchResult
                     args.Handled <- true
                 | Some Functor.Input.ShellAction.OpenSettings ->
                     showSettingsDialog ()

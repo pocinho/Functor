@@ -2,7 +2,9 @@ namespace Functor.Tests.Rendering
 
 open Functor.Domain.Diagnostics
 open Functor.Domain.Core
+open Functor.Domain.Document
 open Functor.Domain.Editing
+open Functor.Domain.Navigation
 open Functor.Domain.Syntax
 open Functor.Rendering
 open Functor.Domain.Search
@@ -230,6 +232,163 @@ type LayoutEngineTests() =
         Assert.False(highlights[0].IsActive)
         Assert.True(highlights[1].IsActive)
         Assert.Equal(32.0f, highlights[1].Rects.Head.Width)
+
+    [<Fact>]
+    member _.``multiple matches on one line retain independent geometry``() =
+        let measurer = createMeasurer ()
+
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "term term" ] }
+
+        let matches = SearchEngine.findInDocument (SearchOptions.create "term") document
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, document.Lines.Head ]
+
+        let highlights =
+            LayoutEngine.layoutSearchHighlights measurer 0 lines (matches |> List.map (fun value -> value, false))
+
+        Assert.Equal(2, highlights.Length)
+        Assert.Equal(0.0f, highlights[0].Rects.Head.X)
+        Assert.Equal(32.0f, highlights[0].Rects.Head.Width)
+        Assert.Equal(40.0f, highlights[1].Rects.Head.X)
+        Assert.Equal(32.0f, highlights[1].Rects.Head.Width)
+
+    [<Fact>]
+    member _.``search geometry preserves utf16 offsets after emoji and combining text``() =
+        let measurer =
+            TextMeasurer.create (
+                TextMetrics.createWithGraphemeAdvance 16.0f 8.0f 4 (fun _ grapheme ->
+                    if grapheme = "😀" || grapheme = "e\u0301" then
+                        16.0f
+                    else
+                        8.0f)
+            )
+
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "😀term"; "e\u0301term" ] }
+
+        let matches = SearchEngine.findInDocument (SearchOptions.create "term") document
+
+        let lines =
+            LayoutEngine.layoutLines measurer 0 (document.Lines |> List.mapi (fun index text -> index, text))
+
+        let highlights =
+            LayoutEngine.layoutSearchHighlights measurer 0 lines (matches |> List.map (fun value -> value, false))
+
+        Assert.Equal(2, highlights.Length)
+        Assert.Equal(2, highlights[0].Range.Start.Column)
+        Assert.Equal(16.0f, highlights[0].Rects.Head.X)
+        Assert.Equal(2, highlights[1].Range.Start.Column)
+        Assert.Equal(16.0f, highlights[1].Rects.Head.X)
+
+    [<Fact>]
+    member _.``search slicing excludes matches outside the visible line range``() =
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "term"; "other"; "term" ] }
+
+        let matches = SearchEngine.findInDocument (SearchOptions.create "term") document
+
+        let input =
+            { Buffer = document.Lines
+              View =
+                { Viewport = { Width = 80; Height = 16 }
+                  VerticalOffset = 2
+                  HorizontalOffset = 0 }
+              Editing = EditingModel.create ()
+              Syntax = SyntaxModel.empty
+              Diagnostics = DiagnosticsModel.create ()
+              Search =
+                { SearchModel.create () with
+                    Matches = matches } }
+
+        let sliced = SlicingEngine.sliceSearchMatches 1 input
+
+        Assert.Single(sliced) |> ignore
+        Assert.Equal(2, sliced.Head |> fst |> (fun matchValue -> matchValue.Line))
+
+    [<Fact>]
+    member _.``render input excludes workspace matches from other documents``() =
+        let activeDocument =
+            { DocumentModel.createUntitled "active.fs" with
+                InitialText = "active term" }
+
+        let otherDocumentId = System.Guid.NewGuid()
+
+        let activeMatch =
+            { DocumentId = activeDocument.Id
+              Path = None
+              Name = "active.fs"
+              Line = 0
+              Column = 7
+              Length = 4
+              Range =
+                { Start = { Line = 0; Column = 7 }
+                  End = { Line = 0; Column = 11 } }
+              Preview = "active term" }
+
+        let otherMatch =
+            { activeMatch with
+                DocumentId = otherDocumentId
+                Name = "other.fs" }
+
+        let model =
+            { CoreModel.create () with
+                ActiveDocument = Some activeDocument
+                Editing =
+                    { EditingModel.create () with
+                        Buffer = [ "active term" ] }
+                Navigation =
+                    { NavigationModel.create () with
+                        Search =
+                            { SearchModel.create () with
+                                Matches = [ otherMatch; activeMatch ]
+                                Index = Some 1 } } }
+
+        let input = RenderInput.fromCoreModel model
+
+        Assert.Equal<SearchMatch list>([ activeMatch ], input.Search.Matches)
+        Assert.Equal(Some 0, input.Search.Index)
+
+    [<Fact>]
+    member _.``search geometry follows horizontal scrolling``() =
+        let measurer = createMeasurer ()
+
+        let document: SearchDocument =
+            { Id = System.Guid.NewGuid()
+              Path = None
+              Name = "untitled"
+              Lines = [ "prefix term" ] }
+
+        let matchValue =
+            SearchEngine.findInDocument (SearchOptions.create "term") document
+            |> List.exactlyOne
+
+        let lines = LayoutEngine.layoutLines measurer 7 [ 0, document.Lines.Head ]
+
+        let highlight =
+            LayoutEngine.layoutSearchHighlights measurer 7 lines [ matchValue, false ]
+            |> List.exactlyOne
+            |> fun layout -> layout.Rects |> List.exactlyOne
+
+        Assert.Equal(0.0f, highlight.X)
+        Assert.Equal(32.0f, highlight.Width)
+
+    [<Fact>]
+    member _.``empty search results produce no highlight geometry``() =
+        let measurer = createMeasurer ()
+        let lines = LayoutEngine.layoutLines measurer 0 [ 0, "visible text" ]
+
+        let highlights = LayoutEngine.layoutSearchHighlights measurer 0 lines []
+
+        Assert.Empty(highlights)
 
     [<Fact>]
     member _.``diagnostics produce glyphs and multiline underlines``() =

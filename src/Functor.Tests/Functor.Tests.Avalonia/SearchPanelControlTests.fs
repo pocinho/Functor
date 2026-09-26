@@ -1,9 +1,12 @@
 namespace Functor.Tests.Avalonia
 
 open System
+open System.Threading.Tasks
 open Avalonia.Automation
 open Avalonia.Controls
+open Avalonia.Headless.XUnit
 open Avalonia.Interactivity
+open Avalonia.Threading
 open Functor.Avalonia.Controls
 open Functor.Application
 open Functor.Domain.Document
@@ -12,13 +15,109 @@ open Functor.Domain.Search
 open Xunit
 
 type SearchPanelControlTests() =
+    [<AvaloniaFact>]
+    member _.``query changes do not dispatch a search command``() =
+        let panel = SearchPanelControl()
+        let window = Window(Content = panel)
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+        window.Show()
+
+        let content = panel.Content :?> Grid
+        let queryBox = content.Children[0] :?> TextBox
+        queryBox.Text <- "needle"
+
+        task {
+            do! Task.Delay(350)
+            Dispatcher.UIThread.RunJobs()
+
+            Assert.Empty(commands)
+            window.Close()
+        }
+
+    [<AvaloniaFact>]
+    member _.``find all dispatches the current search options``() =
+        let panel = SearchPanelControl()
+        let window = Window(Content = panel)
+        let commands = ResizeArray<AppCommand>()
+        panel.CommandRequested.Add(commands.Add)
+        window.Show()
+
+        let content = panel.Content :?> Grid
+        let queryBox = content.Children[0] :?> TextBox
+        let caseSensitive = content.Children[2] :?> CheckBox
+        queryBox.Text <- "Needle"
+        Dispatcher.UIThread.RunJobs()
+        caseSensitive.IsChecked <- Nullable true
+        Dispatcher.UIThread.RunJobs()
+
+        let buttons = content.Children[3] :?> StackPanel
+        (buttons.Children[1] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+
+        Assert.Contains(
+            AppCommand.searchOptionsChanged
+                { Query = "Needle"
+                  CaseSensitive = true },
+            commands
+        )
+
+        window.Close()
+
     [<Fact>]
-    member _.``search actions only expose clear and replacement commands``() =
+    member _.``search panel distinguishes empty search from no results``() =
+        let panel = SearchPanelControl()
+        let content = panel.Content :?> Grid
+        let countText = content.Children[4] :?> TextBlock
+
+        panel.ApplySearch(SearchModel.create ())
+        Assert.Equal("", countText.Text)
+
+        panel.ApplySearch
+            { SearchModel.create () with
+                Query = Some "missing" }
+
+        Assert.Equal("No results", countText.Text)
+
+    [<Fact>]
+    member _.``search panel presents searching and error states``() =
+        let panel = SearchPanelControl()
+        let content = panel.Content :?> Grid
+        let countText = content.Children[4] :?> TextBlock
+
+        panel.ApplySearch
+            { SearchModel.create () with
+                Query = Some "term"
+                IsDirty = true }
+
+        panel.ApplyStatus
+            { Line = 1
+              Column = 1
+              FileName = "untitled"
+              FileType = "Plain Text"
+              IsDirty = false
+              Message = None
+              Error = None }
+
+        Assert.Equal("Searching...", countText.Text)
+
+        panel.ApplyStatus
+            { Line = 1
+              Column = 1
+              FileName = "untitled"
+              FileType = "Plain Text"
+              IsDirty = false
+              Message = Some "Unable to read workspace file."
+              Error = None }
+
+        Assert.Equal("Unable to read workspace file.", countText.Text)
+
+    [<Fact>]
+    member _.``search actions expose find and replacement commands``() =
         let panel = SearchPanelControl()
         let content = panel.Content :?> Grid
         let buttons = content.Children[3] :?> StackPanel
 
-        Assert.Equal(4, buttons.Children.Count)
+        Assert.Equal(5, buttons.Children.Count)
 
     [<Fact>]
     member _.``search controls expose accessible names``() =
@@ -30,6 +129,8 @@ type SearchPanelControlTests() =
         Assert.Equal("Replacement text", AutomationProperties.GetName(content.Children[1]))
         Assert.Equal("Case sensitive search", AutomationProperties.GetName(content.Children[2]))
         Assert.Equal("Clear search", AutomationProperties.GetName(buttons.Children[0]))
+        Assert.Equal("Find all search results", AutomationProperties.GetName(buttons.Children[1]))
+        Assert.Equal("Find next search result", AutomationProperties.GetName(buttons.Children[2]))
 
     [<Fact>]
     member _.``replacement buttons dispatch replacement commands``() =
@@ -41,23 +142,11 @@ type SearchPanelControlTests() =
         let replacementBox = content.Children[1] :?> TextBox
         replacementBox.Text <- "word"
         let buttons = content.Children[3] :?> StackPanel
-        (buttons.Children[1] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
-        (buttons.Children[2] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        (buttons.Children[3] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
+        (buttons.Children[4] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
 
         Assert.Contains(AppCommand.replaceCurrentSearch "word", commands)
         Assert.Contains(AppCommand.replaceAllSearch "word", commands)
-
-    [<Fact>]
-    member _.``clear history button dispatches clear history``() =
-        let panel = SearchPanelControl()
-        let commands = ResizeArray<AppCommand>()
-        panel.CommandRequested.Add(commands.Add)
-
-        let content = panel.Content :?> Grid
-        let buttons = content.Children[3] :?> StackPanel
-        (buttons.Children[3] :?> Button).RaiseEvent(RoutedEventArgs(Button.ClickEvent))
-
-        Assert.Contains(AppCommand.clearSearchHistory, commands)
 
     [<Fact>]
     member _.``search result activation dispatches the selected match``() =

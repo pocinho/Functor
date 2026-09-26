@@ -13,6 +13,7 @@ type Key =
     | End
     | Insert
     | Escape
+    | F3
 
 [<System.Flags>]
 type KeyModifiers =

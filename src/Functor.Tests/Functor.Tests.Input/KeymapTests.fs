@@ -46,6 +46,18 @@ type KeymapTests() =
             Keymap.resolveShell (Helpers.keyboard (Key.Character ',') KeyModifiers.Meta)
         )
 
+        Assert.Equal(
+            Some ShellAction.OpenSearch,
+            Keymap.resolveShell (Helpers.keyboard (Key.Character 'f') KeyModifiers.Control)
+        )
+
+        Assert.Equal(Some ShellAction.NextSearchResult, Keymap.resolveShell (Helpers.keyboard Key.F3 KeyModifiers.None))
+
+        Assert.Equal(
+            Some ShellAction.PreviousSearchResult,
+            Keymap.resolveShell (Helpers.keyboard Key.F3 KeyModifiers.Shift)
+        )
+
         Assert.Equal(None, Keymap.resolveShell (Helpers.keyboard (Key.Character 'p') KeyModifiers.Shift))
 
     [<Fact>]

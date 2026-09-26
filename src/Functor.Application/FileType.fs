@@ -88,5 +88,25 @@ module FileType =
     let languageId path =
         findDefinition path |> Option.bind (fun definition -> definition.LanguageId)
 
+    let private binaryExtensions =
+        set
+            [ ".7z"
+              ".bmp"
+              ".db"
+              ".dll"
+              ".exe"
+              ".gif"
+              ".ico"
+              ".jpeg"
+              ".jpg"
+              ".pdf"
+              ".png"
+              ".sqlite"
+              ".zip" ]
+
+    let isOpenablePath (path: string) =
+        let extension = Path.GetExtension(path).ToLowerInvariant()
+        not (binaryExtensions.Contains extension)
+
     let isSearchablePath path =
         findDefinition (Some path) |> Option.isSome

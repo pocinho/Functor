@@ -15,13 +15,37 @@ type RenderInput =
       Search: SearchModel }
 
 module RenderInput =
+    let private searchForActiveDocument (model: CoreModel) =
+        match model.ActiveDocument with
+        | None -> model.Navigation.Search
+        | Some document ->
+            let indexedMatches =
+                model.Navigation.Search.Matches |> List.mapi (fun index value -> index, value)
+
+            let matches =
+                indexedMatches
+                |> List.choose (fun (index, value) ->
+                    if value.DocumentId = document.Id then
+                        Some(index, value)
+                    else
+                        None)
+
+            let activeIndex =
+                model.Navigation.Search.Index
+                |> Option.bind (fun index ->
+                    matches |> List.tryFindIndex (fun (originalIndex, _) -> originalIndex = index))
+
+            { model.Navigation.Search with
+                Matches = matches |> List.map snd
+                Index = activeIndex }
+
     let fromCoreModel (model: CoreModel) : RenderInput =
         { Buffer = model.Editing.Buffer
           View = model.View
           Editing = model.Editing
           Syntax = model.Syntax
           Diagnostics = model.Diagnostics
-          Search = model.Navigation.Search }
+          Search = searchForActiveDocument model }
 
 module SlicingEngine =
 

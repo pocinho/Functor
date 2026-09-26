@@ -18,6 +18,7 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (closeToolPanel: unit -> unit)
         (commandRequested: AppCommand -> unit)
         =
         match model.Layout.ActiveTool, model.Layout.IsToolPanelOpen with
@@ -58,6 +59,7 @@ type ShellView() as this =
                                 created, true
 
                         searchView.ApplySearch(input.Search)
+                        searchView.ApplyStatus(input.Status)
 
                         if isNewView then
                             searchView.CommandRequested.Add(commandRequested)
@@ -96,12 +98,13 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (closeToolPanel: unit -> unit)
         (commandRequested: AppCommand -> unit)
         =
         let nodes = ShellViewNode.describe model input
         view.ApplyShellInput input
 
-        applyToolPanel sidePanelHost model input documentActivated fileOpenRequested commandRequested
+        applyToolPanel sidePanelHost model input documentActivated fileOpenRequested closeToolPanel commandRequested
         applyAuxiliaryPanel auxiliaryPanelHost input
 
         nodes
@@ -115,6 +118,7 @@ type ShellView() as this =
         (auxiliaryPanelHost: SidePanelControl)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (closeToolPanel: unit -> unit)
         (commandRequested: AppCommand -> unit)
         =
         this.ApplyModelTo(
@@ -125,6 +129,7 @@ type ShellView() as this =
             input,
             documentActivated,
             fileOpenRequested,
+            closeToolPanel,
             commandRequested
         )
 
@@ -136,6 +141,7 @@ type ShellView() as this =
         (input: ShellViewInput)
         (documentActivated: DocumentId -> unit)
         (fileOpenRequested: string -> unit)
+        (closeToolPanel: unit -> unit)
         (commandRequested: AppCommand -> unit)
         =
         let shellView = ShellView()
@@ -148,6 +154,7 @@ type ShellView() as this =
             input,
             documentActivated,
             fileOpenRequested,
+            closeToolPanel,
             commandRequested
         )
 
@@ -163,6 +170,7 @@ type ShellView() as this =
             input: ShellViewInput,
             documentActivated: DocumentId -> unit,
             fileOpenRequested: string -> unit,
+            closeToolPanel: unit -> unit,
             commandRequested: AppCommand -> unit
         ) =
         applyModelCore
@@ -173,6 +181,7 @@ type ShellView() as this =
             input
             documentActivated
             fileOpenRequested
+            closeToolPanel
             commandRequested
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)
