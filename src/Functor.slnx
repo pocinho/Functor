@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Functor.Tests/">
     <Project Path="Functor.Tests/Functor.Tests.Application/Functor.Tests.Application.fsproj" />
+    <Project Path="Functor.Tests/Functor.Tests.Architecture/Functor.Tests.Architecture.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Avalonia/Functor.Tests.Avalonia.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Domain/Functor.Tests.Domain.fsproj" />
     <Project Path="Functor.Tests/Functor.Tests.Input/Functor.Tests.Input.fsproj" />
