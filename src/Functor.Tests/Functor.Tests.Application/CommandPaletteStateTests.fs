@@ -9,14 +9,14 @@ type CommandPaletteStateTests() =
 
     [<Fact>]
     member _.``creates palette with enabled commands selected``() =
-        let palette = CommandPaletteState.create AppCommandCatalog.all state
+        let palette = CommandPaletteState.create ShellCommands.all state
 
         Assert.Equal(Some 0, palette.SelectedIndex)
         Assert.Contains(palette.Items, fun command -> command.Id = "file.new")
 
     [<Fact>]
     member _.``updates query and filters commands``() =
-        let palette = CommandPaletteState.setQuery "settings" AppCommandCatalog.all state
+        let palette = CommandPaletteState.setQuery "settings" ShellCommands.all state
 
         Assert.Equal("settings", palette.Query)
         Assert.Single(palette.Items) |> ignore
@@ -25,7 +25,7 @@ type CommandPaletteStateTests() =
     [<Fact>]
     member _.``clamps selection and returns selected command``() =
         let palette =
-            CommandPaletteState.create AppCommandCatalog.all state
+            CommandPaletteState.create ShellCommands.all state
             |> CommandPaletteState.select 100
 
         let selected = CommandPaletteState.selected palette
@@ -43,7 +43,7 @@ type CommandPaletteStateTests() =
     [<Fact>]
     member _.``filtering to no matches clears the selection``() =
         let palette =
-            CommandPaletteState.setQuery "does-not-exist" AppCommandCatalog.all state
+            CommandPaletteState.setQuery "does-not-exist" ShellCommands.all state
 
         Assert.Empty(palette.Items)
         Assert.Equal(None, palette.SelectedIndex)
@@ -51,7 +51,7 @@ type CommandPaletteStateTests() =
     [<Fact>]
     member _.``negative selection indexes clamp to the first command``() =
         let palette =
-            CommandPaletteState.create AppCommandCatalog.all state
+            CommandPaletteState.create ShellCommands.all state
             |> CommandPaletteState.select -10
 
         Assert.Equal(Some 0, palette.SelectedIndex)

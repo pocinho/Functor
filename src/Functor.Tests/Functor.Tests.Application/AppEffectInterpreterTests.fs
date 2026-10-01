@@ -15,11 +15,11 @@ type private InterpreterFileService(readResult: Result<string, string>, writeRes
     member _.Writes = writes
 
     interface IFileService with
-        member _.ReadText _ = async { return readResult }
+        member _.ReadText(_, _) = async { return readResult }
 
-        member _.EnumerateFiles _ = async { return Ok [] }
+        member _.EnumerateFiles(_, _) = async { return Ok [] }
 
-        member _.WriteText(path, contents) =
+        member _.WriteText(path, contents, _) =
             async {
                 writes.Add(path, contents)
                 return writeResult
@@ -31,7 +31,7 @@ type private WorkspaceSearchFileService() =
     member _.Reads = reads
 
     interface IFileService with
-        member _.ReadText path =
+        member _.ReadText(path, _) =
             async {
                 reads.Add(path)
 
@@ -41,7 +41,7 @@ type private WorkspaceSearchFileService() =
                     return Ok "disk term"
             }
 
-        member _.EnumerateFiles _ =
+        member _.EnumerateFiles(_, _) =
             async {
                 return
                     Ok
@@ -52,11 +52,27 @@ type private WorkspaceSearchFileService() =
                           "C:\outside.fs" ]
             }
 
-        member _.WriteText(_, _) = async { return Ok() }
+        member _.WriteText(_, _, _) = async { return Ok() }
+
+type private CancellationObservingFileService() =
+    let mutable enumerationToken: CancellationToken option = None
+
+    member _.EnumerationToken = enumerationToken
+
+    interface IFileService with
+        member _.ReadText(_, _) = async { return Ok "" }
+
+        member _.EnumerateFiles(_, cancellationToken) =
+            async {
+                enumerationToken <- Some cancellationToken
+                return Ok []
+            }
+
+        member _.WriteText(_, _, _) = async { return Ok() }
 
 type private RecoverableWorkspaceSearchFileService() =
     interface IFileService with
-        member _.ReadText path =
+        member _.ReadText(path, _) =
             async {
                 if path.EndsWith("missing.fs", StringComparison.OrdinalIgnoreCase) then
                     return Error "access denied"
@@ -64,10 +80,10 @@ type private RecoverableWorkspaceSearchFileService() =
                     return Ok "term"
             }
 
-        member _.EnumerateFiles _ =
+        member _.EnumerateFiles(_, _) =
             async { return Ok [ "C:\work\available.fs"; "C:\work\missing.fs" ] }
 
-        member _.WriteText(_, _) = async { return Ok() }
+        member _.WriteText(_, _, _) = async { return Ok() }
 
 type private PartialWorkspaceReplacementFileService() =
     let writes = ResizeArray<string * string>()
@@ -75,7 +91,7 @@ type private PartialWorkspaceReplacementFileService() =
     member _.Writes = writes
 
     interface IFileService with
-        member _.ReadText path =
+        member _.ReadText(path, _) =
             async {
                 if path.EndsWith("failed.fs", StringComparison.OrdinalIgnoreCase) then
                     return Ok "term"
@@ -83,9 +99,9 @@ type private PartialWorkspaceReplacementFileService() =
                     return Ok "term"
             }
 
-        member _.EnumerateFiles _ = async { return Ok [] }
+        member _.EnumerateFiles(_, _) = async { return Ok [] }
 
-        member _.WriteText(path, contents) =
+        member _.WriteText(path, contents, _) =
             async {
                 writes.Add(path, contents)
 
@@ -97,12 +113,12 @@ type private PartialWorkspaceReplacementFileService() =
 
 type private InterpreterDialogService(openPath: string option, savePath: string option) =
     interface IDialogService with
-        member _.OpenFile() = async { return openPath }
+        member _.OpenFile(_) = async { return openPath }
 
-        member _.OpenFolder() =
+        member _.OpenFolder(_) =
             async { return Some "C:\\work\\folder" }
 
-        member _.SaveFile _ = async { return savePath }
+        member _.SaveFile(_, _) = async { return savePath }
 
 type private InterpreterTokenizerService(tokens: LineTokens list) =
     interface ITokenizerService with
@@ -125,6 +141,26 @@ type private CancelingInterpreterTokenizerService() =
     interface ITokenizerService with
         member _.Tokenize(_, _: CancellationToken) =
             async { return raise (OperationCanceledException()) }
+    
+type private ConcurrentWriteObservingFileService() =
+    let mutable activeWrites = 0
+    let mutable maximumConcurrentWrites = 0
+
+    member _.MaximumConcurrentWrites = maximumConcurrentWrites
+
+    interface IFileService with
+        member _.ReadText(_, _) = async { return Ok "" }
+
+        member _.EnumerateFiles(_, _) = async { return Ok [] }
+
+        member _.WriteText(_, _, _) =
+            async {
+                let active = Interlocked.Increment(&activeWrites)
+                maximumConcurrentWrites <- max maximumConcurrentWrites active
+                do! Async.Sleep 50
+                Interlocked.Decrement(&activeWrites) |> ignore
+                return Ok()
+            }
 
 type AppEffectInterpreterTests() =
     [<Fact>]
@@ -251,6 +287,33 @@ type AppEffectInterpreterTests() =
 
         Assert.Empty(commands)
         Assert.Empty(fileService.Reads)
+
+    [<Fact>]
+    member _.``workspace search forwards its cancellation token to file enumeration``() =
+        let commands = ResizeArray<AppCommand>()
+        let fileService = CancellationObservingFileService()
+        let request: WorkspaceSearchRequest =
+            { RequestId = Guid.NewGuid()
+              WorkspaceId = Guid.NewGuid()
+              RootPath = "C:\work"
+              Options = SearchOptions.create "term"
+              OpenDocuments = []
+              OpenDocumentPaths = Set.empty
+              OpenDocumentRevisions = Map.empty }
+
+        use cancellation = new CancellationTokenSource()
+        let interpreter =
+            AppEffectInterpreter(
+                Unchecked.defaultof<IClipboardService>,
+                fileService,
+                Unchecked.defaultof<IDialogService>,
+                commands.Add
+            )
+
+        interpreter.Execute(AppEffect.searchWorkspaceWithCancellation request cancellation.Token)
+        |> Async.RunSynchronously
+
+        Assert.True(Some cancellation.Token = fileService.EnumerationToken)
 
     [<Fact>]
     member _.``workspace search reports read failures as recoverable errors``() =
@@ -560,7 +623,7 @@ type AppEffectInterpreterTests() =
                 Unchecked.defaultof<IClipboardService>,
                 fileService,
                 dialogService,
-                session.DispatchCommand
+                (fun command -> session.DispatchCommand(command) |> ignore)
             )
 
         interpreter.Execute(AppEffect.openFile) |> Async.RunSynchronously
@@ -600,6 +663,22 @@ type AppEffectInterpreterTests() =
         Assert.Single(commands) |> ignore
         Assert.True(AppCommand.fileSaved "C:\\work\\file.fs" = commands[0])
         Assert.True([ ("C:\\work\\file.fs", "contents") ] = List.ofSeq fileService.Writes)
+
+    [<Fact>]
+    member _.``serializes concurrent writes to the same path``() =
+        let fileService = ConcurrentWriteObservingFileService()
+        let interpreter =
+            AppEffectInterpreter(Unchecked.defaultof<IClipboardService>, fileService, Unchecked.defaultof<IDialogService>, ignore)
+
+        let first = Async.StartAsTask(interpreter.Execute(AppEffect.writeFile "C:\work\file.fs" "first"))
+        let second = Async.StartAsTask(interpreter.Execute(AppEffect.writeFile "C:\work\file.fs" "second"))
+
+        System.Threading.Tasks.Task.WhenAll([| first; second |])
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
+        |> ignore
+
+        Assert.Equal(1, fileService.MaximumConcurrentWrites)
 
     [<Fact>]
     member _.``reports file failures as application commands``() =

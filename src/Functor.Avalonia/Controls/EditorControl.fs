@@ -1,6 +1,7 @@
 namespace Functor.Avalonia.Controls
 
 open System
+open System.Threading
 open System.Threading.Tasks
 open Avalonia
 open Avalonia.Controls
@@ -13,6 +14,7 @@ open Avalonia.Skia
 open Functor.Domain.Editing
 open Functor.Domain.Document
 open Functor.Application
+open Functor.Syntax
 open Functor.Domain.Core
 open Functor.Avalonia
 open Functor.Avalonia.Rendering
@@ -120,15 +122,18 @@ type EditorControl() as this =
 
     let session = EditorSession()
 
-    let services =
-        EditorServicesFactory.create (fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
+    let mutable services: EditorServices option = None
+    let mutable effectInterpreter: AppEffectInterpreter option = None
 
-    let effectInterpreter = AppEffectInterpreter(services, session.DispatchCommand)
+    let configureComposition (composition: AvaloniaComposition) =
+        services <- Some composition.EditorServices
+        effectInterpreter <- Some(AppEffectInterpreter(composition.EditorServices, session.DispatchCommand))
 
     do
         session.EffectsRequested.Add(fun effects ->
-            effects
-            |> List.iter (fun effect -> Async.StartImmediate(effectInterpreter.Execute effect)))
+            match effectInterpreter with
+            | Some interpreter -> effects |> List.iter (fun effect -> Async.StartImmediate(interpreter.Execute effect))
+            | None -> ())
 
     let mutable isPointerSelecting = false
     let scrollStateChanged = Event<unit>()
@@ -271,7 +276,10 @@ type EditorControl() as this =
 
     member private this.NotifyScrollStateChanged() = scrollStateChanged.Trigger()
 
-    member private this.ClipboardService: IClipboardService = services.Clipboard
+    member private this.ClipboardService: IClipboardService =
+        services
+        |> Option.defaultWith (fun () -> invalidOp "Editor composition has not been configured.")
+        |> fun configured -> configured.Clipboard
 
     member private this.ApplyEditingEvent(event: EditingEvent) =
         session.Dispatch(CoreEvent.ApplyEditingEvent event)
@@ -280,7 +288,7 @@ type EditorControl() as this =
 
     member private this.CopySelection() =
         match EditingLogic.selectedText session.Model.Editing with
-        | Some text -> Async.StartImmediate(async { do! this.ClipboardService.SetText text })
+        | Some text -> Async.StartImmediate(async { do! this.ClipboardService.SetText(text, CancellationToken.None) })
         | _ -> ()
 
     member private this.CutSelection() =
@@ -288,7 +296,7 @@ type EditorControl() as this =
         | Some text ->
             Async.StartImmediate(
                 async {
-                    do! this.ClipboardService.SetText text
+                    do! this.ClipboardService.SetText(text, CancellationToken.None)
                     this.ApplyEditingEvent(EditingEvent.TextInput TextInputEvent.DeleteSelection)
                 }
             )
@@ -297,7 +305,7 @@ type EditorControl() as this =
     member private this.Paste() =
         Async.StartImmediate(
             async {
-                let! text = this.ClipboardService.GetText()
+                let! text = this.ClipboardService.GetText(CancellationToken.None)
 
                 match text with
                 | Some value -> this.ApplyEditingEvent(EditingEvent.TextInput(TextInputEvent.InsertString value))
@@ -314,6 +322,9 @@ type EditorControl() as this =
     member this.WorkspaceStructureChanged = workspaceStructureChanged.Publish
 
     member this.SessionState = session.State
+
+    member _.ConfigureComposition(composition: AvaloniaComposition) =
+        configureComposition composition
 
     member this.EditorStatus = session.EditorStatus
 
@@ -474,6 +485,9 @@ type EditorControl() as this =
 
     override this.OnAttachedToVisualTree(e: VisualTreeAttachmentEventArgs) =
         base.OnAttachedToVisualTree(e)
+
+        if effectInterpreter.IsNone then
+            configureComposition (EditorServicesFactory.create (fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj))
 
         verticalScrollBar.ValueChanged.Add(fun args ->
             let offset = int (Math.Round(args.NewValue))

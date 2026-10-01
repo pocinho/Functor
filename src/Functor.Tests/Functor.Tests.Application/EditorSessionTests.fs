@@ -28,6 +28,32 @@ type EditorSessionTests() =
         Assert.Equal(session.State.Status, session.Status)
 
     [<Fact>]
+    member _.``command result rejects saving without an active document``() =
+        let session = EditorSession()
+
+        match session.DispatchCommandWithResult AppCommand.saveFile with
+        | Rejected NoActiveDocument -> Assert.True(true)
+        | result -> failwithf "Expected no-active-document rejection, got %A" result
+
+    [<Fact>]
+    member _.``command result rejects unsupported document paths``() =
+        let session = EditorSession()
+
+        match session.DispatchCommandWithResult (AppCommand.openDocument "C:\\work\\image.png") with
+        | Rejected(UnsupportedDocumentPath path) -> Assert.Equal("C:\\work\\image.png", path)
+        | result -> failwithf "Expected unsupported-path rejection, got %A" result
+
+    [<Fact>]
+    member _.``command result defers opening a document while dirty``() =
+        let session = EditorSession()
+        session.DispatchCommand(AppCommand.fileOpened "C:\\work\\file.fs" "text")
+        session.DispatchCommand(AppCommand.toCoreEvent (ApplyEditingEvent(InsertString " changed")))
+
+        match session.DispatchCommandWithResult (AppCommand.openDocument "C:\\work\\other.fs") with
+        | Deferred(PendingAction.OpenDocument path) -> Assert.Equal("C:\\work\\other.fs", path)
+        | result -> failwithf "Expected deferred-open result, got %A" result
+
+    [<Fact>]
     member _.``agent state remains isolated when switching tabs``() =
         let session = EditorSession()
         session.DispatchCommand(AppCommand.newDocument)

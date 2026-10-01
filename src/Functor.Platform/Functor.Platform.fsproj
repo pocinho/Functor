@@ -10,7 +10,15 @@
     <Compile Include="utils\Extensions.fs" />
     <Compile Include="Filesystem.fs" />
     <Compile Include="Clipboard.fs" />
+    <Compile Include="AppEffectInterpreter.fs" />
     <Compile Include="Settings.fs" />
+    <Compile Include="ThemeSettingsJson.fs" />
+    <Compile Include="ThemeSettingsPalette.fs" />
+    <Compile Include="ThemeSettingsUi.fs" />
+    <Compile Include="ThemeSchemaMigration.fs" />
+    <Compile Include="ThemeSettingsLoader.fs" />
+    <Compile Include="AppSettingsLoader.fs" />
+    <Compile Include="SettingsStore.fs" />
     <Compile Include="ThemeCatalog.fs" />
     <ProjectReference Include="..\Functor.Application\Functor.Application.fsproj" />
   </ItemGroup>

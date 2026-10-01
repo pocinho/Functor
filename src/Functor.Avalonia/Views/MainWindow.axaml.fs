@@ -14,7 +14,7 @@ open Functor.Application
 open Functor.Platform
 open Functor.Rendering
 
-type MainWindow() as this =
+type MainWindow(settingsStore: ISettingsStore) as this =
     inherit Window()
 
     let mutable shellState = ShellState.initial
@@ -53,19 +53,14 @@ type MainWindow() as this =
         shellHostView.Value.ApplySettings settings
 
     let loadSettings () =
-        match Settings.tryReadText Settings.themeFilePath with
-        | Ok text ->
-            match AppSettingsLoader.loadText text with
-            | Ok settings -> applySettings settings
-            | Error error when error.StartsWith("Theme schema warning:", StringComparison.Ordinal) ->
-                eprintfn "Warning: %s" error
-            | Error error -> eprintfn "Unable to load theme settings: %s" error
-        | Error _ -> ()
+        match settingsStore.Load() with
+        | Ok settings -> applySettings settings
+        | Error error when error.StartsWith("Theme schema warning:", StringComparison.Ordinal) ->
+            eprintfn "Warning: %s" error
+        | Error error -> eprintfn "Unable to load theme settings: %s" error
 
     let saveSettings settings =
-        let json = AppSettingsLoader.toJson settings
-
-        match Settings.tryWriteText Settings.themeFilePath json with
+        match settingsStore.Save settings with
         | Ok() ->
             applySettings settings
             Ok()
@@ -146,7 +141,7 @@ type MainWindow() as this =
 
     let rec showCommandPalette () =
         commandPaletteView.Value.Configure(
-            AppCommandCatalog.all,
+            ShellFeature.commands,
             shellHostView.Value.SessionState,
             executeSelectedCommand
         )
@@ -185,7 +180,9 @@ type MainWindow() as this =
         shellHostView.Value.ToggleSettings(shellState.AppSettings, applySettings, saveSettings)
 
     let executeCommandById id =
-        AppCommandCatalog.tryFindById id |> Option.iter executeDescriptor
+        match ShellFeature.resolveCommand id with
+        | CommandFound descriptor -> executeDescriptor descriptor
+        | CommandNotFound commandId -> commandRequested.Trigger(AppCommand.reportError (sprintf "Unknown command: %s" commandId))
 
     let handleCommandBarTextChanged _ =
         updateCommandBarWatermark ()
@@ -330,5 +327,7 @@ type MainWindow() as this =
                     showSettingsDialog ()
                     args.Handled <- true
                 | None -> ())
+
+    new() = MainWindow(SettingsStore() :> ISettingsStore)
 
     member private this.InitializeComponent() = AvaloniaXamlLoader.Load(this)

@@ -6,6 +6,10 @@ This roadmap prepares Functor for multiple frontends, language integrations, plu
 
 This is a refactoring plan, not a rewrite. Preserve working behavior, public user workflows, and the practical MVU guidance in [practical_guidelines.md](../architecture/practical_guidelines.md).
 
+The architecture-review scope covers the enabled hosts: desktop, browser, and
+Android. The iOS host remains in the repository as deferred work, but is not an
+enabled target for this review or its completion criteria.
+
 ## Current Findings
 
 The existing dependency direction has a strong foundation:
@@ -89,70 +93,70 @@ F# file order is part of the module contract. Each project should group foundati
 
 - [x] Document the dependency rules above in [project_architecture.md](../architecture/project_architecture.md) and make it the source of truth for project ownership.
 - [x] Add an architecture test or build-time verification that rejects forbidden project references, especially any reference from Domain, Workspace, Rendering, or Application to Avalonia, Platform, LSP, PluginHost, or Agent.
-- [ ] Add CI validation that restores, builds, and runs each platform-neutral test project independently.
-- [ ] Define a project-reference review checklist: dependency direction, ownership of the referenced type, replacement seam, and test location.
-- [ ] Baseline build time, test time, and project-reference graph before moving code; use the baseline to catch unintended coupling or build regressions.
+- [x] Add CI validation that restores, builds, and runs each platform-neutral test project independently.
+- [x] Define a project-reference review checklist: dependency direction, ownership of the referenced type, replacement seam, and test location.
+- [x] Baseline build time, test time, and project-reference graph before moving code; use the baseline to catch unintended coupling or build regressions.
 
 **Exit criteria:** forbidden dependency direction fails the build, and the team can state the owner and allowed dependencies of every project.
 
 ### Phase 1: Make Application Ports Explicit
 
-- [ ] Move `IFileService`, `IClipboardService`, `IDialogService`, and `ITokenizerService` beneath an `Application/Ports` ownership boundary while preserving their public behavior.
-- [ ] Review `AppEffect` and `AppEffectInterpreter`: retain pure effect descriptions in Application and move all concrete I/O execution to outer adapters or the composition root.
-- [ ] Replace broad service dependencies with small capability-specific records or interfaces at the use-case boundary. `EditorServices` may remain a composition record, but do not let it accumulate unrelated services.
-- [ ] Specify cancellation, failure, timeout, and stale-result semantics for every asynchronous port. Represent failures as explicit result data where recovery is possible; reserve exceptions for invariant failures and process-level faults.
-- [ ] Add contract tests that run each application coordinator against deterministic fake ports and cover cancellation, failure, ordering, and stale-result rejection.
+- [x] Move `IFileService`, `IClipboardService`, `IDialogService`, and `ITokenizerService` beneath an `Application/Ports` ownership boundary while preserving their public behavior.
+- [x] Review `AppEffect` and `AppEffectInterpreter`: retain pure effect descriptions in Application and move all concrete I/O execution to outer adapters or the composition root.
+- [x] Replace broad service dependencies with small capability-specific records or interfaces at the use-case boundary. `EditorServices` may remain a composition record, but do not let it accumulate unrelated services.
+- [x] Specify cancellation, failure, timeout, and stale-result semantics for every asynchronous port. Represent failures as explicit result data where recovery is possible; reserve exceptions for invariant failures and process-level faults.
+- [x] Add contract tests that run each application coordinator against deterministic fake ports and cover cancellation, failure, ordering, and stale-result rejection.
 
 **Exit criteria:** Application can be tested using only fake port implementations and has no direct construction of file, dialog, clipboard, tokenizer, JSON, or framework objects.
 
 ### Phase 2: Extract Syntax Implementations From Application
 
-- [ ] Create `Functor.Syntax` as an adapter project that references `Functor.Application` for the tokenizer port and `Functor.Domain` only when syntax model types require it.
-- [ ] Move `Tokenizers/TokenizerCommon.fs`, `FSharpTokenizer.fs`, `CSharpTokenizer.fs`, `JsonTokenizer.fs`, `MarkdownTokenizer.fs`, and `DefaultTokenizerService.fs` to `Functor.Syntax`.
-- [ ] Keep `IncrementalTokenizationState`, `TokenizationCoordinator`, and `EditorSessionTokenization` in Application because they are use-case scheduling and state-coordination policy.
-- [ ] Move tokenizer-specific tests into a new `Functor.Tests.Syntax` project; retain coordinator and fake-tokenizer tests in Application.
-- [ ] Register the default tokenizer implementation in the desktop/browser/mobile composition roots rather than inside an application coordinator.
+- [x] Create `Functor.Syntax` as an adapter project that references `Functor.Application` for the tokenizer port and `Functor.Domain` only when syntax model types require it.
+- [x] Move `Tokenizers/TokenizerCommon.fs`, `FSharpTokenizer.fs`, `CSharpTokenizer.fs`, `JsonTokenizer.fs`, `MarkdownTokenizer.fs`, and `DefaultTokenizerService.fs` to `Functor.Syntax`.
+- [x] Keep `IncrementalTokenizationState`, `TokenizationCoordinator`, and `EditorSessionTokenization` in Application because they are use-case scheduling and state-coordination policy.
+- [x] Move tokenizer-specific tests into a new `Functor.Tests.Syntax` project; retain coordinator and fake-tokenizer tests in Application.
+- [x] Register the default tokenizer implementation in the shared Avalonia composition factory used by the desktop/browser/mobile hosts rather than inside an application coordinator.
 
-**Exit criteria:** Application defines and consumes tokenization contracts but contains no language-specific tokenization implementation.
+**Exit criteria:** Application defines and consumes tokenization contracts but contains no language-specific tokenization implementation. **Complete:** tokenizer implementations and tests now live in `Functor.Syntax` and `Functor.Tests.Syntax`; host composition uses the Syntax adapter.
 
 ### Phase 3: Separate Persistence And Configuration Adapters
 
-- [ ] Classify every settings and theme module by responsibility: application policy and validation remain in Application; JSON parsing, file discovery, environment paths, and file writes move to Platform adapters.
-- [ ] Split `ThemeSettingsJson` into a serialization adapter and an application-owned DTO-to-model mapping boundary. Keep externally persisted formats versioned and backward-compatible.
-- [ ] Split `AppSettingsLoader` and `ThemeSettingsLoader` so application code requests configuration through a port and does not decide physical paths or perform file I/O.
-- [ ] Add versioned schema migration functions for persisted settings and themes. Test loading historical, missing, malformed, and forward-version documents.
-- [ ] Ensure save operations are atomic where the platform supports it, preserve a recoverable previous file on failure, and report errors through the established application effect flow.
+- [x] Classify every settings and theme module by responsibility: application policy and validation remain in Application; JSON parsing, file discovery, environment paths, and file writes move to Platform adapters.
+- [x] Split `ThemeSettingsJson` into a serialization adapter and an application-owned DTO-to-model mapping boundary. Keep externally persisted formats versioned and backward-compatible.
+- [x] Split `AppSettingsLoader` and `ThemeSettingsLoader` so application code requests configuration through a port and does not decide physical paths or perform file I/O.
+- [x] Add versioned schema migration functions for persisted settings and themes. Test loading historical, missing, malformed, and forward-version documents.
+- [x] Ensure save operations are atomic where the platform supports it, preserve a recoverable previous file on failure, and report errors through the established application effect flow.
 
-**Exit criteria:** configuration policy is deterministic and unit-testable; serialization and storage can be replaced without changing application use cases.
+**Exit criteria:** configuration policy is deterministic and unit-testable; serialization and storage can be replaced without changing application use cases. **Complete:** Platform owns schema/serialization/storage, while Application exposes `ISettingsStore` and Avalonia injects the Platform implementation.
 
 ### Phase 4: Clarify Use-Case Ownership
 
-- [ ] Organize Application files by feature (`Editor`, `Shell`, `Settings`, `Themes`, `Ports`) rather than by a flat list of technical names.
-- [ ] Define a narrow public module surface for each feature. Other features call explicit operations or consume published state, rather than reaching into private state transitions.
-- [ ] Keep `EditorSession` as the editor workflow facade and retain the completed split between transitions, tokenization scheduling, and persistence coordination.
-- [ ] Keep `ShellState`, command-palette state, and settings-draft state as application-owned state. Avalonia views must project that state and translate input, not introduce another authoritative model.
-- [ ] Use discriminated unions for command results and expected failures so outer layers can present errors without interpreting implementation exceptions.
-- [ ] Add feature-level tests around public use-case operations; tests should not require an Avalonia control unless the behavior is explicitly a UI projection or lifecycle behavior.
+- [x] Organize Application files by feature (`Editor`, `Shell`, `Settings`, `Themes`, `Ports`) rather than by a flat list of technical names.
+- [x] Define a narrow public module surface for each feature. `ShellFeature`, `SettingsFeature`, and `ThemeFeature` expose explicit operations for outer adapters while catalog, projection, and validation helpers remain internal to the Application assembly.
+- [x] Keep `EditorSession` as the editor workflow facade and retain the completed split between transitions, tokenization scheduling, and persistence coordination.
+- [x] Keep `ShellState`, command-palette state, and settings-draft state as application-owned state. Avalonia views must project that state and translate input, not introduce another authoritative model.
+- [x] Use discriminated unions for command results and expected failures so outer layers can present errors without interpreting implementation exceptions. `AppCommandResult` and `ShellCommandResult` cover dispatch and command lookup outcomes.
+- [x] Add feature-level tests around public use-case operations; tests should not require an Avalonia control unless the behavior is explicitly a UI projection or lifecycle behavior. `ApplicationFeatureSurfaceTests` exercises the shell, settings, and theme entry points without Avalonia.
 
 **Exit criteria:** each Application feature has a clear entry point, owned state, ports, and focused test suite; no feature relies on another feature's implementation detail.
 
 ### Phase 5: Make Outer Integrations First-Class Adapters
 
-- [ ] Make `Functor.Avalonia` composition explicit: construct platform and syntax adapters once at startup, inject them into application coordinators, and keep controls limited to projection, input adaptation, and framework lifecycle.
-- [ ] Define an application-facing LSP adapter contract before allowing LSP operations to mutate editor state. Translate protocol messages at the LSP boundary and keep LSP wire types out of Domain and Application models.
-- [ ] Define a plugin capability model with stable, minimal contracts. Plugins receive explicit capabilities rather than access to aggregate application state or direct Avalonia controls.
-- [ ] Define MCP/agent commands as application use-case adapters. Agent protocol types remain in `Functor.Agent`; authorization, cancellation, audit events, and capability limits are handled at this outer boundary.
-- [ ] Add adapter contract tests for LSP, plugin, and agent translation, including malformed inputs, cancellation, and unsupported capability cases.
+- [x] Make `Functor.Avalonia` composition explicit: `ShellHostView` creates the adapter composition once for its host and injects it into the editor before lifecycle subscriptions attach; controls remain limited to projection, input adaptation, and framework lifecycle.
+- [x] Define an application-facing LSP adapter contract before allowing LSP operations to mutate editor state. `ILanguageService` keeps document snapshots, diagnostics, cancellation, and failure categories in Application; protocol translation remains in `Functor.Lsp`.
+- [x] Define a plugin capability model with stable, minimal contracts. `IPluginContext` exposes explicit document, command, and notification capabilities without aggregate application state or Avalonia controls.
+- [x] Define MCP/agent commands as application use-case adapters. `IAgentCommandAdapter` keeps authorization, cancellation, audit events, and capability limits at the `Functor.Agent` boundary.
+- [x] Add adapter contract tests for LSP, plugin, and agent translation, including malformed inputs, cancellation, and unsupported capability cases. Focused LSP, PluginHost, and Agent suites cover these boundary failures.
 
 **Exit criteria:** each integration can be developed, tested, and replaced without creating an inward dependency or exposing framework/protocol types to core policy.
 
 ### Phase 6: Scale Delivery And Observability
 
-- [ ] Add structured application events at use-case boundaries: command name, correlation ID, document/workspace identity, duration, outcome, cancellation, and failure category. Keep payloads free of document content and secrets.
-- [ ] Define bounded concurrency per document/workspace for tokenization, persistence, LSP requests, plugin calls, and agent actions. Each workflow needs cancellation ownership and a stale-result rule.
-- [ ] Add performance regression tests for large documents, workspace-tree refresh, rapid edits, tab switching, and theme changes. Record deterministic budgets appropriate to CI hardware.
-- [ ] Add end-to-end smoke tests for desktop composition and each enabled frontend, covering open, edit, save, tokenize, search, and settings workflows.
-- [ ] Publish a compatibility policy for persisted settings/themes, plugins, LSP protocol support, and agent capabilities before external extensions depend on them.
+- [x] Add structured application events at use-case boundaries: command name, correlation ID, document/workspace identity, duration, outcome, cancellation, and failure category. `EditorSession` publishes metadata-only events with sanitized command and failure categories.
+- [x] Define bounded concurrency per document/workspace for tokenization, persistence, LSP requests, plugin calls, and agent actions. Each workflow has cancellation ownership and a stale-result rule where results are document-scoped.
+- [x] Add performance regression tests for large documents, workspace-tree refresh, rapid edits, tab switching, and theme changes. Record deterministic budgets appropriate to CI hardware.
+- [x] Add end-to-end smoke tests for desktop composition and each enabled frontend, covering open, edit, save, tokenize, search, and settings workflows. Desktop runtime smoke is covered; [frontend-smoke.ps1](../../build/frontend-smoke.ps1) validates the desktop suite and browser/Android bootstraps. iOS is deferred and excluded from this review's enabled-host criteria.
+- [x] Publish a compatibility policy for persisted settings/themes, plugins, LSP protocol support, and agent capabilities before external extensions depend on them. See [compatibility_policy.md](../architecture/compatibility_policy.md).
 
 **Exit criteria:** operational failures can be attributed to a use case and adapter, asynchronous workloads have bounded ownership, and releases verify the critical editor workflow across supported hosts.
 
@@ -186,13 +190,15 @@ let editorSession = EditorSession.create services initialState
 
 The exact names and constructors should follow existing code conventions. Introduce a new project only after the port exists and the moved implementation has independent tests.
 
-## Sequencing And Risk Controls
+## Adopted Sequencing And Risk Controls
 
-- [ ] Move one adapter family at a time: introduce the port, add contract tests, move implementation and its unit tests, update composition, then remove the old implementation.
-- [ ] Keep the public behavior stable during each move; compare existing focused tests before and after the extraction.
-- [ ] Do not mix directory reorganization, behavior changes, and dependency changes in one pull request.
-- [ ] Keep temporary compatibility forwarding modules only for one migration release and track their removal in the pull request that introduced them.
-- [ ] Require architecture-review approval for new references into Application and for any new cross-feature mutable state.
+These controls are adopted for future architectural changes:
+
+- [x] Move one adapter family at a time: introduce the port, add contract tests, move implementation and its unit tests, update composition, then remove the old implementation.
+- [x] Keep the public behavior stable during each move; compare existing focused tests before and after the extraction.
+- [x] Do not mix directory reorganization, behavior changes, and dependency changes in one pull request.
+- [x] Keep temporary compatibility forwarding modules only for one migration release and track their removal in the pull request that introduced them.
+- [x] Require architecture-review approval for new references into Application and for any new cross-feature mutable state.
 
 ## Non-Goals
 
@@ -203,12 +209,12 @@ The exact names and constructors should follow existing code conventions. Introd
 
 ## Completion Criteria
 
-- [ ] Project-reference rules are automatically verified.
-- [ ] `Functor.Application` contains use cases, state, effects, and ports only; concrete syntax, storage, and serialization implementations live in outer adapter projects.
-- [ ] All enabled hosts use one explicit composition root and can substitute deterministic test adapters.
-- [ ] Domain, workspace, rendering, and application behavior remain testable without Avalonia or platform services.
-- [ ] LSP, plugin, and agent integrations enter through explicit contracts and cannot leak their protocol types into core models.
-- [ ] Critical workflows have focused unit/contract tests plus host-level smoke coverage.
+- [x] Project-reference rules are automatically verified.
+- [x] `Functor.Application` contains use cases, state, effects, and ports only; concrete syntax, storage, and serialization implementations live in outer adapter projects.
+- [x] All enabled hosts use one explicit composition root and can substitute deterministic test adapters.
+- [x] Domain, workspace, rendering, and application behavior remain testable without Avalonia or platform services.
+- [x] LSP, plugin, and agent integrations enter through explicit contracts and cannot leak their protocol types into core models.
+- [x] Critical workflows have focused unit/contract tests plus host-level smoke coverage for every enabled host.
 
 ## Source Notes
 

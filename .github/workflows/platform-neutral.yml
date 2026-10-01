@@ -1,0 +1,47 @@
+name: Platform-neutral validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test ${{ matrix.name }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Domain
+            project: src/Functor.Tests/Functor.Tests.Domain/Functor.Tests.Domain.fsproj
+          - name: Application
+            project: src/Functor.Tests/Functor.Tests.Application/Functor.Tests.Application.fsproj
+          - name: Architecture
+            project: src/Functor.Tests/Functor.Tests.Architecture/Functor.Tests.Architecture.fsproj
+          - name: Rendering
+            project: src/Functor.Tests/Functor.Tests.Rendering/Functor.Tests.Rendering.fsproj
+          - name: Workspace
+            project: src/Functor.Tests/Functor.Tests.Workspace/Functor.Tests.Workspace.fsproj
+          - name: Input
+            project: src/Functor.Tests/Functor.Tests.Input/Functor.Tests.Input.fsproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore src/Functor.slnx
+
+      - name: Build
+        run: dotnet build src/Functor.slnx --no-restore --configuration Release
+
+      - name: Test ${{ matrix.name }}
+        run: dotnet test --project ${{ matrix.project }} --no-restore --configuration Release

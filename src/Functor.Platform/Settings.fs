@@ -19,13 +19,25 @@ module Settings =
             Error ex.Message
 
     let tryWriteText (path: string) (contents: string) =
+        let temporaryPath = path + ".tmp"
+        let backupPath = path + ".bak"
+
         try
             let directory = Path.GetDirectoryName(path)
 
             if not (String.IsNullOrWhiteSpace directory) then
                 Directory.CreateDirectory(directory) |> ignore
 
-            File.WriteAllText(path, contents)
+            File.WriteAllText(temporaryPath, contents)
+
+            if File.Exists(path) then
+                File.Replace(temporaryPath, path, backupPath, true)
+            else
+                File.Move(temporaryPath, path)
+
             Ok()
         with ex ->
+            if File.Exists(temporaryPath) then
+                File.Delete(temporaryPath)
+
             Error ex.Message

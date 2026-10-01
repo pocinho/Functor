@@ -1,0 +1,118 @@
+namespace Functor.Application
+
+module FileType =
+    type private FileTypeDefinition =
+        { Extension: string
+          DisplayName: string
+          LanguageId: string option }
+
+    let private knownTypes =
+        [ { Extension = ".fs"
+            DisplayName = "F#"
+            LanguageId = Some "fsharp" }
+          { Extension = ".fsi"
+            DisplayName = "F# Signature"
+            LanguageId = Some "fsharp" }
+          { Extension = ".fsx"
+            DisplayName = "F# Script"
+            LanguageId = Some "fsharp" }
+          { Extension = ".cs"
+            DisplayName = "C#"
+            LanguageId = Some "csharp" }
+          { Extension = ".json"
+            DisplayName = "JSON"
+            LanguageId = Some "json" }
+          { Extension = ".md"
+            DisplayName = "Markdown"
+            LanguageId = Some "markdown" }
+          { Extension = ".markdown"
+            DisplayName = "Markdown"
+            LanguageId = Some "markdown" }
+          { Extension = ".txt"
+            DisplayName = "Plain Text"
+            LanguageId = None }
+          { Extension = ".xml"
+            DisplayName = "XML"
+            LanguageId = None }
+          { Extension = ".yaml"
+            DisplayName = "YAML"
+            LanguageId = None }
+          { Extension = ".yml"
+            DisplayName = "YAML"
+            LanguageId = None }
+          { Extension = ".toml"
+            DisplayName = "TOML"
+            LanguageId = None }
+          { Extension = ".fsproj"
+            DisplayName = "F# Project"
+            LanguageId = None }
+          { Extension = ".csproj"
+            DisplayName = "C# Project"
+            LanguageId = None }
+          { Extension = ".sln"
+            DisplayName = "Solution"
+            LanguageId = None }
+          { Extension = ".slnx"
+            DisplayName = "Solution"
+            LanguageId = None }
+          { Extension = ".props"
+            DisplayName = "MSBuild Properties"
+            LanguageId = None }
+          { Extension = ".targets"
+            DisplayName = "MSBuild Targets"
+            LanguageId = None }
+          { Extension = ".axaml"
+            DisplayName = "Avalonia XAML"
+            LanguageId = None }
+          { Extension = ".xaml"
+            DisplayName = "XAML"
+            LanguageId = None }
+          { Extension = ".config"
+            DisplayName = "Configuration"
+            LanguageId = None } ]
+
+    let private extensionOf (value: string) =
+      let lastSeparator = max (value.LastIndexOf('/')) (value.LastIndexOf('\\'))
+      let lastDot = value.LastIndexOf('.')
+
+      if lastDot > lastSeparator && lastDot < value.Length - 1 then
+        value.Substring(lastDot).ToLowerInvariant()
+      else
+        ""
+
+    let private findDefinition path =
+      path
+      |> Option.bind (fun value ->
+        let extension = extensionOf value
+        knownTypes |> List.tryFind (fun definition -> definition.Extension = extension))
+
+    let fromPath path =
+        findDefinition path
+        |> Option.map (fun definition -> definition.DisplayName)
+        |> Option.defaultValue "Plain Text"
+
+    let languageId path =
+        findDefinition path |> Option.bind (fun definition -> definition.LanguageId)
+
+    let private binaryExtensions =
+        set
+            [ ".7z"
+              ".bmp"
+              ".db"
+              ".dll"
+              ".exe"
+              ".gif"
+              ".ico"
+              ".jpeg"
+              ".jpg"
+              ".pdf"
+              ".png"
+              ".sqlite"
+              ".zip" ]
+
+    let isOpenablePath (path: string) =
+        let extension = extensionOf path
+        not (binaryExtensions.Contains extension)
+
+    let isSearchablePath path =
+        findDefinition (Some path) |> Option.isSome

@@ -4,7 +4,7 @@ This document describes the implementation currently present in the working tree
 
 ## Overview
 
-Functor is an F#/.NET 10 text editor with framework-independent domain, workspace, application, input, and rendering layers. Avalonia is the current concrete frontend and rendering backend. The desktop host is the clearest runtime entry point, while browser, Android, and iOS hosts reuse the shared Avalonia application.
+Functor is an F#/.NET 10 text editor with framework-independent domain, workspace, application, input, and rendering layers. Avalonia is the current concrete frontend and rendering backend. The desktop host is the clearest runtime entry point, while browser and Android hosts reuse the shared Avalonia application. iOS remains a deferred host outside the current architecture-review target set.
 
 The principal architectural addition in the current worktree is a shell layer in `Functor.Avalonia`. `ShellModel` owns only shell layout state, `ShellProjection` derives presentation data from `EditorControl` and `AppSessionState`, and `ShellHostView` applies that projection to tabs, status, scrolling, empty-state visibility, and a side panel.
 
@@ -12,7 +12,7 @@ The principal architectural addition in the current worktree is a shell layer in
 flowchart TD
 	Desktop[Functor.Avalonia.Desktop] --> Avalonia[Functor.Avalonia]
 	Browser[Functor.Avalonia.Browser] --> Avalonia
-	Mobile[Android and iOS hosts] --> Avalonia
+	Android[Android host] --> Avalonia
 
 	Avalonia --> Shell[MainWindow and ShellHostView]
 	Shell --> Editor[EditorControl]

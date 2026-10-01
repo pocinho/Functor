@@ -7,30 +7,30 @@ open Xunit
 type AppCommandCatalogTests() =
     [<Fact>]
     member _.``filters commands by title category and gesture``() =
-        let settingsMatches = AppCommandCatalog.all |> AppCommandCatalog.filter "settings"
+        let settingsMatches = ShellCommands.all |> ShellCommands.filter "settings"
 
         let gestureMatches =
-            AppCommandCatalog.all |> AppCommandCatalog.filter "ctrl+shift+p"
+            ShellCommands.all |> ShellCommands.filter "ctrl+shift+p"
 
         Assert.Contains(settingsMatches, fun command -> command.Id = "workbench.settings")
         Assert.Contains(gestureMatches, fun command -> command.Id = "workbench.commandPalette")
 
     [<Fact>]
     member _.``fuzzy matching recommends commands from incomplete terms``() =
-        let matches = AppCommandCatalog.all |> AppCommandCatalog.filter "stng"
+        let matches = ShellCommands.all |> ShellCommands.filter "stng"
 
         Assert.Equal("workbench.settings", matches |> List.head |> (fun command -> command.Id))
 
     [<Fact>]
     member _.``null query returns the full command catalog``() =
-        let matches = AppCommandCatalog.filter null AppCommandCatalog.all
+        let matches = ShellCommands.filter null ShellCommands.all
 
-        Assert.Equal(List.length AppCommandCatalog.all, List.length matches)
+        Assert.Equal(List.length ShellCommands.all, List.length matches)
 
     [<Fact>]
     member _.``save command is disabled without an active document``() =
         let saveCommand =
-            AppCommandCatalog.tryFindById "file.save"
+            ShellCommands.tryFindById "file.save"
             |> Option.defaultWith (fun () -> failwith "Missing save command")
 
         let state = AppSessionState.empty CoreModel.empty
@@ -38,10 +38,20 @@ type AppCommandCatalogTests() =
         Assert.False(saveCommand.IsEnabled state)
 
     [<Fact>]
+    member _.``resolves known and unknown command ids explicitly``() =
+        match ShellCommands.resolveById "file.save" with
+        | CommandFound command -> Assert.Equal("file.save", command.Id)
+        | CommandNotFound commandId -> failwithf "Expected command %s to be found" commandId
+
+        match ShellCommands.resolveById "missing.command" with
+        | CommandNotFound commandId -> Assert.Equal("missing.command", commandId)
+        | CommandFound command -> failwithf "Expected command lookup to fail, but found %s" command.Id
+
+    [<Fact>]
     member _.``search navigation commands are available in the command palette``() =
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.refresh")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.open")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.replace")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.replaceAll")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.next")
-        Assert.Contains(AppCommandCatalog.all, fun command -> command.Id = "search.previous")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.refresh")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.open")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.replace")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.replaceAll")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.next")
+        Assert.Contains(ShellCommands.all, fun command -> command.Id = "search.previous")

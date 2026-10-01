@@ -6,25 +6,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="ThemeSettingsLoaderTests.fs" />
+    <Compile Include="ApplicationEventTests.fs" />
+    <Compile Include="ApplicationFeatureSurfaceTests.fs" />
     <Compile Include="AppCommandCatalogTests.fs" />
     <Compile Include="CommandPaletteStateTests.fs" />
     <Compile Include="SettingsFormTests.fs" />
+    <Compile Include="SettingsDraftStateTests.fs" />
     <Compile Include="ShellStateTests.fs" />
     <Compile Include="ShellMvuTests.fs" />
     <Compile Include="EditorStatusTests.fs" />
-    <Compile Include="FSharpTokenizerTests.fs" />
-    <Compile Include="CSharpTokenizerTests.fs" />
-    <Compile Include="JsonTokenizerTests.fs" />
-    <Compile Include="MarkdownTokenizerTests.fs" />
-    <Compile Include="DefaultTokenizerServiceTests.fs" />
     <Compile Include="IncrementalTokenizationStateTests.fs" />
     <Compile Include="EditorSessionTests.fs" />
     <Compile Include="EditorSessionTokenizationTests.fs" />
     <Compile Include="TokenizationCoordinatorTests.fs" />
+    <Compile Include="PerformanceRegressionTests.fs" />
     <Compile Include="AppEffectInterpreterTests.fs" />
     <Compile Include="WorkspaceReplacementTests.fs" />
     <ProjectReference Include="..\..\Functor.Application\Functor.Application.fsproj" />
+    <ProjectReference Include="..\..\Functor.Syntax\Functor.Syntax.fsproj" />
+    <ProjectReference Include="..\..\Functor.Platform\Functor.Platform.fsproj" />
     <ProjectReference Include="..\..\Functor.Domain\Functor.Domain.fsproj" />
     <ProjectReference Include="..\..\Functor.Workspace\Functor.Workspace.fsproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

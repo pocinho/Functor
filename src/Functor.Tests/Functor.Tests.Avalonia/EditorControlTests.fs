@@ -272,7 +272,7 @@ module EditorControlTests =
         let document = editor.SessionState.Model.ActiveDocument.Value
 
         let tokenizeResult =
-            Functor.Application.DefaultTokenizerService() :> Functor.Application.ITokenizerService
+            Functor.Syntax.DefaultTokenizerService() :> Functor.Application.ITokenizerService
             |> fun service ->
                 service.Tokenize(
                     { DocumentId = document.Id

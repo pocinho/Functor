@@ -25,7 +25,7 @@ type TokenizationCoordinatorTests() =
         let document = session.Model.ActiveDocument.Value
         let token = { Kind = "keyword"; Line = 0; Column = 0; Length = 3 }
         let service = CoordinatorTokenizerService([ { Line = 0; Tokens = [ token ] } ])
-        let coordinator = TokenizationCoordinator(service, session.DispatchCommand)
+        let coordinator = TokenizationCoordinator(service, fun command -> session.DispatchCommand(command) |> ignore)
         use cancellation = new CancellationTokenSource()
         let request =
             { DocumentId = document.Id
@@ -42,3 +42,24 @@ type TokenizationCoordinatorTests() =
         Assert.Single(session.Model.Syntax.Tokens) |> ignore
         Assert.Equal(FullDocument, (fst service.Received.Value).Scope)
         Assert.True(service.Received.Value |> snd |> fun token -> token.CanBeCanceled)
+
+    [<Fact>]
+    member _.``does not dispatch a tokenization result for an older revision``() =
+        let documentId = System.Guid.NewGuid()
+        let service = CoordinatorTokenizerService([])
+        let dispatched = ResizeArray<AppCommand>()
+        let coordinator = TokenizationCoordinator(service, dispatched.Add)
+        let request revision =
+            { DocumentId = documentId
+              Revision = revision
+              Language = "fsharp"
+              Scope = FullDocument
+              Lines = [ "let value" ]
+              InitialState = Initial }
+
+        let newerResult = coordinator.Execute(request 2L, CancellationToken.None) |> Async.RunSynchronously
+        let olderResult = coordinator.Execute(request 1L, CancellationToken.None) |> Async.RunSynchronously
+
+        Assert.True(Result.isOk newerResult)
+        Assert.Equal(Error "Tokenization result is stale.", olderResult)
+        Assert.Single(dispatched) |> ignore

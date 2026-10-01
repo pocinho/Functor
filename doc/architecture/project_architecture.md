@@ -25,8 +25,9 @@ platform, UI, protocol, and serialization adapters.
 - Platform-specific sub-layers:
   - `Functor.Avalonia.Desktop` - Windows desktop UI
   - `Functor.Avalonia.Android` - Android UI
-  - `Functor.Avalonia.iOS` - iOS UI
   - `Functor.Avalonia.Browser` - Browser/web UI
+- `Functor.Avalonia.iOS` remains a deferred host and is outside the enabled
+  target set for the current architecture review.
 - Contains views (axaml/fs), models, services, and controls specific to each platform
 
 ## Layer 4: Integration Layers
@@ -45,7 +46,12 @@ platform, UI, protocol, and serialization adapters.
 - A project reference must express ownership. It must not be added only to reuse a convenience type.
 
 These rules are checked by `Functor.Tests.Architecture`. Keep that test in sync when a
-new project or an intentional architectural exception is introduced.
+new project or an intentional architectural exception is introduced. Use the
+[project-reference review checklist](project_reference_review_checklist.md) for changes,
+and run `powershell -NoProfile -ExecutionPolicy Bypass -File .\build\baseline.ps1` to
+refresh the local build, test, and project-reference baseline.
+The asynchronous port contract is defined in
+[application_port_semantics.md](application_port_semantics.md).
 
 ## Key Characteristics
 - Written in F# with functional programming principles

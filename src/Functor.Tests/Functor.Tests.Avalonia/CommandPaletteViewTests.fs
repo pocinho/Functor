@@ -16,12 +16,12 @@ module CommandPaletteViewTests =
     [<AvaloniaFact>]
     let ``configure renders enabled commands and selects the first`` () =
         let view = CommandPaletteView()
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
 
         let commandList = view.FindControl<ListBox>("CommandList")
 
         let enabledCommandCount =
-            AppCommandCatalog.all
+            ShellCommands.all
             |> List.filter (fun command -> command.IsEnabled state)
             |> List.length
 
@@ -31,7 +31,7 @@ module CommandPaletteViewTests =
     [<AvaloniaFact>]
     let ``selection moves with arrow offsets and clamps at the list boundaries`` () =
         let view = CommandPaletteView()
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
 
         view.MoveSelection(1)
         Assert.Equal(Some "file.open", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))
@@ -44,7 +44,7 @@ module CommandPaletteViewTests =
     let ``tapping the command list executes the selected command`` () =
         let mutable executionCount = 0
         let view = CommandPaletteView()
-        view.Configure(AppCommandCatalog.all, state, fun () -> executionCount <- executionCount + 1)
+        view.Configure(ShellCommands.all, state, fun () -> executionCount <- executionCount + 1)
 
         let commandList = view.FindControl<ListBox>("CommandList")
         commandList.RaiseEvent(Avalonia.Input.TappedEventArgs(Avalonia.Input.InputElement.TappedEvent, null))
@@ -54,7 +54,7 @@ module CommandPaletteViewTests =
     [<AvaloniaFact>]
     let ``search filters commands and preserves the selected descriptor`` () =
         let view = CommandPaletteView()
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
         view.SetQuery("settings")
         Dispatcher.UIThread.RunJobs()
 
@@ -66,14 +66,14 @@ module CommandPaletteViewTests =
     [<AvaloniaFact>]
     let ``reconfiguring clears a previous search query`` () =
         let view = CommandPaletteView()
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
         view.SetQuery("settings")
         Dispatcher.UIThread.RunJobs()
 
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
 
         let enabledCommandCount =
-            AppCommandCatalog.all
+            ShellCommands.all
             |> List.filter (fun command -> command.IsEnabled state)
             |> List.length
 
@@ -84,7 +84,7 @@ module CommandPaletteViewTests =
         let view = CommandPaletteView()
         let mutable closeCount = 0
         view.CloseRequested.Add(fun _ -> closeCount <- closeCount + 1)
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
 
         view.SetQuery("no matching command")
         Dispatcher.UIThread.RunJobs()
@@ -101,6 +101,6 @@ module CommandPaletteViewTests =
 
         Assert.Equal(1, closeCount)
 
-        view.Configure(AppCommandCatalog.all, state, ignore)
+        view.Configure(ShellCommands.all, state, ignore)
 
         Assert.Equal(Some "file.new", view.SelectedDescriptor |> Option.map (fun descriptor -> descriptor.Id))

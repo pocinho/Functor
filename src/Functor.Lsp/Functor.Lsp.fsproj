@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Functor.Application\Functor.Application.fsproj" />
+    <ProjectReference Include="..\Functor.Domain\Functor.Domain.fsproj" />
     <Compile Include="Protocol.fs" />
     <Compile Include="Client.fs" />
     <Compile Include="Types.fs" />

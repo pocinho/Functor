@@ -1,6 +1,7 @@
 namespace Functor.Tests.Workspace
 
 open System
+open System.Diagnostics
 open System.IO
 open Xunit
 open Functor.Domain.Document
@@ -141,9 +142,12 @@ module WorkspaceProjectionTests =
                 for fileIndex in 0..19 do
                     File.WriteAllText(Path.Combine(directory, sprintf "file-%02d.fs" fileIndex), "content")
 
+            let stopwatch = Stopwatch.StartNew()
             let tree = WorkspaceFileTree.create (workspace (Some root) [] [] None)
+            stopwatch.Stop()
             let files = tree.Children |> List.collect (fun directory -> directory.Children)
 
+            Assert.True(stopwatch.ElapsedMilliseconds < 5000)
             Assert.Equal(20, tree.Children.Length)
             Assert.Equal(400, files.Length)
 

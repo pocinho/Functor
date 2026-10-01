@@ -10,7 +10,6 @@ Functor/
 |   ├── Functor.Avalonia.Desktop/
 |   ├── Functor.Avalonia.Browser/
 |   ├── Functor.Avalonia.Android/
-|   ├── Functor.Avalonia.iOS/
 |   ├── Functor.Input/           # Keymaps + commands + input system
 |   ├── Functor.Platform/        # OS-specific services
 |   ├── Functor.Workspace/       # Project + file tree + settings

@@ -10,6 +10,7 @@ open Avalonia.Threading
 open Functor.Application
 open Functor.Avalonia
 open Functor.Avalonia.Controls
+open Functor.Avalonia.Services
 open Functor.Domain.Document
 open Functor.Platform
 open Functor.Workspace
@@ -51,6 +52,9 @@ type ShellHostView() as this =
 
     let mutable saveSettingsCallback: AppSettings -> Result<unit, string> =
         fun _ -> Ok()
+
+    let composition =
+        EditorServicesFactory.create (fun () -> TopLevel.GetTopLevel(this) |> Option.ofObj)
 
     let workspaceTreeCoordinator =
         WorkspaceTreeCoordinator(
@@ -232,6 +236,7 @@ type ShellHostView() as this =
         requestRefresh <- refreshOnUiThread
 
         let editor = editor.Value
+        editor.ConfigureComposition(composition)
 
         editor.StatusChanged.Add(fun status ->
             if status.PendingAction.IsSome && not confirmationOpen then
@@ -284,6 +289,9 @@ type ShellHostView() as this =
         this.DetachedFromVisualTree.Add(fun _ -> disposeSubscriptions ())
 
     member _.Editor = editor.Value
+
+    member _.ConfigureComposition(composition: AvaloniaComposition) =
+        editor.Value.ConfigureComposition(composition)
 
     member _.SessionState = editor.Value.SessionState
 

@@ -57,7 +57,7 @@ type SettingsCoordinator
         match settingsView.Form with
         | None -> settingsView.SetError("Settings form is not initialized.")
         | Some form ->
-            match SettingsForm.tryBuildAppSettings form with
+            match SettingsFeature.validateForm form with
             | Error error -> settingsView.SetError(error)
             | Ok settings ->
                 let result =
@@ -76,7 +76,7 @@ type SettingsCoordinator
         match settingsView.Form with
         | None -> settingsView.SetError("Theme form is not initialized.")
         | Some form ->
-            match SettingsForm.tryBuildAppSettings form with
+            match SettingsFeature.validateForm form with
             | Error error -> settingsView.SetError(error)
             | Ok settings ->
                 match ThemeCatalog.export settingsView.ThemeName settings with

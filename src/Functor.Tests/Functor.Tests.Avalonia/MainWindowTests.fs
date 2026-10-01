@@ -8,6 +8,7 @@ open Avalonia.Interactivity
 open Avalonia.Media
 open Avalonia.Styling
 open Avalonia.Threading
+open System.Diagnostics
 open Functor.Application
 open Functor.Avalonia
 open Functor.Avalonia.Controls
@@ -24,7 +25,7 @@ module MainWindowTests =
         let commandList = palette.FindControl<ListBox>("CommandList")
 
         commandList.SelectedIndex <-
-            AppCommandCatalog.all
+            ShellCommands.all
             |> List.findIndex (fun descriptor -> descriptor.Id = "workbench.settings")
 
         palette.RaiseEvent(KeyEventArgs(RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter))
@@ -154,6 +155,25 @@ module MainWindowTests =
         Assert.Equal(ThemeVariant.Dark, window.RequestedThemeVariant)
 
         window.Close()
+
+    [<AvaloniaFact>]
+    let ``reapplying a theme remains within the CI budget`` () =
+        let window = Window()
+        window.Show()
+
+        let settings =
+            ThemeSettings.fromPaletteWithPresetAndUi "Graphite Dark" Theme.dark UiThemeDefaults.defaultTheme
+            |> AppSettings.fromTheme
+
+        let stopwatch = Stopwatch.StartNew()
+
+        for _ in 1..100 do
+            ThemeManager.apply Application.Current window settings
+
+        stopwatch.Stop()
+        window.Close()
+
+        Assert.True(stopwatch.ElapsedMilliseconds < 5000)
 
     [<AvaloniaFact>]
     let ``theme manager applies runtime visual resources`` () =

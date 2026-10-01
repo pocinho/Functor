@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="FSharpTokenizerTests.fs" />
+    <Compile Include="CSharpTokenizerTests.fs" />
+    <Compile Include="JsonTokenizerTests.fs" />
+    <Compile Include="MarkdownTokenizerTests.fs" />
+    <Compile Include="DefaultTokenizerServiceTests.fs" />
+    <ProjectReference Include="..\..\Functor.Syntax\Functor.Syntax.fsproj" />
+    <ProjectReference Include="..\..\Functor.Application\Functor.Application.fsproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

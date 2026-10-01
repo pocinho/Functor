@@ -14,10 +14,8 @@ open Functor.Rendering
 type SettingsView() as this =
     inherit UserControl()
 
-    let mutable form = None
+    let mutable draft = SettingsFeature.emptyDraft
     let mutable themeFiles: ThemeFile list = []
-    let mutable selectedThemeName: string option = None
-    let mutable themeName = ThemePreset.GraphiteDark
     let mutable updatingControls = false
     let mutable presetControl: ComboBox option = None
 
@@ -76,31 +74,18 @@ type SettingsView() as this =
 
     let updateDraft update =
         if not updatingControls then
-            form <-
-                form
-                |> Option.map (fun current ->
-                    let updated = update current
+            let previous = draft
+            draft <- SettingsFeature.updateDraft update draft
 
-                    if updated = current then
-                        current
-                    elif
-                        current.ThemePreset = ThemePreset.GraphiteDark
-                        || current.ThemePreset = ThemePreset.GraphiteLight
-                        || selectedThemeName.IsSome
-                    then
-                        selectedThemeName <- None
-
-                        match presetControl with
-                        | Some control when control.SelectedItem <> ThemePreset.Custom ->
-                            updatingControls <- true
-                            control.SelectedItem <- ThemePreset.Custom
-                            updatingControls <- false
-                        | _ -> ()
-
-                        { updated with
-                            ThemePreset = ThemePreset.Custom }
-                    else
-                        updated)
+            match previous.Form, draft.Form with
+            | Some current, Some updated when current.ThemePreset <> updated.ThemePreset && updated.ThemePreset = ThemePreset.Custom ->
+                match presetControl with
+                | Some control when control.SelectedItem <> ThemePreset.Custom ->
+                    updatingControls <- true
+                    control.SelectedItem <- ThemePreset.Custom
+                    updatingControls <- false
+                | _ -> ()
+            | _ -> ()
 
     let updateColorTextField textName pickerName update =
         let text = textBox textName
@@ -158,7 +143,7 @@ type SettingsView() as this =
 
         themeNameControl.TextChanged.Add(fun _ ->
             if not updatingControls then
-                themeName <- themeNameControl.Text)
+                draft <- { draft with ThemeName = themeNameControl.Text })
 
         let fontFamilies =
             FontManager.Current.SystemFonts
@@ -180,24 +165,18 @@ type SettingsView() as this =
                 | :? string as value ->
                     match themeFiles |> List.tryFind (fun theme -> theme.Name = value) with
                     | Some theme ->
-                        selectedThemeName <- Some value
-                        themeName <- value
-                        form <- Some(SettingsForm.fromAppSettingsWithPreset theme.Settings.Theme.Preset theme.Settings)
+                        draft <- SettingsFeature.selectNamedTheme value theme.Settings draft
+                        updatingControls <- true
                         this.RefreshControls()
+                        updatingControls <- false
                     | None ->
                         if value = ThemePreset.Custom then
-                            selectedThemeName <- None
-
-                            form <-
-                                form
-                                |> Option.map (fun current ->
-                                    { current with
-                                        ThemePreset = ThemePreset.Custom })
+                            draft <- SettingsFeature.selectCustomTheme draft
                         else
-                            selectedThemeName <- None
-                            themeName <- value
-                            form <- form |> Option.map (SettingsForm.applyPreset value)
+                            draft <- SettingsFeature.applyThemePreset value draft
+                            updatingControls <- true
                             this.RefreshControls()
+                            updatingControls <- false
                 | _ -> ())
 
         updateColorTextField "Background" "BackgroundPicker" (fun value current -> { current with Background = value })
@@ -485,16 +464,14 @@ type SettingsView() as this =
         themeFiles <- loadedThemes
         let preset = this.FindControl<ComboBox>("ThemePreset")
         preset.ItemsSource <- ThemePreset.all @ (loadedThemes |> List.map (fun theme -> theme.Name))
-        selectedThemeName <- None
-        themeName <- settings.Theme.Preset
-        form <- Some(SettingsForm.fromAppSettings settings)
+        draft <- SettingsFeature.draftFromAppSettings settings
         this.RefreshControls()
 
     member this.Configure(settings: AppSettings) = this.Configure(settings, [])
 
-    member _.Form = form
+    member _.Form = draft.Form
 
-    member _.ThemeName = themeName
+    member _.ThemeName = draft.ThemeName
 
     member this.UpdateThemes(loadedThemes: ThemeFile list) =
         themeFiles <- loadedThemes
@@ -505,12 +482,12 @@ type SettingsView() as this =
         this.FindControl<TextBlock>("ErrorText").Text <- error
 
     member private this.RefreshControls() =
-        match form with
+        match draft.Form with
         | Some value ->
             updatingControls <- true
             let preset = this.FindControl<ComboBox>("ThemePreset")
-            preset.SelectedItem <- selectedThemeName |> Option.defaultValue value.ThemePreset
-            setText (textBox "ThemeName") themeName
+            preset.SelectedItem <- draft.SelectedThemeName |> Option.defaultValue value.ThemePreset
+            setText (textBox "ThemeName") draft.ThemeName
             setText (textBox "Background") value.Background
             setColorPicker (colorPicker "BackgroundPicker") value.Background
             setText (textBox "Foreground") value.Foreground

@@ -6,6 +6,7 @@ open Avalonia.Data.Core
 open Avalonia.Data.Core.Plugins
 open Avalonia.Markup.Xaml
 open Avalonia.Media
+open Functor.Platform
 open Functor.Avalonia.Views
 
 type AvaloniaApp() =
@@ -18,7 +19,8 @@ type AvaloniaApp() =
 
     override this.OnFrameworkInitializationCompleted() =
         match this.ApplicationLifetime with
-        | :? IClassicDesktopStyleApplicationLifetime as desktopLifetime -> desktopLifetime.MainWindow <- MainWindow()
+        | :? IClassicDesktopStyleApplicationLifetime as desktopLifetime ->
+            desktopLifetime.MainWindow <- MainWindow(SettingsStore() :> Functor.Application.ISettingsStore)
         | :? IActivityApplicationLifetime as singleViewFactoryApplicationLifetime ->
             singleViewFactoryApplicationLifetime.MainViewFactory <- fun () -> ShellHostView()
         | :? ISingleViewApplicationLifetime as singleViewLifetime -> singleViewLifetime.MainView <- ShellHostView()

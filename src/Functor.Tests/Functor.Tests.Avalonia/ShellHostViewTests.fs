@@ -1,6 +1,7 @@
 namespace Functor.Tests.Avalonia
 
 open System
+open System.IO
 open System.Threading.Tasks
 open Avalonia.Controls
 open Avalonia.Headless.XUnit
@@ -11,10 +12,46 @@ open Functor.Avalonia
 open Functor.Avalonia.Controls
 open Functor.Avalonia.Views
 open Functor.Domain.Document
+open Functor.Domain.Core
+open Functor.Domain.Editing
 open Functor.Workspace
 open Xunit
 
 type ShellHostViewTests() =
+    [<AvaloniaFact>]
+    member _.``desktop composition smoke test completes the core editor workflow``() =
+        let path = Path.Combine(Path.GetTempPath(), "functor-smoke-" + Guid.NewGuid().ToString("N") + ".fs")
+        File.WriteAllText(path, "let value")
+
+        try
+            let host = ShellHostView()
+            let window = Window(Content = host)
+            window.Show()
+
+            host.Editor.DispatchApplicationCommand(AppCommand.fileOpened path "let value")
+            host.Editor.DispatchApplicationCommand(
+                AppCommand.toCoreEvent (
+                    Functor.Domain.Core.ApplyEditingEvent(
+                        Functor.Domain.Editing.EditingEvent.InsertString " updated"
+                    )
+                )
+            )
+            host.Editor.DispatchApplicationCommand(AppCommand.requestTokenization "fsharp")
+            host.Editor.DispatchApplicationCommand(AppCommand.searchQueryChanged "updated")
+            host.OpenSettings(AppSettings.defaults, ignore, fun _ -> Ok())
+            host.Editor.SaveFile()
+            Dispatcher.UIThread.RunJobs()
+
+            Assert.True(host.SessionState.Model.ActiveDocument.IsSome)
+            Assert.Contains("updated", String.concat "\n" host.SessionState.Model.Editing.Buffer)
+            Assert.Equal(Some "updated", host.SessionState.Model.Navigation.Search.Query)
+            Assert.True(host.FindControl<Grid>("SettingsDocument").IsVisible)
+
+            window.Close()
+        finally
+            if File.Exists path then
+                File.Delete path
+
     [<AvaloniaFact>]
     member _.``shell host retains one editor control``() =
         let host = ShellHostView()
