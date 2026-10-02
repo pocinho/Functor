@@ -30,5 +30,3 @@ Architecture documents, prototypes, and subsystem plans are being developed in t
 ## License
 
 BSD-2-Clause
-
----
