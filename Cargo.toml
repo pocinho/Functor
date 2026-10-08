@@ -1,6 +1,3 @@
-[package]
-name = "functors"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
+[workspace]
+members = ["src/functor", "src/functor_core"]
+resolver = "3"

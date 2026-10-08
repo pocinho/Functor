@@ -1,6 +1,6 @@
-# Contributing to Functors
+# Contributing to Functor
 
-Functors is in early development. This document defines the contribution workflow,
+Functor is in early development. This document defines the contribution workflow,
 branching model, merge strategy, and coding standards. It will evolve as the
 project grows.
 
@@ -8,7 +8,7 @@ project grows.
 
 # 1. Branching Model
 
-Functors uses a disciplined branching strategy inspired by GitFlow, adapted for
+Functor uses a disciplined branching strategy inspired by GitFlow, adapted for
 solo and multi‑maintainer development.
 
 ## Protected Branches
@@ -114,7 +114,7 @@ Never rebase `main`, `develop`, or `feature/*` after pushing.
 
 # 6. Commit Message Conventions
 
-Functors uses **Conventional Commits**:
+Functor uses **Conventional Commits**:
 
 - `feat:` new feature  
 - `fix:` bug fix  
@@ -144,18 +144,10 @@ Examples:
 
 # 8. Documentation Requirements
 
-All major features must update:
-
-### **mdBook (`docs/book/`)**
-- architecture  
-- design decisions  
-- roadmap updates  
-- platform notes  
-
-### **API Docs (`docs/api/`)**
-- crate‑level documentation  
-- module‑level documentation  
-- public API explanations
+Update the owning chapter in `books/dev_book/` for engineering architecture,
+decisions, requirements, milestones, or migration work. Update
+`books/user_book/` when user-facing workflows or limitations change. Build
+both mdBooks for documentation changes.
 
 Documentation is part of the definition of done.
 
@@ -181,4 +173,4 @@ All contributors must follow the project's Code of Conduct.
 
 ---
 
-This document will expand as Functors grows.
+This document will expand as Functor grows.

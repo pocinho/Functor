@@ -33,8 +33,9 @@ List the main changes introduced by this PR:
 ## Documentation
 Check all that apply:
 
-- [ ] Updated mdBook (`docs/book/`)
-- [ ] Updated API docs (`docs/api/`)
+- [ ] Updated the developer book (`books/dev_book/`)
+- [ ] Updated the user book (`books/user_book/`)
+- [ ] Updated API documentation if applicable
 - [ ] Added or updated architecture notes
 - [ ] No documentation changes required
 

@@ -4,7 +4,7 @@ This project follows the Contributor Covenant Code of Conduct.
 
 ## Our Pledge
 
-We pledge to make participation in Functors a harassment-free experience for everyone.
+We pledge to make participation in Functor a harassment-free experience for everyone.
 
 ## Our Standards
 

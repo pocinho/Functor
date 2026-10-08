@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a reproducible issue in Functors
+about: Report a reproducible issue in Functor
 title: "[Bug] <short description>"
 labels: bug
 assignees: pocinho
@@ -21,7 +21,7 @@ Please fill in all relevant details:
 
 - OS: (Windows / macOS / Linux)
 - Rust version: `rustc --version`
-- Functors version or branch: (`develop`, `main`, or feature branch)
+- Functor version or branch: (`develop`, `main`, or feature branch)
 - GPU / graphics backend (if rendering-related)
 - Terminal or shell (if CLI-related)
 
@@ -30,7 +30,7 @@ Please fill in all relevant details:
 ## Steps to Reproduce
 Describe the exact steps needed to reproduce the issue.
 
-1. Run `cargo run`
+1. Run `npm --prefix functor run tauri -- dev`
 2. Open the notebook file
 3. Trigger the rendering update
 4. Observe the crash

@@ -1,13 +1,13 @@
 ---
 name: Feature Request
-about: Propose a new feature or enhancement for Functors
+about: Propose a new feature or enhancement for Functor
 title: "[Feature] <short description>"
 labels: enhancement
 assignees: pocinho
 ---
 
 ## Summary
-Describe the feature you would like to see added to Functors.
+Describe the feature you would like to see added to Functor.
 
 Example:
 - Add MVU command batching
@@ -23,7 +23,7 @@ Explain *why* this feature is important.
 Consider:
 - What problem does it solve?
 - How does it improve the user experience?
-- How does it fit into Functors’ architecture or roadmap?
+- How does it fit into Functor’s architecture or roadmap?
 
 ---
 
@@ -81,6 +81,6 @@ Add any other relevant information:
 ## Checklist
 
 - [ ] I have searched existing issues
-- [ ] I believe this feature fits Functors’ roadmap
+- [ ] I believe this feature fits Functor’s roadmap
 - [ ] I included motivation and design details
 - [ ] I included alternatives (if applicable)
