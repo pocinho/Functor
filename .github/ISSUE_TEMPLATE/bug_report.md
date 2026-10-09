@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a reproducible issue in Functors
+about: Report a reproducible issue in Functor
 title: "[Bug] <short description>"
 labels: bug
 assignees: pocinho
@@ -21,7 +21,7 @@ Please fill in all relevant details:
 
 - OS: (Windows / macOS / Linux)
 - Rust version: `rustc --version`
-- Functors version or branch: (`develop`, `main`, or feature branch)
+- Functor version or branch: (`develop`, `main`, or feature branch)
 - GPU / graphics backend (if rendering-related)
 - Terminal or shell (if CLI-related)
 

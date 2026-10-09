@@ -13,7 +13,7 @@ Example:
 - Implement MVU core (Model, Message, Update)
 - Add initial WGPU rendering pipeline
 - Create text buffer rope structure
-- Write architecture chapter for mdBook
+- Write architecture chapter for the Functor Developer Book
 
 ---
 
@@ -47,7 +47,7 @@ Examples:
 - MVU core compiles and runs
 - Rendering pipeline initializes without errors
 - Text buffer supports basic editing operations
-- Documentation updated in `docs/book/`
+- Documentation updated in the appropriate Functor book
 - Tests added for core functionality
 
 ---
@@ -64,8 +64,9 @@ Example:
 ## Documentation
 Indicate required documentation updates.
 
-- [ ] Update mdBook (`docs/book/`)
-- [ ] Update API docs (`docs/api/`)
+- [ ] Update developer book (`books/dev_book/`)
+- [ ] Update user book (`books/user_book/`)
+- [ ] Update API documentation if applicable
 - [ ] Add architecture notes
 - [ ] No documentation required
 
