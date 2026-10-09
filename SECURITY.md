@@ -1,6 +1,6 @@
 # Security Policy
 
-Functors is an early-stage project, but security is still important. This document
+Functor is an early-stage project, but security is still important. This document
 explains how to report vulnerabilities, how disclosures are handled, and what
 versions are supported.
 
@@ -8,7 +8,7 @@ versions are supported.
 
 ## Supported Versions
 
-Functors is currently in active development. Until the first stable release
+Functor is currently in active development. Until the first stable release
 (`v1.0.0`), all security issues should be reported regardless of version.
 
 After `v1.0.0`, only the following versions will receive security updates:

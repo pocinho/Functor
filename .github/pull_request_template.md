@@ -12,7 +12,7 @@ Example:
 ---
 
 ## Source & Target Branches
-- **Source:** `pp/<feature>` or `feature/<milestone>`
+- **Source:** `contributor/<feature>` or `feature/<milestone>`
 - **Target:** `develop`
 
 All PRs must target `develop`.  
