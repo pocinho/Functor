@@ -1,5 +1,6 @@
-# RFC: Functor Notebook Architecture & Design
+# RFC-0000: Functor Notebook Architecture & Design
 
+- **RFC:** 0000
 - **Title:** Functor Notebook Architecture & Design
 - **Status:** Draft
 - **Version:** 2.0
