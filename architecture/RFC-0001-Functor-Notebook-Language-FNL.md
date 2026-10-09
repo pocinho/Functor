@@ -1,4 +1,4 @@
-# RFC 0001: Functor Notebook Language (FNL)
+# RFC-0001: Functor Notebook Language (FNL)
 
 - **RFC:** 0001
 - **Title:** Functor Notebook Language (FNL)
