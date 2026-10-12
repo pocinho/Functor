@@ -1,113 +1,396 @@
 # Functor
 
-## A Semantic Operating System for Human and Intelligent Collaboration
+> **What if understanding itself were a first-class computational resource?**
 
-Functor is an exploration of a simple idea:
+Functor is an API-first platform for creating, relating, validating, and evolving structured artifacts.
 
-> Understanding should be easier to share.
+Rather than centering software around files, documents, notebooks, or isolated computations, Functor provides a semantic foundation for expressing relationships between artifacts, computations, validations, and knowledge.
 
-Today we communicate through documents, code, notebooks, diagrams, conversations, and tools.
+Functor is not defined by a notebook, editor, CLI, protocol, or application.
 
-Each medium captures part of our intent, but much of the meaning behind our ideas remains difficult to express, discover, preserve, and reuse.
+These are projections over a common semantic core.
 
-Functor aims to provide a common semantic substrate where humans and intelligent systems can collaborate through shared understanding rather than implementation details alone.
-
----
-
-## Vision
-
-Functor begins with notebooks.
-
-It grows into graphs.
-
-It evolves into knowledge.
-
-Ultimately, it aspires to become a semantic operating system where:
-
-- Ideas become navigable
-- Knowledge becomes reusable
-- Agents become collaborators
-- Understanding becomes a first-class resource
-
-The long-term goal is not merely better software tooling.
-
-The goal is to help humans and intelligent systems understand, learn, reason, and create together.
+The long-term goal is to make understanding more durable, traceable, collaborative, and computationally accessible.
 
 ---
 
-## Core Concepts
+# Vision
 
-Functor is built around several foundational ideas:
+Functor is built upon a simple belief:
 
-### Semantic Graphs
+> Understanding is one of the most important resources intelligent beings create, share, and evolve.
 
-Workflows are represented as semantic graphs rather than isolated documents.
+Modern tools allow us to:
 
-### Intent
+- Create information
+- Store information
+- Search information
+- Execute computations
 
-Purpose is explicit.
+Yet much of our understanding remains implicit.
 
-Systems should communicate not only how they work, but why they exist.
+Relationships are hidden.
 
-### Knowledge
+Assumptions are undocumented.
 
-Understanding should be preserved beyond individual sessions, projects, or contributors.
+Evidence becomes disconnected from conclusions.
 
-### Collaboration
+Knowledge is fragmented across tools and systems.
 
-Humans and agents participate through a shared semantic model.
+Functor explores an alternative.
 
-### Collective Intelligence
-
-Understanding can emerge through collaboration and be preserved for future participants.
-
----
-
-## Current Status
-
-Functor is currently in the exploration and architecture phase.
-
-The project repository contains:
-
-- Architecture documents
-- Research notes
-- Prototypes
-- RFC specifications
-
-The RFC collection represents the initial constitutional and architectural foundation of the project.
+A world in which understanding itself becomes representable, queryable, executable, validatable, and shareable.
 
 ---
 
-## Project Structure
+# Core Idea
+
+Functor is built around a semantic model composed of:
 
 ```text
-architecture/
-docs/
-prototypes/
+Repositories
+       ↓
+
+Artifacts
+       ↓
+
+Relationships
+       ↓
+
+Queries
+       ↓
+
+Validation
+       ↓
+
+Execution
 ```
 
-Key topics currently explored include:
+These concepts form the foundation of the platform.
 
-- Semantic notebooks
-- Graph-based execution
-- Knowledge systems
-- Agent collaboration
-- Shared memory
-- Collective intelligence
-- Semantic workspaces
+Applications, interfaces, and integrations build upon them.
 
 ---
 
-## Philosophy
+# Architectural Principles
 
-Functor is based on a simple belief:
+Functor follows a small set of enduring principles.
 
-> Understanding matters.
+## Semantics Before Implementation
 
-Software exists to help us think.
+Meaning should be defined before storage, transport, or user interfaces.
 
-Knowledge exists to help us learn.
+```text
+Meaning
+    ↓
+Contracts
+    ↓
+Implementation
+```
 
-Collaboration exists to help us grow.
+---
 
-Functor is an attempt to build systems that support all three.
+## API First
+
+Functor is defined by APIs and semantic contracts.
+
+User interfaces are consumers of those contracts.
+
+```text
+Semantic Model
+        ↓
+API
+        ↓
+Projections
+```
+
+---
+
+## Projection-Based Architecture
+
+A CLI, notebook, desktop application, web application, or intelligent agent are all projections over the same underlying model.
+
+```text
+Functor Core
+
+    ├── CLI
+    ├── Desktop
+    ├── Web
+    ├── Notebook
+    ├── MCP
+    └── Future Interfaces
+```
+
+No projection is considered primary.
+
+---
+
+## Extensible by Design
+
+Functor should evolve through extension rather than modification.
+
+A small durable core is preferred over a large specialized platform.
+
+---
+
+## Validation Matters
+
+Claims should be challengeable.
+
+Results should be reproducible.
+
+Relationships should be inspectable.
+
+The platform should make reasoning easier to understand and evaluate.
+
+---
+
+# Repository Structure
+
+The repository is organized into distinct layers.
+
+```text
+vision/
+    Why Functor exists
+
+rfcs/
+    What Functor is
+
+docs/
+    How Functor is implemented
+
+src/
+    The implementation
+```
+
+---
+
+# vision/
+
+The vision documents explore the long-term aspirations of the project.
+
+Current documents include:
+
+```text
+Semantic-Workspace-Protocol.md
+
+Principles.md
+
+Future-of-Understanding.md
+
+Human-and-Intelligence-Collaboration.md
+```
+
+These documents provide direction and inspiration.
+
+They are not normative specifications.
+
+---
+
+# rfcs/
+
+The RFC series defines the platform.
+
+The foundational RFC collection currently includes:
+
+```text
+RFC-0000  Vision
+
+RFC-0001  Core Semantic Model
+RFC-0002  API-First Architecture
+RFC-0003  Artifact Model
+RFC-0004  Relationship Model
+RFC-0005  Identity and Addressing
+RFC-0006  Query Model
+RFC-0007  Validation and Execution
+RFC-0008  Storage and Persistence
+RFC-0009  Federation and Synchronization
+
+RFC-0010  Capability Model
+RFC-0011  Projection Model
+RFC-0012  Interoperability and Integration
+RFC-0013  Security and Trust Model
+
+RFC-0014  Extension Model
+RFC-0015  Repository Model
+RFC-0016  Versioning Model
+RFC-0017  Event Model
+RFC-0018  Governance Model
+```
+
+Together these documents define the semantic and architectural foundation of Functor.
+
+---
+
+# docs/
+
+The documentation directory bridges the gap between architecture and implementation.
+
+Examples include:
+
+```text
+cli-mvp-roadmap.md
+
+workspace-layout.md
+
+crate-dependencies.md
+
+traits-and-interfaces.md
+
+artifact-format.md
+
+repository-layout.md
+
+api-design-guidelines.md
+
+mvp-scope.md
+
+repository-lifecycle.md
+
+testing-strategy.md
+```
+
+These documents are intended to support implementation.
+
+---
+
+# Current Focus
+
+The current objective is the development of a CLI MVP.
+
+The MVP exists to validate:
+
+- Repository management
+- Artifact management
+- Relationships
+- Queries
+- Validation
+- Persistence
+- API-first architecture
+
+The goal is architectural validation rather than feature completeness.
+
+---
+
+# Why Repositories?
+
+Functor treats repositories as bounded semantic workspaces.
+
+A repository contains:
+
+```text
+Artifacts
+Relationships
+Metadata
+Validations
+Events
+Configuration
+```
+
+Applications work against repositories rather than isolated files.
+
+This provides:
+
+- Context
+- Traceability
+- Ownership boundaries
+- Shared understanding
+- Future collaboration capabilities
+
+---
+
+# Beyond Notebooks
+
+Functor originally explored concepts familiar from notebook systems.
+
+Over time it evolved into something broader.
+
+A notebook is now viewed as a projection rather than the center of the system.
+
+```text
+Repository
+    └── Artifact Graph
+            ├── Documents
+            ├── Computations
+            ├── Datasets
+            ├── Visualizations
+            └── Specifications
+```
+
+A notebook may become one way to view that graph.
+
+It is no longer the graph itself.
+
+---
+
+# Human and Intelligence Collaboration
+
+Functor is designed for collaboration between humans and intelligences.
+
+Humans contribute:
+
+- Intent
+- Creativity
+- Judgment
+- Values
+- Experience
+
+Intelligences contribute:
+
+- Analysis
+- Synthesis
+- Retrieval
+- Transformation
+- Exploration
+
+Artifacts provide a common medium through which both can participate.
+
+The platform seeks to improve collaboration rather than replace participants.
+
+---
+
+# Status
+
+Functor is currently in the foundation-building stage.
+
+The semantic model, RFCs, implementation guidance, and CLI MVP architecture are being established.
+
+Future work may include:
+
+- Desktop applications
+- Notebook projections
+- Web applications
+- MCP integration
+- Federated repositories
+- Extension ecosystems
+- Collaborative semantic workspaces
+
+Each of these will build upon the same semantic foundation.
+
+---
+
+# Guiding Question
+
+Every major decision should be evaluated against a simple question:
+
+> Does this improve the ability of intelligent beings to create, share, validate, evolve, or communicate understanding?
+
+If the answer is yes, it is likely aligned with the purpose of Functor.
+
+---
+
+# License
+
+MIT License
+
+---
+
+# Closing Thought
+
+Functor began as an exploration of notebooks, artifacts, and computation.
+
+It has evolved into a broader exploration:
+
+> What happens when understanding itself becomes a first-class computational resource?
+
+This repository is an attempt to answer that question.
