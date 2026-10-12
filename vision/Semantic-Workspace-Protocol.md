@@ -1,15 +1,5 @@
-# RFC-0017: Semantic Workspace Protocol
+# Semantic Workspace Protocol
 ## Constitution of the Functor Ecosystem
-
-- **RFC:** 0017
-- **Title:** Semantic Workspace Protocol
-- **Subtitle:** Constitution of the Functor Ecosystem
-- **Status:** Draft
-- **Version:** 0.1
-- **Depends On:** RFC-0000 through RFC-0016
-- **Category:** Constitutional / Foundational
-
----
 
 # Preamble
 
@@ -552,130 +542,6 @@ All higher-level systems are built upon these foundations.
 
 ---
 
-# Relationship to Previous RFCs
-
----
-
-## RFC-0004
-
-Provides:
-
-```text
-Structure
-```
-
----
-
-## RFC-0005
-
-Provides:
-
-```text
-Meaning
-```
-
----
-
-## RFC-0006
-
-Provides:
-
-```text
-Execution
-```
-
----
-
-## RFC-0007
-
-Provides:
-
-```text
-Runtime Participation
-```
-
----
-
-## RFC-0009
-
-Provides:
-
-```text
-Human Experience
-```
-
----
-
-## RFC-0010
-
-Provides:
-
-```text
-Agent Participation
-```
-
----
-
-## RFC-0011
-
-Provides:
-
-```text
-Intent
-```
-
----
-
-## RFC-0012
-
-Provides:
-
-```text
-Knowledge
-```
-
----
-
-## RFC-0014
-
-Provides:
-
-```text
-Reusable Understanding
-```
-
----
-
-## RFC-0015
-
-Provides:
-
-```text
-Collaboration
-```
-
----
-
-## RFC-0016
-
-Provides:
-
-```text
-Collective Intelligence
-```
-
----
-
-## RFC-0017
-
-Provides:
-
-```text
-Shared Purpose
-```
-
----
-
 # Long-Term Vision
 
 Functor aspires toward:
@@ -737,7 +603,7 @@ And its enduring purpose shall be:
 
 # Conclusion
 
-RFC-0017 establishes the constitutional foundation of the Functor ecosystem.
+Semantic Workspace Protocol establishes the constitutional foundation of the Functor ecosystem.
 
 The preceding RFCs define structures, semantics, execution, knowledge, memory, collaboration, and intelligence.
 
