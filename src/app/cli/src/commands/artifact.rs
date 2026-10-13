@@ -27,7 +27,7 @@ const MAX_CONTENT_BYTES: u64 = 1024 * 1024;
 
 // ---- argument conversion ----
 
-fn parse_pair(text: &str) -> Result<(MetadataKey, MetadataValue)> {
+pub(crate) fn parse_pair(text: &str) -> Result<(MetadataKey, MetadataValue)> {
     let Some((key, value)) = text.split_once('=') else {
         return Err(FunctorError::invalid_input(
             "metadata",

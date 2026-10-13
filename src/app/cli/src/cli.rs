@@ -48,6 +48,9 @@ pub enum Command {
     /// Create, inspect and change artifacts.
     #[command(subcommand)]
     Artifact(ArtifactCommand),
+    /// Create and inspect relationships between artifacts.
+    #[command(subcommand)]
+    Relation(RelationCommand),
 }
 
 /// Arguments of `functor init`.
@@ -201,6 +204,62 @@ pub struct ArtifactUpdateArgs {
     /// Fail with exit code 4 unless the artifact is at this revision.
     #[arg(long, value_name = "N")]
     pub expect_revision: Option<u64>,
+}
+
+/// The `functor relation` subcommands.
+#[derive(Debug, Subcommand)]
+pub enum RelationCommand {
+    /// Create `SOURCE --TYPE--> TARGET`.
+    Add(RelationAddArgs),
+    /// List relationships ordered by id.
+    List(RelationListArgs),
+    /// Show one relationship.
+    Show(RelationShowArgs),
+}
+
+/// Arguments of `functor relation add`.
+#[derive(Debug, Args)]
+pub struct RelationAddArgs {
+    /// The artifact that holds the relationship: an id, canonical reference or slug.
+    pub source: String,
+
+    /// `depends_on`, `references`, `derived_from` or `extends` (kebab-case is accepted).
+    #[arg(value_name = "TYPE")]
+    pub relation_type: String,
+
+    /// The artifact pointed to: an id, canonical reference or slug.
+    pub target: String,
+
+    /// Accept a well-formed type name that is not built in.
+    #[arg(long)]
+    pub allow_custom_type: bool,
+
+    /// String metadata as KEY=VALUE; repeat for several.
+    #[arg(long = "meta", value_name = "KEY=VALUE")]
+    pub metadata: Vec<String>,
+}
+
+/// Arguments of `functor relation list`.
+#[derive(Debug, Args)]
+pub struct RelationListArgs {
+    /// Only relationships of this type; repeat for several.
+    #[arg(long = "type", value_name = "TYPE")]
+    pub types: Vec<String>,
+
+    /// Only relationships starting at this artifact.
+    #[arg(long, value_name = "ARTIFACT")]
+    pub source: Option<String>,
+
+    /// Only relationships pointing at this artifact.
+    #[arg(long, value_name = "ARTIFACT")]
+    pub target: Option<String>,
+}
+
+/// Arguments of `functor relation show`.
+#[derive(Debug, Args)]
+pub struct RelationShowArgs {
+    /// A relationship id (`rel_...`) or canonical reference.
+    pub relation: String,
 }
 
 #[cfg(test)]
@@ -415,5 +474,62 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn relation_add_takes_source_type_target() {
+        let cli = parse([
+            "functor",
+            "relation",
+            "add",
+            "rfc-0001",
+            "depends-on",
+            "rfc-0000",
+            "--allow-custom-type",
+            "--meta",
+            "why=because",
+        ])
+        .unwrap();
+        let Command::Relation(RelationCommand::Add(args)) = cli.command else {
+            panic!("expected relation add");
+        };
+        assert_eq!(args.source, "rfc-0001");
+        assert_eq!(args.relation_type, "depends-on");
+        assert_eq!(args.target, "rfc-0000");
+        assert!(args.allow_custom_type);
+        assert_eq!(args.metadata, ["why=because"]);
+        assert!(parse(["functor", "relation", "add", "a", "depends_on"]).is_err());
+    }
+
+    #[test]
+    fn relation_list_and_show_parse() {
+        let cli = parse([
+            "functor",
+            "relation",
+            "list",
+            "--type",
+            "depends_on",
+            "--type",
+            "extends",
+            "--source",
+            "a",
+            "--target",
+            "b",
+        ])
+        .unwrap();
+        let Command::Relation(RelationCommand::List(args)) = cli.command else {
+            panic!("expected relation list");
+        };
+        assert_eq!(args.types, ["depends_on", "extends"]);
+        assert_eq!(args.source.as_deref(), Some("a"));
+        assert_eq!(args.target.as_deref(), Some("b"));
+
+        let cli = parse(["functor", "relation", "show", "rel_X"]).unwrap();
+        let Command::Relation(RelationCommand::Show(args)) = cli.command else {
+            panic!("expected relation show");
+        };
+        assert_eq!(args.relation, "rel_X");
+        assert!(parse(["functor", "relation", "show"]).is_err());
+        assert!(parse(["functor", "relation"]).is_err());
     }
 }

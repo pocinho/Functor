@@ -102,18 +102,18 @@ At least one change option is required (exit 2). Increments `revision`. The stor
 
 Create `SOURCE --TYPE--> TARGET`. `TYPE` is `depends_on`, `references`, `derived_from` or `extends` (kebab-case aliases accepted). Other well-formed names require `--allow-custom-type`. Option `--meta <key=value>` (repeatable).
 
-Errors: unknown artifact exit 3; self-reference of an acyclic type, bad type name exit 2; duplicate `(source, type, target)` exit 4.
+Errors: unknown artifact exit 3; self-reference of an acyclic type, bad type name or a type that is not built in without `--allow-custom-type`, bad `--meta` exit 2; duplicate `(source, type, target)` exit 4. The type and metadata are checked before the artifacts are looked up. Nothing is written on any error.
 Emits `relationship.created`. Text: `added <rel id>: <source slug> <type> <target slug>`.
 
 Note: argument order is `source type target`, so `functor relation add rfc-0001 depends_on rfc-0000` means rfc-0001 depends on rfc-0000.
 
 ### `functor relation list`
 
-List relationships ordered by relationship id. Options: `--type <type>` (repeatable), `--source <artifact>`, `--target <artifact>`.
+List relationships ordered by relationship id. Options: `--type <type>` (repeatable, kebab-case accepted, any well-formed name), `--source <artifact>`, `--target <artifact>`. Filters combine with AND; several `--type` values combine with OR. `--source` and `--target` take an artifact id, canonical reference or slug; an unknown artifact is exit 3, not an empty list. Text columns: `ID  SOURCE  TYPE  TARGET` (slugs); empty result: `no relationships found`.
 
 ### `functor relation show <RELATION>`
 
-Show one relationship. Exit 3 if not found.
+Show one relationship. `<RELATION>` is a `rel_...` id or a canonical reference; a slug or an artifact id is exit 2, an unknown relationship exit 3. Text: `id`, `type`, `source` and `target` (each `<slug> (<artifact id>)`), `created` and, when present, `metadata`.
 
 ### `functor query ...`
 
@@ -208,7 +208,7 @@ Finding       {"code","severity","subject":{"kind","id"|"path"},"message","relat
 | `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}` |
 | `watch` | one event envelope per line, exactly as stored in the log |
 
-Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json` (the `Artifact` definition in the last two is kept identical by a test); the rest arrive with their commands.
+Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json`, `relationship-document.json`, `relationship-list.json` (the shared definitions of each pair are kept identical by a test); the rest arrive with their commands.
 
 ## Implementation Notes (M4)
 
@@ -218,6 +218,13 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 - **`artifact list`:** sorted by slug, then id; `--long` adds id and updated time.
 - **`--content-path`:** resolved against the current directory (not the repository root), canonicalized, and must be an existing file inside the repository. `--content-format` without content is exit 2.
 - **Test-only variables** `FUNCTOR_TEST_FIXED_TIME` and `FUNCTOR_TEST_ID_SEED` exist only with the `test-support` feature ([testing-strategy.md](testing-strategy.md)).
+
+## Implementation Notes (M5)
+
+- **Endpoint slugs are always present.** The store refuses a repository whose relationship points at a missing artifact (exit 5, `inconsistent`, with a hint to run `functor validate`), so `relation add|list|show` never see a dangling endpoint and the `slug` of a JSON endpoint is always a string. Reading and reporting such repositories is the job of `validate` (M7).
+- **Duplicate message.** The store reports a duplicate with artifact ids rather than slugs (`depends_on already relates art_… to art_…`), because it knows no slugs.
+- **Events:** `relation add` builds `relationship.created` and hands it to the same no-op recorder as the artifact commands until M8.
+- **Not yet checked at add time:** cycles across several relationships. They are reported by `validate` (V0011, M7).
 
 ## Logging
 

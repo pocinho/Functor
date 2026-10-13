@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 2
+--- stdout ---
+--- stderr ---
+error: invalid relationship type: `supports` is not a built-in type (depends_on, references, derived_from, extends); use --allow-custom-type to create it anyway

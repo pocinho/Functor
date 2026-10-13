@@ -86,6 +86,8 @@ CLI: `relation add|list|show`. Endpoint existence, duplicate and self-reference 
 
 Done when: artifacts form a navigable graph on disk; `functor relation add rfc-0001 depends_on rfc-0000` works with slugs, ids and the kebab alias.
 
+Status: implemented. `relation add|list|show`, the relationship resolver (`rel_` id or canonical reference), the `relationship.created` event (no-op seam until M8), schemas `relationship-document.json` and `relationship-list.json`, and 32 e2e tests (golden transcripts, schemas, filters, every error path, cross-process races) plus unit tests for the resolver, event builder and argument grammar. Cycles across relationships are not rejected at add time; `validate` reports them (M7). See [cli-spec.md](cli-spec.md#implementation-notes-m5).
+
 ## M6: Query (`functor-query`)
 
 RFC-0006 subset. Snapshot engine, `query artifacts|dependencies|dependents|relationships` ([query-model-mvp.md](query-model-mvp.md)).

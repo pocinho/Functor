@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 4
+--- stdout ---
+--- stderr ---
+error: `depends_on` already relates art_00000000000000000000000035 to art_00000000000000000000000034

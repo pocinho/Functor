@@ -4,7 +4,8 @@
 
 use std::collections::BTreeMap;
 
-use functor_model::{Artifact, ArtifactField, Content, MetadataValue};
+use functor_core::FunctorError;
+use functor_model::{Artifact, ArtifactField, ArtifactId, Content, MetadataValue, Relationship};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -239,6 +240,193 @@ pub fn show_text(artifact: &Artifact, resolved_text: Option<&str>) -> String {
         text.push_str(&sanitize_block(body.strip_suffix('\n').unwrap_or(body)));
     }
     text
+}
+
+// ---- relationships ----
+
+/// Artifact slugs by id, used to label relationship endpoints.
+#[derive(Debug, Default)]
+pub struct SlugIndex(BTreeMap<ArtifactId, String>);
+
+impl SlugIndex {
+    /// Builds the index from a list of artifacts.
+    #[must_use]
+    pub fn new(artifacts: &[Artifact]) -> Self {
+        Self(
+            artifacts
+                .iter()
+                .map(|a| (*a.id(), a.slug().to_string()))
+                .collect(),
+        )
+    }
+
+    /// The slug of an artifact. The store refuses repositories with dangling relationship
+    /// endpoints, so a missing slug means the two reads disagree and is an internal error.
+    ///
+    /// # Errors
+    /// `Internal` when the artifact is unknown.
+    pub fn slug(&self, id: &ArtifactId) -> Result<&str, FunctorError> {
+        self.0.get(id).map(String::as_str).ok_or_else(|| {
+            FunctorError::Internal(format!("relationship endpoint {id} has no artifact"))
+        })
+    }
+}
+
+/// One end of a relationship.
+#[derive(Debug, Serialize)]
+pub struct EndpointDto {
+    id: String,
+    slug: String,
+}
+
+impl EndpointDto {
+    fn new(id: &ArtifactId, slugs: &SlugIndex) -> Result<Self, FunctorError> {
+        Ok(Self {
+            id: id.to_string(),
+            slug: slugs.slug(id)?.to_owned(),
+        })
+    }
+}
+
+/// A relationship as it appears in JSON output.
+#[derive(Debug, Serialize)]
+pub struct RelationshipDto {
+    id: String,
+    r#ref: String,
+    r#type: String,
+    source: EndpointDto,
+    target: EndpointDto,
+    created: String,
+    metadata: BTreeMap<String, Value>,
+}
+
+impl RelationshipDto {
+    /// Builds the DTO, labeling endpoints with the slugs in `slugs`.
+    ///
+    /// # Errors
+    /// `Internal` when an endpoint has no slug in the index.
+    pub fn new(relationship: &Relationship, slugs: &SlugIndex) -> Result<Self, FunctorError> {
+        Ok(Self {
+            id: relationship.id().to_string(),
+            r#ref: relationship.id().canonical(),
+            r#type: relationship.relationship_type().to_string(),
+            source: EndpointDto::new(relationship.source(), slugs)?,
+            target: EndpointDto::new(relationship.target(), slugs)?,
+            created: relationship.created().to_string(),
+            metadata: relationship
+                .metadata()
+                .iter()
+                .map(|(key, value)| (key.to_string(), metadata_json(value)))
+                .collect(),
+        })
+    }
+}
+
+/// The document printed by `relation add` and `relation show`.
+#[derive(Debug, Serialize)]
+pub struct RelationshipDocument {
+    schema_version: u32,
+    relationship: RelationshipDto,
+}
+
+impl RelationshipDocument {
+    /// A relationship document.
+    #[must_use]
+    pub fn new(relationship: RelationshipDto) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            relationship,
+        }
+    }
+}
+
+/// The document printed by `relation list`.
+#[derive(Debug, Serialize)]
+pub struct RelationshipListDocument {
+    schema_version: u32,
+    relationships: Vec<RelationshipDto>,
+}
+
+impl RelationshipListDocument {
+    /// A list document.
+    #[must_use]
+    pub fn new(relationships: Vec<RelationshipDto>) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            relationships,
+        }
+    }
+}
+
+/// `added <rel id>: <source> <type> <target>`
+///
+/// # Errors
+/// `Internal` when an endpoint has no slug in the index.
+pub fn added_text(relationship: &Relationship, slugs: &SlugIndex) -> Result<String, FunctorError> {
+    Ok(format!(
+        "added {}: {} {} {}",
+        relationship.id(),
+        slugs.slug(relationship.source())?,
+        relationship.relationship_type(),
+        slugs.slug(relationship.target())?
+    ))
+}
+
+/// The multi-line description printed by `relation show`.
+///
+/// # Errors
+/// `Internal` when an endpoint has no slug in the index.
+pub fn relationship_show_text(
+    relationship: &Relationship,
+    slugs: &SlugIndex,
+) -> Result<String, FunctorError> {
+    let mut lines = vec![
+        format!("id:       {}", relationship.id()),
+        format!("type:     {}", relationship.relationship_type()),
+        format!(
+            "source:   {} ({})",
+            slugs.slug(relationship.source())?,
+            relationship.source()
+        ),
+        format!(
+            "target:   {} ({})",
+            slugs.slug(relationship.target())?,
+            relationship.target()
+        ),
+        format!("created:  {}", relationship.created()),
+    ];
+    if !relationship.metadata().is_empty() {
+        lines.push("metadata:".to_owned());
+        for (key, value) in relationship.metadata().iter() {
+            lines.push(format!("  {key}: {}", metadata_text(value)));
+        }
+    }
+    Ok(lines.join("\n"))
+}
+
+/// The table printed by `relation list`, or `no relationships found`.
+///
+/// # Errors
+/// `Internal` when an endpoint has no slug in the index.
+pub fn relationship_list_text(
+    relationships: &[Relationship],
+    slugs: &SlugIndex,
+) -> Result<String, FunctorError> {
+    if relationships.is_empty() {
+        return Ok("no relationships found".to_owned());
+    }
+    let rows = relationships
+        .iter()
+        .map(|r| {
+            Ok(vec![
+                r.id().to_string(),
+                slugs.slug(r.source())?.to_owned(),
+                r.relationship_type().to_string(),
+                slugs.slug(r.target())?.to_owned(),
+            ])
+        })
+        .collect::<Result<Vec<_>, FunctorError>>()?;
+    Ok(table(&["ID", "SOURCE", "TYPE", "TARGET"], &rows))
 }
 
 /// A table with a header row, two spaces between columns, padded to the widest cell.

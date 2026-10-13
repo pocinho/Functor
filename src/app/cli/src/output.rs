@@ -109,6 +109,9 @@ pub fn error_text(error: &FunctorError) -> String {
         if *entity == EntityKind::Artifact {
             text.push_str("\nhint: run `functor artifact list` to see available artifacts");
         }
+        if *entity == EntityKind::Relationship {
+            text.push_str("\nhint: run `functor relation list` to see available relationships");
+        }
     }
     if error.kind() == ErrorKind::NotARepository {
         text.push_str("\nhint: run `functor init` to create a repository here");

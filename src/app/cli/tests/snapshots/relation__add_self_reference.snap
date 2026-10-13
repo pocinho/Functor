@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 2
+--- stdout ---
+--- stderr ---
+error: invalid target: a `depends_on` relationship cannot point to its own source

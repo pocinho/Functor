@@ -1,0 +1,12 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: "sandbox.read(&format!(\"relationships/{}.toml\", rel(200)))"
+---
+id = "rel_00000000000000000000000068"
+type = "depends_on"
+source = "art_00000000000000000000000035"
+target = "art_00000000000000000000000034"
+created = 2026-10-12T18:00:00Z
+
+[metadata]
+reason = "needs the vision"

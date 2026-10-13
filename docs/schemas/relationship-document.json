@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor relation (add, show)",
+  "description": "Output of `functor relation add|show --output json` (docs/cli-spec.md). The Relationship definition is identical to the one in relationship-list.json; a test keeps them in sync.",
+  "type": "object",
+  "required": ["schema_version", "relationship"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "relationship": { "$ref": "#/$defs/Relationship" }
+  },
+  "$defs": {
+    "Endpoint": {
+      "type": "object",
+      "required": ["id", "slug"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 64 }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "required": ["id", "ref", "type", "source", "target", "created", "metadata"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^rel_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "ref": { "type": "string", "pattern": "^functor:relationship:rel_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "source": { "$ref": "#/$defs/Endpoint" },
+        "target": { "$ref": "#/$defs/Endpoint" },
+        "created": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "metadata": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$" },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer" },
+              { "type": "boolean" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

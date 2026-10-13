@@ -1,0 +1,9 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 3
+--- stdout ---
+--- stderr ---
+error: artifact not found: rfc-9999
+hint: run `functor artifact list` to see available artifacts
