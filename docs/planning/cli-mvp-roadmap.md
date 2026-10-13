@@ -123,7 +123,7 @@ Status: implemented. `functor-events` has the wire format, `FileEventLog` (publi
 
 Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 
-Status: implemented (the manual Ctrl-C check is still to be run by a person).
+Status: implemented. The manual Ctrl-C check for `watch` was run on Windows and passed.
 
 - **Acceptance and example.** `src/app/cli/tests/acceptance.rs` (golden transcripts of the walkthrough, reproducibility across two sandboxes, the negative variant with `V0007`) and `src/app/cli/tests/library.rs` (the same workflow through the libraries only, cross-reads between the libraries and the CLI, a moved repository, repository metadata that changes no result). `examples/getting-started/` is checked byte for byte against what the walkthrough produces.
 - **Conformance.** Every row of [rfc-conformance.md](rfc-conformance.md) has a status and every Implemented or Subset row names a test that exists; `scripts/check-conformance.ps1` enforces it (also for the evidence tables of [mvp-scope.md](mvp-scope.md) and [nonfunctional-requirements.md](../quality/nonfunctional-requirements.md)) in `scripts/ci.ps1` and CI. `scripts/check-deps.ps1` also fails on a network-capable crate in the shipped dependency tree.
