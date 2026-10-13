@@ -41,7 +41,7 @@ Services are **siblings**: none depends on another, with one exception. `functor
 | `functor-validation` | `functor-core`, `functor-model` | `async-trait` |
 | `functor-events` | `functor-core`, `functor-model`, `functor-repository` | `serde`, `serde_json`, `tokio`, `notify`, `async-trait` |
 | `functor-testkit` | `functor-core`, `functor-model` | `tempfile`, `proptest` (added when first needed); `async-trait` (dev, for its own self-tests) |
-| `functor-cli` | all of the above | `clap`, `anyhow`, `tracing`, `tracing-subscriber`, `serde`, `serde_json`, `tokio` |
+| `functor-cli` | all of the above | `clap`, `serde`, `serde_json`, `tokio` |
 
 Dev-dependencies (any crate): `functor-testkit`, `proptest`, `insta`, `tempfile`; CLI tests also `assert_cmd` and `predicates`. The approved list and rules for adding crates are in [dependency-policy.md](dependency-policy.md).
 

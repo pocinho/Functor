@@ -57,14 +57,13 @@ RFC-0013 trust and signing are out of scope. The MVP still must be safe on untru
 
 ## Observability
 
-- Diagnostics use `tracing` to stderr (`RUST_LOG`, `-v`, `-vv`), default level `warn`.
-- Every command logs at `debug` its resolved repository root, operation and timing.
+- Diagnostics are the `error:` and `warning:` lines on stderr and, with `-v`, the cause chain of an error. There is no logging framework in the MVP (no `tracing`, `RUST_LOG` or `-vv`).
 - No telemetry, no phone-home.
 
 ## Usability
 
 - Every error is actionable: names the offending reference and suggests the next command ([error-handling.md](error-handling.md)).
-- `NO_COLOR` is honored and color is disabled when stdout is not a terminal.
+- Output is plain text with no color or ANSI sequences, so `NO_COLOR` and terminal detection are not needed.
 - `--help` for every command includes at least one example. Help text is part of golden tests.
 - Output works in a pipeline: stdout is flushed per line in `watch`; closed pipes (`| head`) end the process quietly with exit 0.
 

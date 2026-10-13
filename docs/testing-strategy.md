@@ -98,9 +98,11 @@ Run the built binary with `assert_cmd` in a temporary directory:
 - Every command, in `text` and `json` modes.
 - Every exit code in [error-handling.md](error-handling.md) from a real scenario.
 - Repository discovery from a nested directory, `--repo`, `FUNCTOR_REPO`.
-- Stdout vs stderr separation, JSON errors on stderr, `NO_COLOR`.
+- Stdout vs stderr separation, JSON errors on stderr.
 - Closed-pipe behavior for `watch` and large listings.
 - Test-only determinism variables (`FUNCTOR_TEST_FIXED_TIME`, `FUNCTOR_TEST_ID_SEED`) under the `test-support` feature.
+
+**Manual check (not automated): Ctrl-C ends `watch`.** The race between the watch loop and the signal is unit-tested, but the signal itself is checked by hand before a release on Windows: run `functor watch` in a repository, press Ctrl-C, and confirm that it exits with code 0 and prints nothing more (`echo $LASTEXITCODE`). Also run `functor watch --from-start | Select-Object -First 1` and confirm it returns quietly.
 
 ## Golden Files and Schemas
 

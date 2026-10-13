@@ -97,12 +97,12 @@ In `--output json` mode errors go to **stderr** as one JSON object so scripts ca
 ## Propagation Rules
 
 - Library crates convert foreign errors at their boundary (`std::io::Error` to `Storage` with the operation and path; TOML parse errors during a strict load to `Inconsistent`). Foreign error types never appear in public signatures.
-- `functor-cli` uses `anyhow` only for glue (argument handling); every error is converted to a `FunctorError` or a usage error before the top-level handler maps it to an exit code. The mapping lives in **one** function, `exit_code(ErrorKind)` in `src/app/cli/src/exit.rs`, written as a `match` without a wildcard arm and covered by a test that lists every kind. The exit-code constants (`SUCCESS`, `USAGE`, `VALIDATION_FAILED`, ...) live in the same module.
+- `functor-cli` has no error glue crate: every error is a `FunctorError` or a usage error before the top-level handler maps it to an exit code. The mapping lives in **one** function, `exit_code(ErrorKind)` in `src/app/cli/src/exit.rs`, written as a `match` without a wildcard arm and covered by a test that lists every kind. The exit-code constants (`SUCCESS`, `USAGE`, `VALIDATION_FAILED`, ...) live in the same module.
 - A warning (for example, "event could not be appended") is not an error. It is printed to stderr as `warning: ...` and does not change the exit code, per [event-model-mvp.md](event-model-mvp.md).
 
 ## Logging vs Errors
 
-Diagnostics go through `tracing` (`RUST_LOG`, `-v`, `-vv`). Logs never replace error values and never go to stdout. See [nonfunctional-requirements.md](nonfunctional-requirements.md).
+Diagnostics are plain `error:` and `warning:` lines on stderr and, with `-v`, the cause chain of an error. Errors are values; nothing replaces them and nothing goes to stdout. There is no logging framework in the MVP. See [nonfunctional-requirements.md](nonfunctional-requirements.md).
 
 ## Test Obligations
 

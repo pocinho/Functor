@@ -24,9 +24,8 @@ The exact command surface, arguments, output and exit codes of the MVP CLI. The 
 |--------|-----|---------|-------------|
 | `--repo <path>` | `FUNCTOR_REPO` | discover upwards from the current directory | Repository root (or any directory inside it) |
 | `-o, --output <text\|json>` | | `text` | Output mode |
-| `--no-color` | `NO_COLOR` | color only on a TTY | Disable ANSI colors |
-| `-v, --verbose` | `RUST_LOG` | off | `-v` info, `-vv` debug logs on stderr; shows error source chains |
-| `-q, --quiet` | | off | Suppress non-essential stdout in `text` mode (results of queries are still printed) |
+| `-v, --verbose` | | off | Show the cause chain of errors (`caused by:` lines, text mode) |
+| `-q, --quiet` | | off | Suppress the confirmation of mutating commands in `text` mode; results (queries, `validate` reports, `watch` events) are always printed |
 | `-h, --help`, `-V, --version` | | | Standard |
 
 Precedence: command line over environment over default. Additional environment variable: `FUNCTOR_LOCK_TIMEOUT` (seconds to wait for the repository write lock, default 5; see [storage-design.md](storage-design.md)). `init` uses `--repo` or its `[PATH]` argument as the **target directory**, not for discovery.
@@ -38,7 +37,7 @@ Output conventions:
 - **stdout** carries command results only. **stderr** carries diagnostics, warnings and errors. In `json` mode, stdout holds exactly one JSON document per command (JSON Lines for `watch`), and stderr holds `warning:` lines and error JSON (see [error-handling.md](error-handling.md)).
 - `text` output is for humans and may change between minor versions; **`json` output is the stable contract** and follows the schemas below. Golden tests cover both.
 - JSON: UTF-8, keys in the order shown, arrays in the documented deterministic order, timestamps as `YYYY-MM-DDThh:mm:ssZ`, absent optional values as `null`. Every document has `"schema_version": 1` first.
-- Color is used only for `error:`/`warning:` prefixes and outcome words, never for information that is not also in the text.
+- Output is plain text: the MVP uses no color and no ANSI sequences.
 
 ## Artifact Arguments
 
@@ -233,7 +232,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 
 ## Implementation Notes (M4)
 
-- **Not yet implemented:** `--no-color` (nothing is colored yet) and `tracing` logging; `-v` currently prints the error cause chain (`caused by:` lines, text mode only), `-q` silences confirmations in `text` mode only.
+- **Verbosity and color.** `-v` prints the error cause chain (`caused by:` lines, text mode only) and `-q` silences confirmations in `text` mode only. Color, `--no-color`, `NO_COLOR`, `RUST_LOG` and `-vv` are not part of the MVP (decision recorded in [cli-mvp-roadmap.md](cli-mvp-roadmap.md#decisions-closed-before-m9)).
 - **Events:** `artifact create`/`update` build their events and append them through the recorder (see Implementation Notes (M8)).
 - **`artifact show`:** text mode prints labeled fields; with `--content` it strips one trailing newline and escapes control characters except newline and tab. JSON `content.text` is present for inline content and for `show --content` (referenced file text), otherwise absent.
 - **`artifact list`:** sorted by slug, then id; `--long` adds id and updated time.
@@ -243,7 +242,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 ## Implementation Notes (M5)
 
 - **Endpoint slugs are always present.** The store refuses a repository whose relationship points at a missing artifact (exit 5, `inconsistent`, with a hint to run `functor validate`), so `relation add|list|show` never see a dangling endpoint and the `slug` of a JSON endpoint is always a string. Reading and reporting such repositories is the job of `validate` (M7).
-- **Duplicate message.** The store reports a duplicate with artifact ids rather than slugs (`depends_on already relates art_… to art_…`), because it knows no slugs.
+- **Duplicate message.** The store reports a duplicate with artifact ids rather than slugs (`depends_on already relates art_… to art_…`), because it knows no slugs. Kept as is by decision: ids are unambiguous and scriptable.
 - **Events:** `relation add` builds `relationship.created` and appends it like the artifact commands.
 - **Not yet checked at add time:** cycles across several relationships. They are reported by `validate` (V0011, M7).
 
@@ -269,7 +268,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 
 ## Logging
 
-`tracing` with `RUST_LOG` or `-v`/`-vv`, to stderr only. Default level `warn`.
+The MVP has no logging framework: diagnostics are the `error:` and `warning:` lines on stderr and, with `-v`, the cause chain of an error. Structured logging (`tracing`, `RUST_LOG`, `-v`/`-vv` levels) and color are post-MVP.
 
 ## Compatibility With Earlier Drafts
 

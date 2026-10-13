@@ -78,7 +78,7 @@ CLI: `artifact create|show|list|update`, argument resolver ([identity-and-addres
 
 Done when: artifacts can be stored and retrieved through the CLI and through the library API; golden tests cover success and every error path of these commands. (Event emission was added in M8, once `functor-events` existed; the handlers already called a recorder seam.)
 
-Status: implemented. `artifact create|show|list|update`, the resolver (id, slug, canonical, with suggestions), `-v`/`-q`, text and JSON rendering, four JSON Schemas in `docs/schemas/`, and a golden/schema/cross-process e2e harness (47 artifact tests, 28 CLI unit tests; see [testing-strategy.md](testing-strategy.md)). Golden tests need `--all-features`; CI and `scripts/ci.ps1` also run default features to prove release builds ignore the test-only variables. Deferred: `--no-color` and `tracing` logs (see [cli-spec.md](cli-spec.md#implementation-notes-m4)). Event emission arrived in M8.
+Status: implemented. `artifact create|show|list|update`, the resolver (id, slug, canonical, with suggestions), `-v`/`-q`, text and JSON rendering, four JSON Schemas in `docs/schemas/`, and a golden/schema/cross-process e2e harness (47 artifact tests, 28 CLI unit tests; see [testing-strategy.md](testing-strategy.md)). Golden tests need `--all-features`; CI and `scripts/ci.ps1` also run default features to prove release builds ignore the test-only variables. Color and `tracing` logs are not part of the MVP ([Decisions Closed Before M9](#decisions-closed-before-m9)). Event emission arrived in M8.
 
 ## M5: Relationship Management
 
@@ -118,30 +118,8 @@ Status: implemented. `functor-events` has the wire format, `FileEventLog` (publi
 - `examples/getting-started/` fixture matching [getting-started.md](getting-started.md); JSON Schemas in `docs/schemas/`.
 - Performance check against [nonfunctional-requirements.md](nonfunctional-requirements.md).
 - [rfc-conformance.md](rfc-conformance.md) fully populated; README and docs index updated.
-- Close the decisions deferred from earlier milestones (recommended default in bold; each outcome is recorded in the named document or an ADR):
-  - **`--no-color` and `tracing` logs** (M4): **implement both once M8's `watch` and M7's `validate` show whether colored prefixes are wanted**; otherwise remove `--no-color` from [cli-spec.md](cli-spec.md) and keep `-v` as the error-chain switch.
-  - **`artifact show --content` text and JSON `content.text`** (M4): **keep as built** (one trailing newline stripped, control characters escaped, `text` present for inline content and `--content`).
-  - **`--content-path` base** (M4): **keep it relative to the current directory**, consistent with other tools; document it in [getting-started.md](getting-started.md).
-  - **`-q`** (M4): **keep it text-mode only**; JSON is never suppressed.
-  - **`functor-events` depends on `functor-repository`** (M2): **keep** (ADR-0009 foundation service), re-checked by `scripts/check-deps.ps1` when M8 lands.
-  - **Hand-written TOML codecs instead of serde-derived ones** (M3): **keep**; required for in-place, comment-preserving edits ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). Revisit only if a codec needs a new field type.
-  - **`FunctorError::Conflict` displays only its detail** (M2): **keep**, and make the duplicate-relationship message use slugs (M5 shows ids) by building it in the CLI from the resolved endpoints.
-  - **Cycles are not rejected by `relation add`** (M5): **keep**; the store checks existence, self-reference and duplicates only, and `validate` reports cycles (`V0011`).
-  - **`query artifacts` prints exactly what `artifact list` prints** (M6): **keep**, and delete the contradictory "simpler column set" idea from any remaining doc.
-  - **Traversals read two snapshots** (M6): the CLI resolves the start for suggestions, then the engine loads again. **Keep**; revisit only if the performance check in this milestone shows it matters.
-  - **`--meta` in queries is a string match, text matching uses Unicode lowercasing** (M6): **keep both**; numeric and boolean query values and full case folding are post-MVP.
-  - **Empty traversals print `no dependencies found` / `no dependents found`** (M6): **keep**, following the "no `<things>` found" rule.
-  - **Rule `V0019` was added to the catalog** (M7): **keep**; it is what makes the `Unknown` outcome explainable. The catalog is now `V0001` to `V0019`.
-  - **`validate` finds the repository without parsing `repository.toml`** (M7): **keep**, so a damaged repository file is a finding (exit 6) instead of a refusal (exit 5).
-  - **Scoped `validate` semantics and `-q`** (M7): **keep** the scope rules in [validation-rules.md](validation-rules.md#scoped-validation), and keep `-q` from silencing the report (extends the `-q` decision above).
-  - **A duplicate id also raises `V0017`** (M7): **keep**; a second file with the same id cannot also carry the id as its name.
-  - **Plural counts in `validate` text** (M7): **keep** (`1 relationship`).
-  - **`notify` for `watch` instead of polling only** (M8): **keep**, as [event-model-mvp.md](event-model-mvp.md) specifies; it adds a CC0-1.0 dependency (allowed in `deny.toml`) and a handful of transitive crates for lower latency, and polling remains the fallback. Revisit only if the performance check or a platform shows notifications to be a liability.
-  - **Idle `--timeout` for `watch`** (M8): **keep** (it restarts with every event), so `--count` and `--timeout` can be combined in tests and scripts; document it in [getting-started.md](getting-started.md) if `watch` appears there with a timeout.
-  - **Follower resets on a restarted log** (M8): **keep**; when numbering restarts at or below what was delivered, the new file is delivered from its start rather than dropped as already seen.
-  - **Event rotation limits stay fixed constants** (M8): **keep** (ADR-0008); `Limits` exists only so tests can shrink them.
-  - **Ctrl-C ending `watch` has no automated test** (M8): **decide** whether to add a Windows-only test that sends `CTRL_BREAK`/`CTRL_C` to a child process group, or keep the manual check recorded in [testing-strategy.md](testing-strategy.md).
-  - **The runtime is built with `enable_all`** (M8): **keep**; it is what timers and the Ctrl-C handler need, and the process is short-lived.
+- Decisions deferred from earlier milestones were reviewed and closed before this milestone ([Decisions Closed Before M9](#decisions-closed-before-m9)). Two of them name a trigger to revisit: the second snapshot read of traversals and `notify` for `watch`; check both against the performance results.
+- Run the manual Ctrl-C check for `watch` ([testing-strategy.md](testing-strategy.md)).
 
 Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 
@@ -173,3 +151,17 @@ They are implemented only after the core architecture proves itself; see [produc
 | Dynamic dispatch for core traits? | Allowed; `async-trait` | [ADR-0010](adr/ADR-0010-async-trait-and-dyn.md) |
 | Must hand-edited TOML comments survive updates? | Yes; `toml_edit` | [ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md) |
 | Slug history after rename | None in the MVP; the old slug is released | [identity-and-addressing.md](identity-and-addressing.md) |
+
+## Decisions Closed Before M9
+
+Reviewed with the project owner after M8. The choices that were not simply "keep as built":
+
+| Question | Decision | Where it is recorded |
+|----------|----------|----------------------|
+| Color and `--no-color`, `tracing` logs, `-vv` | Not in the MVP. `-v` stays the error-cause-chain switch; output has no ANSI sequences. The spec, the dependency policy and the non-functional requirements no longer mention color, `NO_COLOR`, `RUST_LOG` or `tracing` | [cli-spec.md](cli-spec.md), [dependency-policy.md](dependency-policy.md), [nonfunctional-requirements.md](nonfunctional-requirements.md), [error-handling.md](error-handling.md) |
+| Duplicate-relationship message | Keep the artifact ids (unambiguous and scriptable); no slug rewriting | [cli-spec.md](cli-spec.md#implementation-notes-m5) |
+| `notify` for `watch` | Keep, with the polling fallback. Revisit only if the M9 performance check or a platform shows it to be a liability | [event-model-mvp.md](event-model-mvp.md), [dependency-policy.md](dependency-policy.md) |
+| Ctrl-C ending `watch` | Manual check, no automated test | [testing-strategy.md](testing-strategy.md) |
+| `-q` for `validate` and `watch` | Unchanged: `-q` silences only the confirmation of mutating commands in text mode; reports and streams are always printed | [cli-spec.md](cli-spec.md) |
+
+Confirmed as built (no change): `artifact show --content` text and `content.text`; `--content-path` relative to the current directory; `functor-events` depending on `functor-repository` (ADR-0009); hand-written TOML codecs (ADR-0011); `FunctorError::Conflict` displaying only its detail; cycles not rejected by `relation add` (`validate` reports `V0011`); `query artifacts` printing what `artifact list` prints; two snapshot reads per traversal; string `--meta` matching and Unicode lowercasing in queries; the empty-traversal lines; rule `V0019`; `validate` finding the repository without parsing `repository.toml`; scoped `validate`; a duplicate id also raising `V0017`; plural counts in `validate` text; the idle `--timeout` of `watch`; the follower's handling of a restarted log; fixed event rotation limits; the runtime built with `enable_all`.

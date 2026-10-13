@@ -30,9 +30,8 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 | File locking | the standard library (`File::try_lock`, stable since Rust 1.89); no crate | repository |
 | Filesystem notifications | `notify` | events |
 | CLI parsing | `clap` (derive, `env`) | cli |
-| CLI error glue | `anyhow` | cli only |
-| Logging | `tracing`, `tracing-subscriber` | cli (subscriber), libraries (`tracing` macros only) |
-| Terminal color | `anstream` / `anstyle` (or `owo-colors`) honoring `NO_COLOR` | cli |
+| CLI error glue | none: every error is a `FunctorError` or a `clap` usage error (`anyhow` was considered and not needed) | |
+| Logging and terminal color | none in the MVP (`tracing`, `tracing-subscriber` and `anstream` were considered and deferred) | |
 | Table rendering | a small in-house helper (two-space separated columns); no table crate | cli |
 | Test | `proptest`, `insta`, `tempfile`, `assert_cmd`, `predicates`, `jsonschema` | dev only |
 
