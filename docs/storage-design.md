@@ -129,7 +129,7 @@ Version history and snapshots (RFC-0016), pluggable backends (SQLite, git object
 Decisions taken while implementing `functor-repository` and `functor-store` that refine the sections above:
 
 - **Blocking work.** The stores implement their logic synchronously (plain `std::fs`) and the async trait methods run it through `functor_repository::run_blocking` (`tokio::task::spawn_blocking`). `FileRepositoryManager` also offers `init_blocking`, `open_blocking` and `discover_blocking` for synchronous callers such as test factories.
-- **Reads.** Every read (`get`, `resolve`, `list`, `snapshot`) is a strict load of the whole repository, O(N) in files. There is no per-entity fast path and no cache in the MVP.
+- **Reads.** Every read (`get`, `resolve`, `list`, `snapshot`) is a strict load of the whole repository, O(N) in files. There is no per-entity fast path and no on-disk index in the MVP; M9 added the parallel loader and the per-process `CachingStore` (see the M9 notes below).
 - **Writes.** Every mutation takes the write lock, strict-loads, runs the rules in `functor-store`'s `rules` module (shared with `MemoryStore`), then writes one file. A damaged repository refuses writes with `Inconsistent`. A no-op update returns before writing; the file is not touched (verified by modification time).
 - **Loader semantics.**
   - Candidates are `*.toml` files sorted by name. `.gitkeep` is skipped; files with the `.tmp-` marker, other extensions and subdirectories are `UnexpectedFile`.
@@ -146,6 +146,12 @@ Decisions taken while implementing `functor-repository` and `functor-store` that
 
 - **Issue context.** A `LoadIssue` carries, besides its kind, file and detail, an optional `entity` (the artifact or relationship the file defines, when it could be read that far: unknown fields, a mismatched file name, duplicates, content problems) and `related` subjects (for a duplicate id or slug, the file that defined it first). Validation turns them into `related` of the finding and uses `entity` for scoped runs.
 - **Opening without parsing.** `functor_repository::discover_root` finds the repository root without reading `repository.toml`, and `FileStore::at_root` builds a store from a root alone; `validate` uses both so that a damaged `repository.toml` surfaces as `V0001`/`V0013` instead of stopping the command.
+
+## Implementation Notes (M9)
+
+- **Parallel loader.** Reading and parsing the entity files is done by up to 8 threads once a directory holds at least 64 candidates (`std::thread::scope`); results are put back in candidate (file name) order, and every sequential rule (duplicates, file name, content) runs afterwards, so the outcome is identical to a sequential load. Each file is opened once and read through a size limit. Loading 30,000 files (10,000 artifacts and 20,000 relationships) takes about 0.55 s; before this change it took about 1.6 s per 3,000.
+- **`CachingStore`.** A decorator in `functor-store` that keeps one strict `RepositorySnapshot` for the reads `get`, `resolve`, `list` and `snapshot`, so a CLI command that reads several times loads once. `create` and `update` go to the inner store (which checks its rules against fresh state under the write lock) and then drop the cache, even when they fail. `load` (the lenient read) and `info` are never cached. A failed load is not cached. The cache lives for one command; it is wrong for a long-running process, so `watch` reads the inner store directly. It passes the same conformance suite as the stores it wraps.
+- **Budgets.** What a command costs is one full load (two for `relation add`: the endpoint check and the write under the lock), which is why the budgets at 10,000 artifacts are 0.75 s and 1.5 s ([nonfunctional-requirements.md](nonfunctional-requirements.md)). Partial loading (for example only the artifacts directory for `show`) would be faster but would relax "a damaged repository is refused" for those reads; it is deferred together with the on-disk index.
 
 ## Test Obligations
 

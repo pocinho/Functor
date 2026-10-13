@@ -12,6 +12,7 @@ function Step($name, [scriptblock]$cmd) {
 Step 'cargo fmt'     { cargo fmt --all --check }
 Step 'cargo clippy'  { cargo clippy --workspace --all-targets --all-features -- -D warnings }
 Step 'dependency edges' { & "$PSScriptRoot\check-deps.ps1" }
+Step 'rfc conformance' { & "$PSScriptRoot\check-conformance.ps1" }
 Step 'cargo test'    { cargo test --workspace --all-features }
 Step 'cargo test (release feature set)' { cargo test -p functor-cli }
 Step 'markdown links' { & "$PSScriptRoot\check-docs-links.ps1" }

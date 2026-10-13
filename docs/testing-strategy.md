@@ -122,21 +122,26 @@ Run the built binary with `assert_cmd` in a temporary directory:
 
 ## Acceptance Test
 
-One test runs the full MVP success path on a clean temporary directory with fixed time and ids and asserts exit codes and goldens after each step:
+Implemented in `src/app/cli/tests/acceptance.rs`. It runs the full MVP success path of [getting-started.md](getting-started.md) on a clean temporary directory with fixed time and ids, and compares the transcript (exit code, stdout, stderr) of every step with a golden snapshot:
 
 ```bash
-functor init
-functor artifact create rfc-0000
-functor artifact create rfc-0001
+functor init --name "Functor Demo"
+functor artifact create rfc-0000 --type rfc --title "Functor Vision"
+functor artifact create rfc-0001 --type rfc --title "Core Semantic Model"
 functor relation add rfc-0001 depends_on rfc-0000
-functor query dependencies rfc-0001
+functor query dependencies rfc-0001        # also as JSON, checked against its schema
 functor query dependents rfc-0000
 functor validate
+functor watch --from-start --count 4
 ```
 
-and then the negative variant: delete `artifacts/<rfc-0000 id>.toml`, run `functor validate`, expect exit 6, finding `V0007` and an unchanged exit-code mapping. The same scenario also runs through the library API only (no CLI), which proves the CLI is a pure projection (exit criterion 6 in [mvp-scope.md](mvp-scope.md)).
+Further checks in the same file:
 
-Matches the walkthrough in [getting-started.md](getting-started.md).
+- **Reproducible.** The walkthrough runs in two sandboxes; the transcripts and every file of the two repositories are identical.
+- **Reference repository.** `examples/getting-started/` is byte-for-byte what the walkthrough produces (line endings normalized, the lock file ignored), so the example and [getting-started.md](getting-started.md) cannot drift. `FUNCTOR_UPDATE_EXAMPLE=1` regenerates it for review. The example must also be a healthy repository the CLI can read.
+- **Negative variant.** Deleting `artifacts/<rfc-0000 id>.toml` makes `functor validate` exit 6 with finding `V0007` and a document that matches the schema.
+
+`src/app/cli/tests/library.rs` runs the same scenario through the library API only (no CLI), which proves the CLI is a pure projection (exit criterion 6 in [mvp-scope.md](mvp-scope.md)). It also checks that a repository written by the libraries is read by the CLI and the other way round (the reference repository), that moving a repository directory changes no identity, and that editing repository metadata changes no result.
 
 ## Failure Injection
 

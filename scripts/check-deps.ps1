@@ -69,4 +69,16 @@ if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Error $_ -ErrorAction Continue }
     exit 1
 }
-Write-Output "dependency edges OK ($($members.Count) crates)"
+
+# Local-first (RFC-0008): nothing that ships may be able to talk to the network.
+$network = @('reqwest', 'hyper', 'ureq', 'isahc', 'surf', 'attohttpc', 'curl', 'tonic', 'h2',
+             'native-tls', 'openssl', 'rustls')
+$shipped = cargo tree --workspace --edges normal --prefix none --format '{p}' 2>$null |
+    ForEach-Object { ($_ -split ' ')[0] } | Sort-Object -Unique
+if ($LASTEXITCODE -ne 0) { throw 'cargo tree failed' }
+$found = @($shipped | Where-Object { $network -contains $_ })
+if ($found.Count -gt 0) {
+    Write-Error "network-capable crates in the shipped dependency tree: $($found -join ', ')"
+    exit 1
+}
+Write-Output "dependency edges OK ($($members.Count) crates, no network crates)"

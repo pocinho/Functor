@@ -45,7 +45,7 @@ ADRs have their own statuses ([adr/README.md](adr/README.md)).
 
 | Document | Purpose |
 |----------|---------|
-| [mvp-scope.md](mvp-scope.md) | What is in and out of the MVP, success and exit criteria |
+| [mvp-scope.md](mvp-scope.md) | What is in and out of the MVP, exit criteria with their evidence, the frozen contracts |
 | [cli-mvp-roadmap.md](cli-mvp-roadmap.md) | Ordered milestones M0 to M9 with acceptance evidence |
 | [product-roadmap.md](product-roadmap.md) | Long-term phases after the MVP (replaces `implementation-phases.md`) |
 
@@ -54,7 +54,7 @@ ADRs have their own statuses ([adr/README.md](adr/README.md)).
 | Document | Purpose |
 |----------|---------|
 | [adr/](adr/README.md) | Architecture Decision Records (ADR-0001 to ADR-0011) |
-| [rfc-conformance.md](rfc-conformance.md) | RFC requirement to MVP status, implementation and test |
+| [rfc-conformance.md](rfc-conformance.md) | RFC requirement to MVP status, implementation and test (every named test is checked by `scripts/check-conformance.ps1`) |
 | [glossary.md](glossary.md) | Canonical terminology |
 
 ## Architecture
@@ -93,14 +93,14 @@ ADRs have their own statuses ([adr/README.md](adr/README.md)).
 |----------|---------|
 | [cli-spec.md](cli-spec.md) | Commands, options, output, JSON schemas, exit codes |
 | [command-design.md](command-design.md) | Pointer to `cli-spec.md` (superseded) |
-| [getting-started.md](getting-started.md) | MVP walkthrough with expected output |
+| [getting-started.md](getting-started.md) | MVP walkthrough with expected output; the acceptance script. Its result is the reference repository [`examples/getting-started/`](../examples/getting-started/) |
 
 ## Quality and Process
 
 | Document | Purpose |
 |----------|---------|
 | [testing-strategy.md](testing-strategy.md) | Test levels, conformance suite, goldens, acceptance test |
-| [nonfunctional-requirements.md](nonfunctional-requirements.md) | Determinism, portability, performance, local safety |
+| [nonfunctional-requirements.md](nonfunctional-requirements.md) | Determinism, portability, performance budgets (measured by `scripts/bench.ps1`, baseline in `benchmarks/`), local safety and its evidence |
 | [development-workflow.md](development-workflow.md) | Toolchain, lints, CI, Definition of Done |
 
 ---

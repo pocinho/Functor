@@ -260,7 +260,7 @@ These documents are intended to support implementation.
 
 # Current Focus
 
-The current objective is the development of a CLI MVP.
+The first objective, a CLI MVP, is implemented (Windows is the supported platform; see [docs/nonfunctional-requirements.md](docs/nonfunctional-requirements.md)).
 
 The MVP exists to validate:
 
@@ -273,6 +273,20 @@ The MVP exists to validate:
 - API-first architecture
 
 The goal is architectural validation rather than feature completeness.
+
+## Try it
+
+```bash
+cargo build --release
+functor init --name "Functor Demo"
+functor artifact create rfc-0000 --type rfc --title "Functor Vision"
+functor artifact create rfc-0001 --type rfc --title "Core Semantic Model"
+functor relation add rfc-0001 depends_on rfc-0000
+functor query dependencies rfc-0001
+functor validate
+```
+
+The full walkthrough, with the output of every step, is [docs/getting-started.md](docs/getting-started.md); the repository it produces is [examples/getting-started/](examples/getting-started/). Contributors run `pwsh scripts/ci.ps1` to execute the blocking checks locally ([docs/development-workflow.md](docs/development-workflow.md)).
 
 ---
 
@@ -357,7 +371,7 @@ The platform seeks to improve collaboration rather than replace participants.
 
 Functor is currently in the foundation-building stage.
 
-The semantic model, RFCs, implementation guidance, and CLI MVP architecture are being established.
+The semantic model, RFCs and implementation guidance are established, and the CLI MVP validates them end to end: its exit criteria and the contracts it freezes are in [docs/mvp-scope.md](docs/mvp-scope.md), and how it conforms to each RFC is in [docs/rfc-conformance.md](docs/rfc-conformance.md). The crates are not published (`publish = false`).
 
 Future work may include:
 

@@ -18,6 +18,9 @@ use crate::wire::{LineProblem, decode_event, peek_seq};
 
 const SCAN_CHUNK: u64 = 64 * 1024;
 
+/// Event lines longer than this are skipped with a warning instead of being parsed.
+pub const MAX_LINE_BYTES: usize = 64 * 1024;
+
 /// Something a follower produced: an event, or a problem that did not stop it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Update {
@@ -180,6 +183,13 @@ impl Cursor {
     fn deliver(&mut self, bytes: &[u8], source: &str, out: &mut Vec<Update>) {
         for line in bytes.split(|byte| *byte == b'\n') {
             if line.is_empty() {
+                continue;
+            }
+            if line.len() > MAX_LINE_BYTES {
+                out.push(Update::Warning(format!(
+                    "skipped an unreadable line in {source}: longer than {} KiB",
+                    MAX_LINE_BYTES / 1024
+                )));
                 continue;
             }
             let Ok(text) = std::str::from_utf8(line) else {
@@ -516,6 +526,25 @@ mod tests {
         cursor.catch_up(&mut out).unwrap();
         assert!(!cursor.read_current(&mut out).unwrap());
         assert_eq!(delivered(&out), (21..=30).collect::<Vec<u64>>());
+    }
+
+    #[test]
+    fn a_line_over_the_limit_is_skipped_with_a_warning_and_the_neighbours_are_delivered() {
+        let dir = tempfile::tempdir().unwrap();
+        let layout = Layout::new(dir.path());
+        let oversized = format!("{{\"v\":1,\"pad\":\"{}\"}}\n", "x".repeat(MAX_LINE_BYTES));
+        let text = format!("{}{oversized}{}", line(1), line(2));
+        fs::create_dir_all(layout.events_log().parent().unwrap()).unwrap();
+        fs::write(layout.events_log(), text).unwrap();
+
+        let mut cursor = Cursor::start(layout, EventPosition::Start).unwrap();
+        let updates = cursor.poll().unwrap();
+        assert_eq!(delivered(&updates), [1, 2]);
+        assert!(
+            updates
+                .iter()
+                .any(|u| matches!(u, Update::Warning(w) if w.contains("longer than 64 KiB")))
+        );
     }
 
     #[test]

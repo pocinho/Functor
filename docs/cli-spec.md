@@ -248,7 +248,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 
 ## Implementation Notes (M6)
 
-- **Engine.** The `query` commands call `functor-query` through `SnapshotQueryEngine`; see [query-model-mvp.md](query-model-mvp.md#implementation-notes-m6) for the semantics decisions (edge listing, text and metadata matching, two snapshot reads).
+- **Engine.** The `query` commands call `functor-query` through `SnapshotQueryEngine`; see [query-model-mvp.md](query-model-mvp.md#implementation-notes-m6) for the semantics decisions (edge listing, text and metadata matching, one snapshot per command through the cache).
 - **`--meta` in queries is a string match.** It finds string metadata and members of string lists; integer and boolean metadata written by hand do not match `--meta key=3`.
 - **Schemas.** `query-traversal.json` serves `dependencies` and `dependents`; `query-relationships.json` serves `relationships`; `query artifacts` uses `artifact-list.json`.
 
@@ -265,6 +265,11 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 - **Event ids and the id source.** An event takes its id from the same injected generator as entities, after the entity id, so the deterministic test ids stay stable.
 - **Runtime.** The command line builds its single-threaded runtime with timers and signal handling enabled, which `watch` needs; `tokio::select!` is not used (a small `race` helper in `commands/watch.rs` ends the command on Ctrl-C), so `tokio` needs no `macros` feature outside tests.
 - **Slug cache.** `watch` resolves slugs through one cached listing, refreshed when an id is missing and cleared by `artifact.updated`, so renames appear in later lines without a listing per event.
+
+## Implementation Notes (M9)
+
+- **One read per command.** The command line wraps its `FileStore` in `CachingStore`, so every command that reads the repository more than once (resolving two endpoints, resolving a start artifact and then traversing, suggestions after a failed lookup) loads it once. `validate` and `watch` bypass the cache on purpose: `validate` uses the lenient `load()` of an uncached store, and `watch` outlives any snapshot. See [storage-design.md](storage-design.md#implementation-notes-m9).
+- **Acceptance.** `tests/acceptance.rs` runs the walkthrough of [getting-started.md](getting-started.md) with golden transcripts, and `tests/library.rs` runs it through the libraries ([testing-strategy.md](testing-strategy.md#acceptance-test)).
 
 ## Logging
 

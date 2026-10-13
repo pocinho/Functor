@@ -11,6 +11,7 @@
 //! `functor-testkit`. Repository lifecycle (init, open, discover) lives in `functor-repository`.
 
 mod artifact_file;
+mod caching;
 mod file_store;
 mod loader;
 mod memory;
@@ -21,6 +22,7 @@ pub use artifact_file::{
     ARTIFACT_KEYS, MAX_INLINE_CONTENT, ParsedArtifact, edit_artifact_file, parse_artifact_file,
     render_artifact_file,
 };
+pub use caching::CachingStore;
 pub use file_store::{FileStore, StoreOptions};
 pub use memory::MemoryStore;
 pub use relationship_file::{

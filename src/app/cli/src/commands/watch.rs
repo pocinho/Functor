@@ -197,7 +197,8 @@ async fn stream(
 /// # Errors
 /// `NotFound` for an unknown `--subject`, or `Storage` when the log cannot be read.
 pub async fn run(args: WatchArgs, context: &Context, globals: &Globals) -> Result<()> {
-    let repository: &dyn ArtifactRepository = &context.store;
+    // `watch` outlives any one snapshot, so it reads the store directly rather than the cache.
+    let repository: &dyn ArtifactRepository = context.store.inner();
     let subject = match &args.subject {
         Some(text) => Some(*resolve::artifact(repository, text).await?.id()),
         None => None,

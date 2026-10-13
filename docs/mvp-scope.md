@@ -125,6 +125,34 @@ The MVP is complete when all of the following are true:
 8. Format and output contracts (artifact format, JSON schemas, rule codes, exit codes) are frozen and documented.
 9. `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace` and `cargo deny check` pass in CI.
 
+### Exit Evidence
+
+Status at the end of M9. Test references are checked by `scripts/check-conformance.ps1`.
+
+| # | Evidence |
+|---|----------|
+| 1 | One end-to-end suite per command, each with text, JSON and failure cases: `cli:init`, `cli:artifact`, `cli:relation`, `cli:query`, `cli:validate`, `cli:events`, `cli:watch` |
+| 2 | `cli:acceptance` runs on the blocking Windows job (`scripts/ci.ps1`, `.github/workflows/ci.yml`); Linux and macOS jobs are informational |
+| 3 | `val:rules::the_rule_table_lists_every_catalog_code_in_order`, `val:catalog::the_catalog_matches_the_documentation`, and a triggering and a non-triggering test for each rule in `val:engine` |
+| 4 | `store:memory::memory_store_passes_the_conformance_suite`, `store:file_store` (the same suite on the file store) and `store:caching::the_caching_store_passes_the_conformance_suite` |
+| 5 | `script:check-deps.ps1` |
+| 6 | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries`, `acc:a_repository_written_by_the_libraries_is_read_by_the_cli`, `acc:a_repository_written_by_the_cli_is_read_by_the_libraries` |
+| 7 | [rfc-conformance.md](rfc-conformance.md), checked by `script:check-conformance.ps1` |
+| 8 | The table below |
+| 9 | `scripts/ci.ps1` (`cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace --all-features`, and `cargo test -p functor-cli` for the release feature set), `cargo deny check` and `cargo doc` with `RUSTDOCFLAGS=-D warnings` |
+
+### Frozen Contracts
+
+These are stable from the MVP on. A change is a new version (`format_version` for files, `schema_version` for JSON, `v` for events), an ADR and, for rule codes and exit codes, a deliberate edit of the table and the tests that pin it; it is never a side effect of another change.
+
+| Contract | Specified in | Pinned by |
+|----------|--------------|-----------|
+| Artifact and relationship file format (`format_version` 1), repository layout | [artifact-format.md](artifact-format.md), [repository-layout.md](repository-layout.md), [storage-design.md](storage-design.md) | `store:minimal_artifact_renders_canonically`, `store:renders_the_documented_example`, `repo:renders_the_canonical_form` |
+| JSON output of every command (`schema_version` 1) | [cli-spec.md](cli-spec.md), `docs/schemas/` | `cli:query::the_schemas_can_fail`, `cli:artifact::the_schemas_can_actually_fail`, the golden transcripts in `src/app/cli/tests/snapshots/` |
+| Validation rule codes `V0001` to `V0019` | [validation-rules.md](validation-rules.md) | `val:catalog::the_catalog_matches_the_documentation` |
+| Exit codes | [cli-spec.md](cli-spec.md), [error-handling.md](error-handling.md) | `cli:exit::every_error_kind_has_the_documented_exit_code`, `cli:exit::validation_outcomes_map_to_the_documented_exit_codes` |
+| Event envelope (`v` 1) and event types | [event-model-mvp.md](event-model-mvp.md) | `events:wire::encoding_uses_the_documented_key_order_and_shape`, `cli:events::the_event_log_after_a_typical_session_is_stable` |
+
 ## Non-Goals
 
 - Performance beyond the targets in [nonfunctional-requirements.md](nonfunctional-requirements.md).

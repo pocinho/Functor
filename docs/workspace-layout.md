@@ -40,7 +40,7 @@ functor/
 ├── deny.toml                  # cargo-deny: licenses, bans, advisories
 ├── .cargo/config.toml
 ├── .github/workflows/ci.yml
-├── scripts/                   # check-deps.ps1, check-docs-links.ps1, ci.ps1
+├── scripts/                   # check-deps.ps1, check-conformance.ps1, check-docs-links.ps1, bench.ps1, ci.ps1
 ├── src/
 │   ├── crates/
 │   │   ├── functor-model/        # domain types, no I/O
@@ -54,8 +54,8 @@ functor/
 │   └── app/
 │       ├── cli/                  # package functor-cli, binary "functor"
 │       └── desktop/              # reserved; not a workspace member in the MVP
-├── examples/                     # sample repositories used as docs and fixtures
-├── docs/                         # this documentation (including docs/schemas/ JSON Schemas)
+├── examples/                     # sample repositories used as docs and fixtures (getting-started/, checked by the acceptance test)
+├── docs/                         # this documentation (including docs/schemas/ JSON Schemas and docs/benchmarks/ baseline)
 ├── rfcs/
 └── vision/
 ```

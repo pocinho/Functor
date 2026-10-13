@@ -1,6 +1,6 @@
 # RFC Conformance Matrix
 
-Status: Draft (to be kept current by every pull request)
+Status: Accepted (kept current by every pull request; checked by `scripts/check-conformance.ps1`)
 Related docs: [mvp-scope.md](mvp-scope.md), [testing-strategy.md](testing-strategy.md), [adr/README.md](adr/README.md)
 
 ## Purpose
@@ -19,44 +19,44 @@ Related docs: [mvp-scope.md](mvp-scope.md), [testing-strategy.md](testing-strate
 ## Rules for Maintaining This Table
 
 - Every pull request that changes behavior updates the affected rows.
-- "Implemented" and "Subset" rows must name a test; the test name is added when the test is written (the column below gives the planned suite and scenario, which is the contract for what the test must prove).
+- "Implemented" and "Subset" rows must name a test, and every named test must exist: `scripts/check-conformance.ps1` (part of `scripts/ci.ps1` and CI) fails on an unknown status, a row without a test and a reference that does not resolve to a function, a wildcard match, a module or a test file.
 - A "Deviation" requires an ADR. RFCs are never edited to match the implementation; a needed RFC change is proposed as a new RFC revision.
 - Keep requirement text short and cite the RFC section.
 
 ## Matrix
 
-Test column notation: `model:` unit and property tests in `functor-model`; `repo:` tests in `functor-repository`; `store:` tests in `functor-store`; `conf:` store conformance suite; `query:`, `val:`, `events:` crate tests; `cli:` end-to-end tests; `acc:` acceptance test.
+Test column notation: each reference is `prefix:name` in backticks. `model:` unit and property tests in `functor-model`; `repo:` tests in `functor-repository`; `store:` tests in `functor-store`; `conf:` the store conformance suite (`functor-testkit`); `query:`, `val:`, `events:` crate tests; `cli:` end-to-end tests in `functor-cli`; `acc:` the acceptance and library-workflow tests (`src/app/cli/tests/acceptance.rs` and `library.rs`); `script:` a check in `scripts/` that is not a cargo test. A name is a test function, optionally qualified by its module or test file (`cli:events::name`); `name_*` is a wildcard, `module::*` the whole module and a bare `cli:validate` the whole test file.
 
 ### RFC-0001 Core Semantic Model
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0001-1 | Every artifact has identity, metadata, content and relationships | Implemented | [domain-model.md](domain-model.md) | `model:artifact_has_required_parts` |
-| C-0001-2 | Identity is immutable | Implemented | `ArtifactPatch` has no id field; update never changes `id` | `conf:update_preserves_id` |
-| C-0001-3 | Relationships are first-class entities | Implemented | Own type, own id, own file | `conf:relationship_has_identity` |
+| C-0001-1 | Every artifact has identity, metadata, content and relationships | Implemented | [domain-model.md](domain-model.md) | `model:create_starts_at_revision_one`, `store:entities_are_stored_as_canonical_files_named_by_id`, `conf:create_get_resolve_and_list` |
+| C-0001-2 | Identity is immutable | Implemented | `ArtifactPatch` has no id field; update never changes `id` | `conf:update_increments_revision_and_preserves_identity` |
+| C-0001-3 | Relationships are first-class entities | Implemented | Own type, own id, own file | `conf:relationship_get_and_list_order`, `cli:relation::add_stores_a_canonical_file_named_by_id` |
 | C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `cli:validate::validation_never_changes_the_repository_state`, `val:engine::validation_does_not_modify_the_repository` |
 | C-0001-5 | Execution is a reproducible operation producing artifacts | Deferred | | |
-| C-0001-6 | Projections do not own the model | Implemented | CLI is a thin projection ([cli-spec.md](cli-spec.md)) | `acc:library_only_workflow` |
+| C-0001-6 | Projections do not own the model | Implemented | CLI is a thin projection ([cli-spec.md](cli-spec.md)) | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries` |
 
 ### RFC-0002 API-First Architecture
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0002-1 | Every UI capability is expressible through the core API | Implemented | `functor-core` traits; CLI calls only traits | `acc:library_only_workflow`, dependency-edge check |
-| C-0002-2 | All projections operate on the same semantic model | Implemented | Single model crate | `cli:same_repo_library_and_cli` |
-| C-0002-3 | Projections are replaceable without core changes | Implemented | Layering in [crate-dependencies.md](crate-dependencies.md) | dependency-edge check |
+| C-0002-1 | Every UI capability is expressible through the core API | Implemented | `functor-core` traits; CLI calls only traits | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries`, `script:check-deps.ps1` |
+| C-0002-2 | All projections operate on the same semantic model | Implemented | Single model crate | `acc:a_repository_written_by_the_libraries_is_read_by_the_cli`, `acc:a_repository_written_by_the_cli_is_read_by_the_libraries` |
+| C-0002-3 | Projections are replaceable without core changes | Implemented | Layering in [crate-dependencies.md](crate-dependencies.md) | `script:check-deps.ps1` |
 | C-0002-4 | MCP is an integration layer, not core | Deferred | | |
 
 ### RFC-0003 Artifact Model
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0003-1 | Artifact provides Identity, Type, Metadata, Version, Content | Subset | Version is the integer `revision`; no history. [artifact-format.md](artifact-format.md) | `conf:revision_increments` |
-| C-0003-2 | Identity is stable and independent of storage location, filename, UI and protocol | Implemented | Opaque id inside the file; filename is derived from id, never the reverse | `conf:slug_rename_keeps_identity`, `store:filename_matches_id` |
-| C-0003-3 | Types are extensible | Implemented | Open `ArtifactType` set | `model:unknown_type_accepted` |
-| C-0003-4 | Metadata is extensible | Implemented | `[metadata]` table | `store:metadata_roundtrip` |
-| C-0003-5 | Content format is not mandated | Implemented | `content.format` is free text | `store:content_roundtrip` |
-| C-0003-6 | Artifact-centric API: create, get, update, delete, relate, validate, query | Subset | All except delete ([traits-and-interfaces.md](traits-and-interfaces.md)) | `conf:crud` |
+| C-0003-1 | Artifact provides Identity, Type, Metadata, Version, Content | Subset | Version is the integer `revision`; no history. [artifact-format.md](artifact-format.md) | `conf:update_increments_revision_and_preserves_identity`, `model:patch_increments_revision_and_reports_changes` |
+| C-0003-2 | Identity is stable and independent of storage location, filename, UI and protocol | Implemented | Opaque id inside the file; filename is derived from id, never the reverse | `conf:slug_rename_releases_the_old_slug_and_keeps_relationships`, `store:entities_are_stored_as_canonical_files_named_by_id` |
+| C-0003-3 | Types are extensible | Implemented | Open `ArtifactType` set | `model:unknown_artifact_types_are_accepted` |
+| C-0003-4 | Metadata is extensible | Implemented | `[metadata]` table | `store:metadata_of_every_type_round_trips` |
+| C-0003-5 | Content format is not mandated | Implemented | `content.format` is free text | `store:inline_content_with_newlines_round_trips`, `store:content_can_be_replaced_and_cleared` |
+| C-0003-6 | Artifact-centric API: create, get, update, delete, relate, validate, query | Subset | All except delete ([traits-and-interfaces.md](traits-and-interfaces.md)) | `conf:create_get_resolve_and_list`, `conf:update_increments_revision_and_preserves_identity`, `conf:relationship_rules`, `cli:artifact`, `cli:relation`, `cli:query`, `cli:validate` |
 | C-0003-7 | Composition (artifacts containing artifacts) | Deferred | Expressible with relationships only | |
 | C-0003-8 | Execution capability by artifact type | Deferred | | |
 
@@ -64,10 +64,10 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0004-1 | Relationships are directional | Implemented | source and target | `model:relationship_direction` |
-| C-0004-2 | Core types: references, depends_on, derived_from, extends, supports, contradicts | Subset | First four built-in; others as custom types ([ADR-0007](adr/ADR-0007-relationship-types.md)) | `model:builtin_vs_custom` |
-| C-0004-3 | Relationships should have stable identifiers | Implemented | `rel_<ULID>` | `conf:relationship_has_identity` |
-| C-0004-4 | Metadata must not alter semantic meaning | Implemented | Opaque metadata map | `store:relationship_metadata_roundtrip` |
+| C-0004-1 | Relationships are directional | Implemented | source and target | `model:relationship_direction_and_self_reference` |
+| C-0004-2 | Core types: references, depends_on, derived_from, extends, supports, contradicts | Subset | First four built-in; others as custom types ([ADR-0007](adr/ADR-0007-relationship-types.md)) | `model:built_in_names_parse_to_built_ins`, `model:custom_types_are_flagged_and_validated` |
+| C-0004-3 | Relationships should have stable identifiers | Implemented | `rel_<ULID>` | `conf:relationship_get_and_list_order`, `cli:relation::add_stores_a_canonical_file_named_by_id` |
+| C-0004-4 | Metadata must not alter semantic meaning | Implemented | Opaque metadata map | `store:rendered_relationships_parse_back` |
 | C-0004-5 | Validate existence of referenced artifacts and detect cycles | Implemented | `V0006`, `V0007`, `V0009`, `V0011` ([validation-rules.md](validation-rules.md)) | `val:rules::v0006_dangling_source`, `val:rules::v0007_dangling_target`, `val:rules::v0009_self_reference`, `val:rules::v0011_*` |
 | C-0004-6 | API: create, remove, list, find_related, traverse | Subset | No remove | `conf:relationships`, `query:traverse::*`, `cli:query`, `cli:relation` |
 | C-0004-7 | Reverse relationships via indexing or query | Implemented | Inbound traversal ([query-model-mvp.md](query-model-mvp.md)) | `query:properties::inbound_of_the_outbound_neighbours_includes_the_start`, `cli:query::dependents_follow_edges_backwards` |
@@ -76,12 +76,12 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0005-1 | Identity immutable through content, metadata and relationship changes | Implemented | | `conf:update_preserves_id` |
-| C-0005-2 | Identifiers do not encode paths, keys or URLs | Implemented | `art_<ULID>` | `model:id_grammar` |
-| C-0005-3 | Identifiers are opaque to consumers | Implemented | No timestamp accessor; slug is a separate alias ([ADR-0001](adr/ADR-0001-two-part-identity.md)) | `model:id_has_no_accessors`, review rule |
+| C-0005-1 | Identity immutable through content, metadata and relationship changes | Implemented | | `conf:update_increments_revision_and_preserves_identity` |
+| C-0005-2 | Identifiers do not encode paths, keys or URLs | Implemented | `art_<ULID>` | `model:id_text_round_trips`, `model:id_rejects_bad_text` |
+| C-0005-3 | Identifiers are opaque to consumers | Implemented | No timestamp accessor; slug is a separate alias ([ADR-0001](adr/ADR-0001-two-part-identity.md)) | `model:id_kinds_do_not_parse_each_other`, `model:malformed_id_is_not_retried_as_slug`; the absence of accessors is an API-review rule |
 | C-0005-4 | Globally unique identifiers | Subset | ULID: probabilistically unique; uniqueness within a repository is additionally checked (`V0003`) | `val:rules::v0003_duplicate_artifact_id`, `val:engine::v0003_duplicate_artifact_id` |
-| C-0005-5 | Canonical reference `functor:<entity-type>:<id>` (SHOULD) | Implemented | Accepted on input, emitted as `ref` in JSON ([identity-and-addressing.md](identity-and-addressing.md)) | `cli:accepts_canonical_ref` |
-| C-0005-6 | Retrieval by identifier: get, resolve, exists | Implemented | `get`, `resolve`, `lookup` | `conf:resolve` |
+| C-0005-5 | Canonical reference `functor:<entity-type>:<id>` (SHOULD) | Implemented | Accepted on input, emitted as `ref` in JSON ([identity-and-addressing.md](identity-and-addressing.md)) | `model:canonical_reference_round_trips`, `cli:relation::add_accepts_slugs_ids_canonical_references_and_the_kebab_alias`, `cli:query::start_artifacts_resolve_by_slug_id_and_canonical_reference` |
+| C-0005-6 | Retrieval by identifier: get, resolve, exists | Implemented | `get`, `resolve`, `lookup` | `conf:create_get_resolve_and_list` |
 | C-0005-7 | Cross-repository and federated identifiers | Deferred | | |
 
 ### RFC-0006 Query Model
@@ -113,29 +113,29 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
 | C-0008-1 | Semantic model independent of any storage technology | Implemented | Model and core have no storage knowledge; two stores | `conf:*` on both stores |
-| C-0008-2 | Durable identity across storage engines | Implemented | Id is in the entity, not the location | `store:move_repository_dir` |
-| C-0008-3 | Local-first, offline | Implemented | Filesystem only | `cli:no_network` (review rule) |
+| C-0008-2 | Durable identity across storage engines | Implemented | Id is in the entity, not the location | `acc:a_moved_repository_keeps_every_identity` |
+| C-0008-3 | Local-first, offline | Implemented | Filesystem only | `script:check-deps.ps1` (no network-capable crate in the shipped dependency tree) |
 | C-0008-4 | Preserve historical states when practical | Deferred | `revision` only | |
 | C-0008-5 | Indexes must not affect semantics | Implemented | In-memory indexes rebuilt per snapshot | `query:engine::memory_and_file_stores_answer_identically` |
-| C-0008-6 | Portability, no proprietary representation | Implemented | TOML and JSON Lines | `store:cross_platform_checkout` |
+| C-0008-6 | Portability, no proprietary representation | Implemented | TOML and JSON Lines | `store:crlf_checkouts_load_and_keep_their_line_endings_when_updated` |
 
 ### RFC-0011 Projection Model
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0011-1 | CLI is a projection over the common API | Implemented | [cli-spec.md](cli-spec.md) | `acc:library_only_workflow` |
-| C-0011-2 | Artifact identity unchanged across projections | Implemented | | `cli:same_repo_library_and_cli` |
+| C-0011-1 | CLI is a projection over the common API | Implemented | [cli-spec.md](cli-spec.md) | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries` |
+| C-0011-2 | Artifact identity unchanged across projections | Implemented | | `acc:a_repository_written_by_the_libraries_is_read_by_the_cli`, `acc:a_repository_written_by_the_cli_is_read_by_the_libraries` |
 | C-0011-3 | Other projections | Deferred | | |
 
 ### RFC-0015 Repository Model
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0015-1 | Repository MUST have a stable identifier | Implemented | `repo_<ULID>` in `repository.toml` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md), `functor-repository`) | `repo:init_creates_id`, `repo:id_stable_across_open` |
-| C-0015-2 | Repository metadata is informational and never alters semantics | Implemented | | review rule |
-| C-0015-3 | Create, open, query, validate repository operations | Implemented | `init`, discovery, `query`, `validate` | `cli:init`, `cli:discovery` |
+| C-0015-1 | Repository MUST have a stable identifier | Implemented | `repo_<ULID>` in `repository.toml` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md), `functor-repository`) | `repo:init_creates_the_documented_layout`, `repo:the_repository_id_is_stable_across_opens` |
+| C-0015-2 | Repository metadata is informational and never alters semantics | Implemented | | `acc:repository_metadata_never_changes_what_the_repository_means` |
+| C-0015-3 | Create, open, query, validate repository operations | Implemented | `init`, discovery, `query`, `validate` | `cli:init`, `cli:artifact::the_repository_is_discovered_from_a_subdirectory`, `cli:query`, `cli:validate` |
 | C-0015-4 | Synchronize, export, import | Deferred | | |
-| C-0015-5 | Repository not tied to a storage technology | Implemented | `RepositoryManager` trait (`functor-repository`) and the store traits | `repo:manager_contract`, `conf:*` |
+| C-0015-5 | Repository not tied to a storage technology | Implemented | `RepositoryManager` trait (`functor-repository`) and the store traits | `repo:init_twice_is_a_conflict_and_changes_nothing`, `repo:the_manager_uses_the_injected_clock_and_ids`, `conf:*` |
 
 ### RFC-0017 Event Model
 
@@ -145,9 +145,9 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 | C-0017-2 | Hierarchical event type names | Implemented | `artifact.created` and so on | `events:wire::encoding_uses_the_documented_key_order_and_shape`, `cli:watch::type_filters_match_names_and_prefixes` |
 | C-0017-3 | Event types: artifact, relationship, validation (and others) | Subset | Four types only | `cli:events::artifact_create_emits_artifact_created`, `cli:events::artifact_update_emits_artifact_updated_listing_the_changes`, `cli:events::relation_add_emits_relationship_created`, `cli:events::validate_always_emits_validation_completed_even_when_it_fails`, `cli:events::read_only_and_failed_commands_emit_nothing` |
 | C-0017-4 | Events are informational, not authoritative | Implemented | State never depends on the log | `cli:events::a_failed_append_warns_and_the_command_still_succeeds`, `cli:events::a_failed_append_warns_for_every_mutating_command_in_both_modes` |
-| C-0017-5 | Do not mandate transport, serialization or synchronous processing | Implemented | Local JSON Lines is an implementation choice | |
+| C-0017-5 | Do not mandate transport, serialization or synchronous processing | Implemented | Local JSON Lines is an implementation choice | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries` (publishes and subscribes through the `EventPublisher` and `EventSource` traits) |
 | C-0017-6 | Auditability | Subset | Append-only log, rotated at 10 MiB with 10 archives retained ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); history older than the retained window is lost; no signatures | `events:log::sequence_numbers_are_gap_free_across_the_current_log_and_every_archive`, `events:log::exactly_the_ten_newest_archives_are_retained_and_the_oldest_is_pruned`, `cli:events::concurrent_commands_never_duplicate_or_skip_a_sequence_number`, `cli:events::the_log_rotates_at_10_mib_and_numbering_continues` |
-| C-0017-7 | Distributed ordering is not assumed | Implemented | `seq` is per repository only | |
+| C-0017-7 | Distributed ordering is not assumed | Implemented | `seq` is per repository only | `events:log::sequence_numbers_are_gap_free_across_the_current_log_and_every_archive`, `cli:events::concurrent_commands_never_duplicate_or_skip_a_sequence_number` |
 | C-0017-8 | Subscriptions, replay, extension events | Deferred | `watch` is a simple tail | `events:follow::*`, `cli:watch` |
 
 ### Deferred RFCs

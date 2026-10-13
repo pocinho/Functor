@@ -13,7 +13,7 @@ use functor_core::{
 use functor_events::{EventLogOptions, FileEventLog};
 use functor_model::RepositoryId;
 use functor_repository::{DEFAULT_LOCK_TIMEOUT, FileRepositoryManager, discover_root};
-use functor_store::{FileStore, StoreOptions};
+use functor_store::{CachingStore, FileStore, StoreOptions};
 
 use crate::cli::OutputMode;
 use crate::events::Recorder;
@@ -66,8 +66,8 @@ impl Services {
 pub struct Context {
     /// Where the repository is and what it is.
     pub handle: RepositoryHandle,
-    /// The entity store.
-    pub store: FileStore,
+    /// The entity store; it reads the repository once per command.
+    pub store: CachingStore<FileStore>,
     /// Appends the events of mutating commands.
     pub recorder: Recorder,
 }
@@ -139,6 +139,7 @@ pub async fn open(globals: &Globals, services: &Services) -> Result<Context> {
         Arc::clone(&services.ids),
         options,
     );
+    let store = CachingStore::new(store);
     let recorder = event_recorder(&handle.root, *handle.info.id(), services)?;
     Ok(Context {
         handle,

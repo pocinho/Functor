@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/acceptance.rs
+expression: "without_path(&transcript(&out), sandbox.path())"
+---
+exit: 0
+--- stdout ---
+added rel_0000000000000000000000009C: rfc-0001 depends_on rfc-0000
+--- stderr ---

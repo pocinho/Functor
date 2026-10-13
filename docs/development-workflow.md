@@ -24,7 +24,7 @@ cargo deny check
 cargo run -p functor-cli -- <args>
 ```
 
-`scripts/ci.ps1` runs the blocking checks locally (fmt, clippy, dependency edges, tests, markdown links). `scripts/check-deps.ps1` and `scripts/check-docs-links.ps1` can be run on their own.
+`scripts/ci.ps1` runs the blocking checks locally (fmt, clippy, dependency edges, RFC conformance matrix, tests, markdown links). `scripts/check-deps.ps1`, `scripts/check-conformance.ps1` and `scripts/check-docs-links.ps1` can be run on their own; `scripts/bench.ps1` measures the performance budgets (see [nonfunctional-requirements.md](nonfunctional-requirements.md)) and is not part of `ci.ps1`.
 
 ## Workspace Lints
 
@@ -45,12 +45,12 @@ A GitHub Actions workflow (`.github/workflows/ci.yml`) on pull requests and push
 
 | Job | Runs on | Steps |
 |-----|---------|-------|
-| `check` | Windows | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check |
+| `check` | Windows | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check (including the no-network-crate guard), [rfc-conformance.md](rfc-conformance.md) check |
 | `test` | Windows (required) | `cargo test --workspace --all-features` (includes acceptance and golden tests; `--all-features` enables `functor-cli`'s `test-support`, which the golden tests require) |
 | `test-other` | Linux, macOS (`continue-on-error: true`, non-blocking) | same command; failures are informational |
 | `deny` | Windows | `cargo deny check` |
 | `docs` | Windows | `cargo doc --workspace --no-deps` with `RUSTDOCFLAGS=-D warnings`; markdown link check over `docs/` |
-| `bench` (non-gating, scheduled) | Windows | Performance scenarios from [nonfunctional-requirements.md](nonfunctional-requirements.md) |
+| `bench` (non-gating) | Windows | `scripts/bench.ps1` at 10,000 artifacts against `docs/benchmarks/baseline.json`: reports the budgets of [nonfunctional-requirements.md](nonfunctional-requirements.md); hosted runners differ from the baseline machine, so the job never blocks |
 
 Use `Swatinem/rust-cache` or an equivalent cache keyed on `Cargo.lock`. A pull request is mergeable only when `check`, `test` and `deny` (all on Windows) are green. `test-other` never blocks a merge (see the platform policy in [nonfunctional-requirements.md](nonfunctional-requirements.md)).
 

@@ -4,12 +4,13 @@
 //! strict snapshots (`SnapshotLoad::into_snapshot`).
 
 use std::collections::BTreeMap;
-use std::fs;
-use std::io::ErrorKind;
+use std::fs::{self, File};
+use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
 use functor_core::{FunctorError, LoadIssue, LoadIssueKind, Result, SnapshotLoad};
 use functor_model::{Artifact, ArtifactId, Content, RelationshipId, RepositoryInfo, Slug, Subject};
+use functor_repository::toml_support::FileResult;
 use functor_repository::{
     GITKEEP, Layout, RepositoryFileError, TEMP_MARKER, parse_repository_file,
 };
@@ -23,6 +24,76 @@ pub(crate) const MAX_FILE_BYTES: u64 = 2 * 1024 * 1024;
 struct Candidate {
     path: PathBuf,
     name: String,
+}
+
+/// Reads a file with the size cap. A failure is the issue to report: kind and detail.
+fn read_limited(path: &Path) -> std::result::Result<String, (LoadIssueKind, String)> {
+    let unreadable = |error: std::io::Error| (LoadIssueKind::Unreadable, error.to_string());
+    let file = File::open(path).map_err(unreadable)?;
+    let mut bytes = Vec::new();
+    // One byte more than the cap tells an oversized file from one that is exactly at the cap.
+    file.take(MAX_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(unreadable)?;
+    if bytes.len() as u64 > MAX_FILE_BYTES {
+        return Err((
+            LoadIssueKind::MalformedFile,
+            format!("file is larger than {} MiB", MAX_FILE_BYTES / (1024 * 1024)),
+        ));
+    }
+    String::from_utf8(bytes).map_err(|_| {
+        (
+            LoadIssueKind::MalformedFile,
+            "file is not valid UTF-8".to_owned(),
+        )
+    })
+}
+
+/// What reading and parsing one entity file produced.
+enum Fetched<P> {
+    /// The file could not be read, or is too large or not UTF-8.
+    Failed(LoadIssueKind, String),
+    /// The file was read; it parsed or did not.
+    Parsed(FileResult<P>),
+}
+
+/// Files fewer than this are read on the calling thread; spawning would cost more than it saves.
+const PARALLEL_THRESHOLD: usize = 64;
+/// At most this many threads read files at once.
+const MAX_THREADS: usize = 8;
+
+/// Reads and parses every candidate, in parallel for large directories. The result has one entry
+/// per candidate, in the candidates' order, so everything downstream stays deterministic.
+fn fetch_all<P: Send>(
+    candidates: &[Candidate],
+    parse: fn(&str) -> FileResult<P>,
+) -> Vec<Fetched<P>> {
+    let fetch = |candidate: &Candidate| match read_limited(&candidate.path) {
+        Ok(text) => Fetched::Parsed(parse(&text)),
+        Err((kind, detail)) => Fetched::Failed(kind, detail),
+    };
+    let threads = std::thread::available_parallelism()
+        .map_or(1, std::num::NonZero::get)
+        .min(MAX_THREADS);
+    if candidates.len() < PARALLEL_THRESHOLD || threads < 2 {
+        return candidates.iter().map(fetch).collect();
+    }
+    let chunk = candidates.len().div_ceil(threads);
+    std::thread::scope(|scope| {
+        let workers: Vec<_> = candidates
+            .chunks(chunk)
+            .map(|part| scope.spawn(|| part.iter().map(&fetch).collect::<Vec<_>>()))
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|worker| {
+                // A panic in a parser is a bug; surface it instead of dropping files silently.
+                worker
+                    .join()
+                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+            })
+            .collect()
+    })
 }
 
 struct Loader<'a> {
@@ -69,37 +140,12 @@ impl Loader<'_> {
 
     // Reads a file with the size cap, classifying failures as issues.
     fn read_text(&mut self, path: &Path) -> Option<String> {
-        match fs::metadata(path) {
-            Ok(metadata) if metadata.len() > MAX_FILE_BYTES => {
-                self.issue(
-                    LoadIssueKind::MalformedFile,
-                    path,
-                    format!("file is larger than {} MiB", MAX_FILE_BYTES / (1024 * 1024)),
-                );
-                return None;
+        match read_limited(path) {
+            Ok(text) => Some(text),
+            Err((kind, detail)) => {
+                self.issue(kind, path, detail);
+                None
             }
-            Ok(_) => {}
-            Err(error) => {
-                self.issue(LoadIssueKind::Unreadable, path, error.to_string());
-                return None;
-            }
-        }
-        let bytes = match fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                self.issue(LoadIssueKind::Unreadable, path, error.to_string());
-                return None;
-            }
-        };
-        if let Ok(text) = String::from_utf8(bytes) {
-            Some(text)
-        } else {
-            self.issue(
-                LoadIssueKind::MalformedFile,
-                path,
-                "file is not valid UTF-8",
-            );
-            None
         }
     }
 
@@ -134,13 +180,17 @@ impl Loader<'_> {
             if name == GITKEEP {
                 continue;
             }
+            // The directory entry already knows whether it is a directory; no extra stat call.
+            let is_dir = entry
+                .file_type()
+                .map_or_else(|_| path.is_dir(), |t| t.is_dir());
             if name.contains(TEMP_MARKER) {
                 self.issue(
                     LoadIssueKind::UnexpectedFile,
                     &path,
                     "leftover of an interrupted write",
                 );
-            } else if path.is_dir() || path.extension().is_none_or(|ext| ext != "toml") {
+            } else if is_dir || path.extension().is_none_or(|ext| ext != "toml") {
                 self.issue(
                     LoadIssueKind::UnexpectedFile,
                     &path,
@@ -236,14 +286,17 @@ impl Loader<'_> {
         let mut ids: BTreeMap<ArtifactId, PathBuf> = BTreeMap::new();
         let mut slugs: BTreeMap<Slug, PathBuf> = BTreeMap::new();
 
-        for candidate in self.list(&self.layout.artifacts_dir()) {
-            let Some(text) = self.read_text(&candidate.path) else {
-                continue;
-            };
-            let parsed = match parse_artifact_file(&text) {
-                Ok(parsed) => parsed,
-                Err(problem) => {
+        let candidates = self.list(&self.layout.artifacts_dir());
+        let fetched = fetch_all(&candidates, parse_artifact_file);
+        for (candidate, fetched) in candidates.into_iter().zip(fetched) {
+            let parsed = match fetched {
+                Fetched::Parsed(Ok(parsed)) => parsed,
+                Fetched::Parsed(Err(problem)) => {
                     self.issue(problem.kind, &candidate.path, problem.detail);
+                    continue;
+                }
+                Fetched::Failed(kind, detail) => {
+                    self.issue(kind, &candidate.path, detail);
                     continue;
                 }
             };
@@ -309,14 +362,17 @@ impl Loader<'_> {
         let mut loaded = Vec::new();
         let mut ids: BTreeMap<RelationshipId, PathBuf> = BTreeMap::new();
 
-        for candidate in self.list(&self.layout.relationships_dir()) {
-            let Some(text) = self.read_text(&candidate.path) else {
-                continue;
-            };
-            let parsed = match parse_relationship_file(&text) {
-                Ok(parsed) => parsed,
-                Err(problem) => {
+        let candidates = self.list(&self.layout.relationships_dir());
+        let fetched = fetch_all(&candidates, parse_relationship_file);
+        for (candidate, fetched) in candidates.into_iter().zip(fetched) {
+            let parsed = match fetched {
+                Fetched::Parsed(Ok(parsed)) => parsed,
+                Fetched::Parsed(Err(problem)) => {
                     self.issue(problem.kind, &candidate.path, problem.detail);
+                    continue;
+                }
+                Fetched::Failed(kind, detail) => {
+                    self.issue(kind, &candidate.path, detail);
                     continue;
                 }
             };

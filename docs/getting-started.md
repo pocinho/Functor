@@ -1,6 +1,6 @@
 # Getting Started (MVP Walkthrough)
 
-Status: Draft. Output below is the expected behavior once the MVP is implemented; it doubles as the acceptance script described in [testing-strategy.md](testing-strategy.md). Ids shown are examples.
+Status: Accepted. This walkthrough is the acceptance script described in [testing-strategy.md](testing-strategy.md): the CLI acceptance test (`src/app/cli/tests/acceptance.rs`) runs these commands and compares the output with golden transcripts. The ids and times below are the deterministic ones of the test and of the reference repository in [`examples/getting-started/`](../examples/getting-started/); on your machine the ids are different ULIDs and the times are the current time.
 
 ## 1. Create a repository
 
@@ -10,7 +10,7 @@ functor init --name "Functor Demo"
 ```
 
 ```text
-initialized repository "Functor Demo" (repo_01J9Z3JX9T8S7R6Q5P4N3M2K1H) at /home/user/functor-demo
+initialized repository "Functor Demo" (repo_00000000000000000000000001) at /home/user/functor-demo
 ```
 
 You now have `.functor/repository.toml`, `artifacts/`, `relationships/` and `events/` (see [repository-layout.md](repository-layout.md)).
@@ -23,8 +23,8 @@ functor artifact create rfc-0001 --type rfc --title "Core Semantic Model"
 ```
 
 ```text
-created artifact rfc-0000 (art_01J9Z3K0P4Q5R6S7T8V9W0X1Y2)
-created artifact rfc-0001 (art_01J9Z3K8M2Q7X4V6B5N1R0T8WD)
+created artifact rfc-0000 (art_00000000000000000000000034)
+created artifact rfc-0001 (art_00000000000000000000000068)
 ```
 
 `rfc-0000` is a **slug**: a human-friendly alias. The opaque id is the identity ([identity-and-addressing.md](identity-and-addressing.md)).
@@ -36,7 +36,7 @@ functor relation add rfc-0001 depends_on rfc-0000
 ```
 
 ```text
-added rel_01J9Z3KQ0A1B2C3D4E5F6G7H8J: rfc-0001 depends_on rfc-0000
+added rel_0000000000000000000000009C: rfc-0001 depends_on rfc-0000
 ```
 
 ## 4. Query
@@ -50,6 +50,12 @@ functor query dependents rfc-0000
 dependencies of rfc-0001 (depends_on, depth 1)
 DEPTH  SLUG      TYPE  TITLE
 1      rfc-0000  rfc   Functor Vision
+```
+
+```text
+dependents of rfc-0000 (depends_on, depth 1)
+DEPTH  SLUG      TYPE  TITLE
+1      rfc-0001  rfc   Core Semantic Model
 ```
 
 ## 5. Validate
@@ -66,7 +72,7 @@ outcome: passed
 ## 6. Watch events (second terminal)
 
 ```bash
-functor watch --from-start
+functor watch --from-start --count 4
 ```
 
 ```text
@@ -84,4 +90,4 @@ functor query dependencies rfc-0001 --output json | jq '.nodes[].artifact.slug'
 
 ## Reference repository
 
-When implementation starts, add the final state of this walkthrough as `examples/getting-started/`. It becomes a test fixture so the document cannot drift from the product.
+[`examples/getting-started/`](../examples/getting-started/) is the final state of this walkthrough. A test compares it with what the walkthrough produces, so this document and the example cannot drift from the product. After a deliberate change, regenerate it with `FUNCTOR_UPDATE_EXAMPLE=1 cargo test -p functor-cli --all-features --test acceptance` and review the diff; the golden transcripts are updated as described in [testing-strategy.md](testing-strategy.md).

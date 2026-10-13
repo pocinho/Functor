@@ -23,18 +23,20 @@ Quality attributes the CLI MVP must meet beyond functional behavior, stated so t
 
 ## Performance Budgets
 
-Measured with a release build on an SSD-backed developer machine; verified by a benchmark job that **reports** and fails only on gross regression (more than 3x the stored baseline).
+Measured with a release build on an SSD-backed developer machine by `scripts/bench.ps1` (a synthetic repository, the median of five runs after a warm-up). The benchmark job **reports** and fails only on gross regression (more than 3x the stored baseline in `docs/benchmarks/baseline.json`, recorded on the development machine); in CI it is informational. Run `pwsh scripts/bench.ps1 -Artifacts 10000 -Baseline docs/benchmarks/baseline.json -Enforce` to fail on any budget, and add `-UpdateBaseline` to re-record the baseline after a deliberate change. Measured at the end of the MVP: 90 ms (`artifact show`), 95 ms (`query dependencies`), 93 ms (`validate`) and 130-155 ms (`relation add`) at 1,000 artifacts; 565 ms, 590 ms, 560 ms and 1.1 s at 10,000, with a peak of about 41 MB.
 
 | Scenario | Repository size | Budget |
 |----------|-----------------|--------|
-| `artifact show`, `relation add` (single write) | up to 10,000 artifacts | 300 ms |
+| `artifact show`, `relation add` (single write) | 1,000 artifacts, 2,000 relationships | 300 ms |
+| `artifact show` | 10,000 artifacts, 20,000 relationships | 750 ms |
+| `relation add` (single write) | 10,000 artifacts, 20,000 relationships | 1.5 s |
 | `query dependencies` cold start (strict load + traversal) | 1,000 artifacts, 2,000 relationships | 200 ms |
 | same | 10,000 artifacts, 20,000 relationships | 2 s |
 | `validate` | 10,000 artifacts, 20,000 relationships | 3 s |
 | `watch` event latency (append to print) | any | 1 s (notification) and 6 s worst case (polling) |
 | Peak memory for the 10,000 artifact case | | 200 MB |
 
-These sizes are the MVP design target. Larger repositories need an on-disk index or a different store, both explicitly deferred (RFC-0008 allows them). Single-write operations scan the artifacts directory for slug uniqueness; if that exceeds the budget, an in-memory-per-process slug index is the first optimization and does not change any contract.
+These sizes are the MVP design target. Every read loads and checks the whole repository (a damaged repository is refused, RFC-0008), so a command costs one full load at 10,000 artifacts (about 0.55 s measured) and `relation add` costs two (one to resolve the endpoints, one under the write lock); the budgets above include that. The loader reads and parses files in parallel, and the CLI reads the repository once per command. Larger repositories, or budgets at 10,000 artifacts close to the 1,000 artifact figures, need partial loading or an on-disk index, both explicitly deferred (RFC-0008 allows them); neither changes a contract.
 
 ## Reliability
 
@@ -54,6 +56,20 @@ RFC-0013 trust and signing are out of scope. The MVP still must be safe on untru
 5. **No network access** in the MVP; `notify` uses only local filesystem facilities.
 6. `unsafe_code = "forbid"` in all Functor crates; dependencies audited with `cargo deny` ([dependency-policy.md](dependency-policy.md)).
 7. Terminal safety: strings from repository files are escaped for control characters before printing in `text` mode, so artifact titles cannot inject ANSI sequences into a terminal.
+
+### Evidence
+
+`scripts/check-conformance.ps1` verifies that every test named here exists.
+
+| Item | Evidence |
+|------|----------|
+| 1 | No production code spawns a process or evaluates content; the only `std::process::Command` is in test support |
+| 2 | `model:content_path_rejects_unsafe_paths`, `store:content_paths_are_checked_for_safety_and_existence`, `cli:artifact::content_paths_must_exist_be_files_and_stay_inside_the_repository` |
+| 3 | `store:oversized_and_non_utf8_files_are_malformed`, `store:content_problems_are_classified`, `events:follow::a_line_over_the_limit_is_skipped_with_a_warning_and_the_neighbours_are_delivered` |
+| 4 | `cli:events::the_event_log_after_a_typical_session_is_stable` (the log holds ids, slugs and counts) |
+| 5 | `script:check-deps.ps1` (no network-capable crate in the shipped dependency tree) |
+| 6 | `unsafe_code = "forbid"` in the workspace lints; `cargo deny check` in CI |
+| 7 | `cli:artifact::show_neutralizes_control_characters_from_repository_data` |
 
 ## Observability
 

@@ -22,6 +22,9 @@ jobs:
       - name: Dependency edges
         run: ./scripts/check-deps.ps1
         shell: pwsh
+      - name: RFC conformance matrix
+        run: ./scripts/check-conformance.ps1
+        shell: pwsh
 
   test:
     runs-on: windows-latest
@@ -53,6 +56,18 @@ jobs:
         with:
           tool: cargo-deny
       - run: cargo deny check
+
+  # Reports the performance budgets (docs/nonfunctional-requirements.md). Informational: hosted
+  # runners are slower and noisier than the machine the baseline was recorded on.
+  bench:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Benchmarks
+        run: ./scripts/bench.ps1 -Artifacts 10000 -Baseline docs/benchmarks/baseline.json
+        shell: pwsh
 
   docs:
     runs-on: windows-latest

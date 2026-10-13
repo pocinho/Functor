@@ -36,6 +36,10 @@ required-features = ["test-support"]
 name = "watch"
 required-features = ["test-support"]
 
+[[test]]
+name = "acceptance"
+required-features = ["test-support"]
+
 [features]
 # Test-only environment variables (FUNCTOR_TEST_FIXED_TIME, FUNCTOR_TEST_ID_SEED). Never enabled
 # in release builds.
