@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+{"schema_version":1,"artifact":{"id":"art_00000000000000000000000034","ref":"functor:artifact:art_00000000000000000000000034","slug":"rfc-0000","type":"rfc","title":"Functor Vision","revision":1,"description":"Platform vision and goals","tags":["architecture","core"],"metadata":{"author":"Paulo","status":"draft"},"content":{"format":"markdown","text":"# Vision"},"created":"2026-10-12T18:00:00Z","updated":"2026-10-12T18:00:00Z"}}
+--- stderr ---

@@ -1,0 +1,11 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+SLUG      ID                              TYPE      REV  UPDATED               TITLE
+notes     art_00000000000000000000000036  document  1    2026-10-12T18:00:00Z  notes
+rfc-0000  art_00000000000000000000000034  rfc       1    2026-10-12T18:00:00Z  Functor Vision
+rfc-0001  art_00000000000000000000000035  rfc       1    2026-10-12T18:00:00Z  Core Semantic Model
+--- stderr ---

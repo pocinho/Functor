@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor init",
+  "description": "Output of `functor init --output json` (docs/cli/cli-spec.md).",
+  "type": "object",
+  "required": ["schema_version", "repository"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "repository": {
+      "type": "object",
+      "required": ["id", "name", "root", "format_version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^repo_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "root": { "type": "string", "minLength": 1 },
+        "format_version": { "const": 1 }
+      }
+    }
+  }
+}

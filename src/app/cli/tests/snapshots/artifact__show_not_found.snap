@@ -1,0 +1,10 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 3
+--- stdout ---
+--- stderr ---
+error: artifact not found: rfc-0002
+  did you mean: rfc-0000, rfc-0001
+hint: run `functor artifact list` to see available artifacts

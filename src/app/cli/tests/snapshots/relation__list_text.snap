@@ -1,0 +1,11 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+ID                              SOURCE    TYPE        TARGET
+rel_00000000000000000000000068  rfc-0001  depends_on  rfc-0000
+rel_00000000000000000000000069  rfc-0001  references  notes
+rel_0000000000000000000000006A  notes     extends     rfc-0000
+--- stderr ---

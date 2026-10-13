@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&none)
+---
+exit: 2
+--- stdout ---
+--- stderr ---
+error: invalid update: at least one change option is required (for example --title)

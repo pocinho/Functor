@@ -1,0 +1,14 @@
+{
+  "n1000": {
+    "artifact show": 92.5,
+    "query dependencies": 92.2,
+    "validate": 92.8,
+    "relation add": 151.8
+  },
+  "n10000": {
+    "artifact show": 562.3,
+    "query dependencies": 590.9,
+    "validate": 561.8,
+    "relation add": 1089.8
+  }
+}

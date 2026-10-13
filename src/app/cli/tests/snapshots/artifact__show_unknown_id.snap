@@ -1,0 +1,9 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&unknown_id)
+---
+exit: 3
+--- stdout ---
+--- stderr ---
+error: artifact not found: art_7ZZZZZZZZZZZZZZZZZZZZZZZZZ
+hint: run `functor artifact list` to see available artifacts

@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+added rel_00000000000000000000000068: rfc-0001 depends_on rfc-0000
+--- stderr ---

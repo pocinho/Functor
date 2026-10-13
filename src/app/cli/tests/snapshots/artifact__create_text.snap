@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+created artifact rfc-0000 (art_00000000000000000000000034)
+--- stderr ---

@@ -1,0 +1,9 @@
+---
+source: src/app/cli/tests/relation.rs
+expression: transcript(&out)
+---
+exit: 3
+--- stdout ---
+--- stderr ---
+error: relationship not found: rel_000000000000000000000000Z7
+hint: run `functor relation list` to see available relationships

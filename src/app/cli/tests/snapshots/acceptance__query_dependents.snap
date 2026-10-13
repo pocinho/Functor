@@ -1,0 +1,10 @@
+---
+source: src/app/cli/tests/acceptance.rs
+expression: "without_path(&transcript(&out), sandbox.path())"
+---
+exit: 0
+--- stdout ---
+dependents of rfc-0000 (depends_on, depth 1)
+DEPTH  SLUG      TYPE  TITLE
+1      rfc-0001  rfc   Core Semantic Model
+--- stderr ---

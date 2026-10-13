@@ -1,0 +1,18 @@
+[package]
+name = "functor-model"
+description = "Functor semantic model: identifiers, artifacts, relationships and value types."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true
+ulid.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true

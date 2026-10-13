@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/acceptance.rs
+expression: "without_path(&transcript(&out), sandbox.path())"
+---
+exit: 0
+--- stdout ---
+created artifact rfc-0001 (art_00000000000000000000000068)
+--- stderr ---

@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 4
+--- stdout ---
+--- stderr ---
+error: slug `rfc-0000` is already taken

@@ -1,0 +1,12 @@
+---
+source: src/app/cli/tests/watch.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+1  2026-10-12T18:00:00Z  artifact.created  rfc-0000
+2  2026-10-12T18:00:00Z  artifact.created  rfc-0001
+3  2026-10-12T18:00:00Z  relationship.created  rfc-0001 depends_on rfc-0000
+4  2026-10-12T18:00:00Z  artifact.updated  rfc-0000
+5  2026-10-12T18:00:00Z  validation.completed  passed
+--- stderr ---
