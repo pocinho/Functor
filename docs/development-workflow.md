@@ -37,7 +37,7 @@ clippy: all = "warn", pedantic = "warn" (selected lints allowed with a reason),
         in library crates (the CLI crate is the only crate that may print)
 ```
 
-CI runs clippy with `-D warnings`, so warnings are failures.
+CI runs clippy with `-D warnings`, so warnings are failures. `clippy.toml` allows `unwrap` and `expect` inside tests only. A lint is allowed locally with `#[allow(...)]` plus a comment giving the reason; the workspace does not blanket-allow any pedantic lint.
 
 ## Continuous Integration
 

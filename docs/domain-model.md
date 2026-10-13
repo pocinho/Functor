@@ -12,7 +12,7 @@ This document specifies the Rust-level types and invariants of `functor-model`. 
 ## Rules for the Model Crate
 
 - Pure types and logic only. No I/O, no async runtime, no `serde` (ADR-0005).
-- Allowed dependencies: `ulid` (id generation and parsing) and `thiserror`. Anything else needs a note in [dependency-policy.md](dependency-policy.md).
+- Allowed dependencies: `ulid` (id generation and parsing) and `thiserror`; `proptest` as a dev-dependency only. Anything else needs a note in [dependency-policy.md](dependency-policy.md).
 - Invariants are enforced by **validating constructors** (`parse`, `new`). Fields are private; accessors are provided. An invalid value cannot be constructed.
 - Public enums that may grow are `#[non_exhaustive]`.
 - All types implement `Debug`, `Clone`, `PartialEq`, `Eq` and `Hash` where meaningful, and `Display` where there is a canonical textual form.
@@ -160,7 +160,7 @@ pub struct Finding {
 pub struct ValidationReport { outcome: Outcome, findings: Vec<Finding>, checked: Counts, completed: Timestamp }
 ```
 
-`Outcome` derivation: any `Error` finding gives `Failed`; otherwise any `Warning` gives `Warning`; otherwise `Unknown` if any rule could not run; otherwise `Passed`. Findings are sorted deterministically (code, then subject, then message).
+`Outcome` derivation follows the precedence in [validation-rules.md](validation-rules.md): any `Error` finding gives `Failed`; otherwise `Unknown` if any rule could not run; otherwise any `Warning` gives `Warning`; otherwise `Passed`. `Info` findings never change the outcome. `ValidationReport::new` sorts findings deterministically (code, then subject, then message), derives the outcome and computes the counts, so a report cannot be built inconsistent.
 
 ## Event Types
 
@@ -169,8 +169,26 @@ Defined in detail in [event-model-mvp.md](event-model-mvp.md).
 ```rust
 #[non_exhaustive]
 pub enum EventKind { ArtifactCreated, ArtifactUpdated, RelationshipCreated, ValidationCompleted }
-pub struct Event { id: EventId, seq: u64, at: Timestamp, kind: EventKind, origin: RepositoryId, subject: Subject, data: EventData }
+pub enum EventSubject { Artifact(ArtifactId), Relationship(RelationshipId), Repository(RepositoryId) }
+pub struct EventData(BTreeMap<String, MetadataValue>);   // keys ascending
+pub struct NewEvent { kind, subject: EventSubject, data }                  // before the publisher assigns id, seq, at
+pub struct Event { id: EventId, seq: u64, at: Timestamp, kind: EventKind, origin: RepositoryId, subject: EventSubject, data: EventData }
 ```
+
+`Event::new` rejects `seq == 0`. `EventSubject::canonical()` yields the `subject` and `origin` references used in the event envelope. Validation findings use the separate `Subject` type above, because a finding can be about a file or about "the repository" without naming one.
+
+## Implementation Notes (M1)
+
+Decisions taken while implementing `functor-model` that refine the sections above:
+
+- **Errors.** Constructors return `ModelError { field, reason }` (a `thiserror` type mirroring `FunctorError::InvalidInput`). Snapshot construction returns `SnapshotError`.
+- **Id source.** `ArtifactId::from_bits(u128)` (and the other id types) build ids from bits supplied by an id source; no accessor exposes the bits back. `MonotonicUlids` is the production source (thread-safe, strictly increasing, even within one millisecond); `functor-core`'s `IdGenerator` wraps it and `functor-testkit` supplies deterministic ones. Parsing rejects lowercase text and values that would overflow 128 bits.
+- **Plain records have public fields.** `Finding`, `Counts`, `NewEvent`, `Event`, `TraversalNode`, `TraversalResult` and the query inputs carry no cross-field invariants, so their fields are public (`#[non_exhaustive]` where the crate expects to add fields; use the constructors from other crates). Types with invariants (`Artifact`, `Relationship`, `ValidationReport`, `RepositorySnapshot`) keep private fields.
+- **Patch semantics.** `Artifact::apply_patch` returns `Patched { artifact, changed }`. A patch that changes nothing returns the artifact untouched (same revision and `updated`) with an empty `changed` list, which is what lets the store skip the write and the CLI skip the event. `updated` is never earlier than `created`.
+- **Relationship type names.** `RelationshipType::parse` normalizes `-` to `_` for every name, so `depends-on` and `my-type` are accepted and printed as `depends_on` and `my_type`.
+- **Content formats.** `ContentFormat` is `[a-z0-9][a-z0-9_.+-]{0,31}`. `ContentPath` also rejects `:` so Windows drive prefixes cannot appear.
+- **Snapshots.** `RepositorySnapshot::new` sorts entities by id and rejects duplicate ids and slugs, duplicate relationship ids and dangling relationship endpoints (`SnapshotError`); it is exactly the well-formed, strict-load view. `RepoPath` (relative, `/`-separated, NUL-free) names files in findings and load issues.
+- **Query execution** (search matching, traversal) is **not** in this crate; it lives in `functor-query`. The model provides the query and result value types and `MetadataValue::matches`.
 
 ## Ordering and Equality
 
@@ -185,8 +203,11 @@ pub struct Event { id: EventId, seq: u64, at: Timestamp, kind: EventKind, origin
 | Id text round-trips for every id type | property |
 | Slug grammar accepts and rejects the documented sets | unit table |
 | `RelationshipType::parse(display(t)) == t` and kebab alias normalizes | property |
-| Built-in names never become `Custom` | unit |
+| Built-in names never become `Custom` | property and unit |
 | `Revision` can never be zero | unit |
 | Tags are sorted and unique after construction | property |
-| `ContentPath` rejects absolute paths and `..` | unit table |
+| `ContentPath` rejects absolute paths and `..` | unit table and property |
+| Timestamps round-trip across years 0000 to 9999 and sort like their text | property |
+| A no-op patch changes nothing; a real patch increments the revision | unit |
+| Snapshots reject duplicates and dangling endpoints | unit |
 | Report outcome derivation follows the rule above | unit table |

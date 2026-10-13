@@ -41,6 +41,8 @@ RFC-0001, 0003, 0004, 0005. Identifiers, slug, artifact, relationship and type e
 
 Done when: every invariant in [domain-model.md](domain-model.md) has a unit or property test, and artifacts and relationships can be created entirely in memory.
 
+Status: implemented. `functor-model` has all types from `domain-model.md` (see its "Implementation Notes"), 52 unit tests, 14 property tests and an in-memory end-to-end test. Search matching and traversal execution belong to M6 (`functor-query`).
+
 ## M2: Core Contracts and Testkit (`functor-core`, `functor-testkit`)
 
 RFC-0002. Traits ([traits-and-interfaces.md](traits-and-interfaces.md)), `FunctorError` ([error-handling.md](error-handling.md)), `Clock`, `IdGenerator`, test doubles and the **store conformance suite** (written against the traits, initially without an implementation).
