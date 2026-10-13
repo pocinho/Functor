@@ -33,6 +33,8 @@ M6, M7 and M8 depend only on M5 and may proceed in parallel.
 
 Done when: CI is green on Windows with empty crates and `functor --version` runs.
 
+Status: implemented. `scripts/ci.ps1` (fmt, clippy, dependency edges, tests, links), `cargo deny check` and `functor --version` pass locally on Windows; the first GitHub Actions run happens when the branch is pushed.
+
 ## M1: Semantic Model (`functor-model`)
 
 RFC-0001, 0003, 0004, 0005. Identifiers, slug, artifact, relationship and type enums, snapshot with indexes, query, validation and event value types.

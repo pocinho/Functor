@@ -24,7 +24,7 @@ cargo deny check
 cargo run -p functor-cli -- <args>
 ```
 
-Optional `cargo` aliases in `.cargo/config.toml`: `cargo ci` runs the first four commands in sequence.
+`scripts/ci.ps1` runs the blocking checks locally (fmt, clippy, dependency edges, tests, markdown links). `scripts/check-deps.ps1` and `scripts/check-docs-links.ps1` can be run on their own.
 
 ## Workspace Lints
 

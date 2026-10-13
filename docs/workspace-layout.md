@@ -40,6 +40,7 @@ functor/
 ├── deny.toml                  # cargo-deny: licenses, bans, advisories
 ├── .cargo/config.toml
 ├── .github/workflows/ci.yml
+├── scripts/                   # check-deps.ps1, check-docs-links.ps1, ci.ps1
 ├── src/
 │   ├── crates/
 │   │   ├── functor-model/        # domain types, no I/O

@@ -89,7 +89,7 @@ A library crate must also not depend on `anyhow`, `clap`, `tracing-subscriber` o
 ## Enforcement
 
 - `cargo deny check bans` configured with the table above (`deny.toml` `[bans]` wrappers and skip lists) to block disallowed external crates per layer where `cargo-deny` can express it.
-- A CI check (`cargo metadata` based, a small script or an `xtask`) that asserts the workspace dependency edges equal the allowed set. Any new edge fails CI until this document and the check are updated together.
+- A CI check, `scripts/check-deps.ps1` (PowerShell over `cargo metadata`, no extra dependencies), that asserts the workspace dependency edges equal the allowed set and that layers do not use forbidden external crates. Any new edge fails CI until this document and the script are updated together.
 - Code review checklist item in [development-workflow.md](development-workflow.md).
 
 ## Architectural Principle

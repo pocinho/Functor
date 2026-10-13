@@ -1,0 +1,15 @@
+[package]
+name = "functor-repository"
+description = "Functor repository lifecycle: layout, repository metadata, init/open/discover and the write lock."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+functor-core.workspace = true
+functor-model.workspace = true
