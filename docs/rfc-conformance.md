@@ -25,7 +25,7 @@ Related docs: [mvp-scope.md](mvp-scope.md), [testing-strategy.md](testing-strate
 
 ## Matrix
 
-Test column notation: `model:` unit and property tests in `functor-model`; `conf:` store conformance suite; `query:`, `val:`, `events:` crate tests; `cli:` end-to-end tests; `acc:` acceptance test.
+Test column notation: `model:` unit and property tests in `functor-model`; `repo:` tests in `functor-repository`; `store:` tests in `functor-store`; `conf:` store conformance suite; `query:`, `val:`, `events:` crate tests; `cli:` end-to-end tests; `acc:` acceptance test.
 
 ### RFC-0001 Core Semantic Model
 
@@ -131,11 +131,11 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0015-1 | Repository MUST have a stable identifier | Implemented | `repo_<ULID>` in `repository.toml` | `store:init_creates_id`, `store:id_stable_across_open` |
+| C-0015-1 | Repository MUST have a stable identifier | Implemented | `repo_<ULID>` in `repository.toml` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md), `functor-repository`) | `repo:init_creates_id`, `repo:id_stable_across_open` |
 | C-0015-2 | Repository metadata is informational and never alters semantics | Implemented | | review rule |
 | C-0015-3 | Create, open, query, validate repository operations | Implemented | `init`, discovery, `query`, `validate` | `cli:init`, `cli:discovery` |
 | C-0015-4 | Synchronize, export, import | Deferred | | |
-| C-0015-5 | Repository not tied to a storage technology | Implemented | `RepositoryManager` trait | `conf:*` |
+| C-0015-5 | Repository not tied to a storage technology | Implemented | `RepositoryManager` trait (`functor-repository`) and the store traits | `repo:manager_contract`, `conf:*` |
 
 ### RFC-0017 Event Model
 
@@ -146,7 +146,7 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 | C-0017-3 | Event types: artifact, relationship, validation (and others) | Subset | Four types only | `cli:each_mutation_emits_one_event` |
 | C-0017-4 | Events are informational, not authoritative | Implemented | State never depends on the log | `events:append_failure_is_warning` |
 | C-0017-5 | Do not mandate transport, serialization or synchronous processing | Implemented | Local JSON Lines is an implementation choice | |
-| C-0017-6 | Auditability | Subset | Append-only log; no rotation, no signatures | `events:seq_gap_free` |
+| C-0017-6 | Auditability | Subset | Append-only log, rotated at 10 MiB with 10 archives retained ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); history older than the retained window is lost; no signatures | `events:seq_gap_free`, `events:rotation_retains_ten` |
 | C-0017-7 | Distributed ordering is not assumed | Implemented | `seq` is per repository only | |
 | C-0017-8 | Subscriptions, replay, extension events | Deferred | `watch` is a simple tail | |
 
@@ -167,4 +167,4 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 1. Validation reports are not artifacts (C-0001-4, C-0007-3).
 2. Artifact identity is two-part (id plus slug), a compatible extension of RFC-0005 ([ADR-0001](adr/ADR-0001-two-part-identity.md)).
 3. No deletion of artifacts or relationships (C-0003-6, C-0004-6).
-4. Event log has no rotation (C-0017-6).
+4. Event history is bounded (C-0017-6): older events are pruned by rotation.

@@ -59,8 +59,9 @@ The event wire DTO lives in `functor-events` (ADR-0005).
 - Path: `events/current.log` (see [repository-layout.md](repository-layout.md)).
 - Append-only; each event is written with a single `write` of `json + "\n"` to a file opened with `O_APPEND` semantics, then flushed.
 - **Sequence assignment:** under the repository write lock (same lock as state writes, see [storage-design.md](storage-design.md)), read the last complete line's `seq` and write `seq + 1`. Reading the tail is O(1): seek back from the end to the previous newline.
-- If the log is missing, the next `seq` is 1. If the last line is incomplete (no trailing newline, a crash artifact), readers skip it with a warning and the writer terminates it with a newline before appending.
-- Rotation to `events/archive/` is **not** implemented. The log grows without bound in the MVP; acceptable for the target scale, recorded in [rfc-conformance.md](rfc-conformance.md).
+- If the last line is incomplete (no trailing newline, a crash artifact), readers skip it with a warning and the writer terminates it with a newline before appending.
+- **Rotation** ([ADR-0008](adr/ADR-0008-event-log-rotation.md)): under the same lock, immediately before appending, if `current.log` is at or above 10 MiB it is renamed to `events/archive/events-<first-seq>-<last-seq>.log` (sequence numbers zero-padded to 12 digits) and the new event becomes the first line of a fresh `current.log`. Archives beyond the 10 newest are then deleted. A failure to rotate or prune is a warning; the append still happens. The retained window is at most about 110 MiB.
+- When `current.log` is missing, the next `seq` is the last sequence in the newest archive file name plus 1, or 1 if there are no archives.
 
 ## Publishing
 
@@ -81,12 +82,14 @@ Behavior:
 1. Resolve the start position: `--after <seq>` (events with `seq > N`), `--from-start`, or by default the **end** of the log (only new events).
 2. Deliver existing events, if any, then wait for new ones.
 3. Waiting uses filesystem notification (`notify` crate) on `events/`, with a **polling fallback** every 500 ms, and a poll even when notifications are active every 5 seconds as a safety net (notification APIs miss events on some network and virtual filesystems).
-4. The watcher reads the log file by byte offset and keeps the offset; it handles the log being created after `watch` starts, and truncation or replacement (offset greater than size: restart from the new start with a warning).
+4. The watcher reads the log file by byte offset and keeps the offset; it handles the log being created after `watch` starts, and rotation or truncation (the file was replaced, or the offset is greater than the size: continue from the start of the new file). Rotation is detected by comparing the first line's `seq` and the file length with the saved state; no event is delivered twice because delivery is keyed by `seq`.
 5. A partial last line is held back until its newline arrives.
 6. Filters: `--type <event type>` (repeatable, prefix match on `artifact.`) and `--subject <ref>` (artifact reference resolved at start). No other filtering in the MVP.
 7. Output: `text` one line per event; `json` one JSON object per line (the envelope as stored, so the output is the log). Output is flushed after every event so pipes work. Spec in [cli-spec.md](cli-spec.md).
 8. `watch` never takes the write lock, never writes, and never modifies state.
 9. Termination: Ctrl-C (SIGINT, and on Windows the console control event) exits 0. A closed output pipe exits 0 silently. An unreadable log yields exit code 7. `--count <n>` exits after N events (used by tests) and `--timeout <seconds>` exits 0 after the duration with no more events (also used by tests).
+
+When the start position (`--after N` or `--from-start`) refers to events that were already pruned from the archives, `watch` starts at the oldest retained event and prints `warning: events before seq <S> were pruned`.
 
 Multiple watchers are allowed. `watch` works across processes because the log file is the integration point; there is no daemon and no IPC.
 
@@ -96,12 +99,13 @@ The log records slugs and ids, not content. It contains no secrets by design. RF
 
 ## Deferred (RFC-0017)
 
-Durable subscriptions with named cursors, replay APIs, event schemas published for third parties, delivery guarantees stronger than above, cross-repository streams, log rotation and compaction, and deletion events.
+Durable subscriptions with named cursors, replay APIs, event schemas published for third parties, delivery guarantees stronger than above, cross-repository streams, configurable rotation limits and compaction, and deletion events.
 
 ## Test Obligations
 
 - Each mutating command emits exactly one event of the right type and data; read-only commands emit none (including failed commands).
 - `seq` is strictly increasing under concurrent writers (two processes, many appends) with no duplicates and no gaps.
 - Event append failure (read-only log) yields a warning and exit 0, with state committed.
-- Watcher tests using `--count` and `--timeout`: existing events, new events after start, log created after start, `--after`, truncated tail line, filters.
+- Watcher tests using `--count` and `--timeout`: existing events, new events after start, log created after start, `--after`, truncated tail line, filters, rotation while watching, start position before the oldest retained event.
+- Rotation: `seq` continues across `current.log` and archives, exactly 10 archives are retained, the oldest is pruned, the new `current.log` is never empty after a rotation, a crash between the rename and the first write is recovered on the next append, a rotation or prune failure only warns.
 - Envelope round trip and unknown-key tolerance.

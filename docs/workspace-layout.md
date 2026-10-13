@@ -2,7 +2,7 @@
 
 Status: Draft
 Related RFCs: RFC-0002, RFC-0011 (projections), RFC-0008
-Related ADRs: ADR-0002, ADR-0004, ADR-0005
+Related ADRs: ADR-0004, ADR-0005, ADR-0009, ADR-0010
 Related docs: [crate-dependencies.md](crate-dependencies.md), [dependency-policy.md](dependency-policy.md)
 
 ## Purpose
@@ -44,10 +44,11 @@ functor/
 │   ├── crates/
 │   │   ├── functor-model/        # domain types, no I/O
 │   │   ├── functor-core/         # traits, errors, Clock and IdGenerator
-│   │   ├── functor-store/        # FileStore, MemoryStore, TOML DTOs, repository lifecycle
+│   │   ├── functor-repository/   # layout, repository.toml, init/open/discover, write lock
+│   │   ├── functor-store/        # FileStore, MemoryStore, entity TOML DTOs
 │   │   ├── functor-query/        # snapshot query engine
 │   │   ├── functor-validation/   # rule catalog and engine
-│   │   ├── functor-events/       # event log, publisher, watcher
+│   │   ├── functor-events/       # event log, rotation, publisher, watcher
 │   │   └── functor-testkit/      # test doubles, conformance suite, fixtures (publish = false)
 │   └── app/
 │       ├── cli/                  # package functor-cli, binary "functor"
@@ -82,22 +83,22 @@ Each crate sets `[lints] workspace = true`.
 | Crate | Responsibility | Implements |
 |-------|----------------|------------|
 | `functor-model` | Identifiers, `Artifact`, `Relationship`, `RepositoryInfo`, `RepositorySnapshot`, query, validation and event value types. No I/O, no serde, no runtime | RFC-0001, 0003, 0004, 0005 |
-| `functor-core` | Service traits, `FunctorError`, `Clock`, `IdGenerator`, system implementations | RFC-0002 |
-| `functor-store` | `FileStore` and `MemoryStore`: repository init/open/discover, artifact and relationship persistence, strict and lenient load, locking, atomic writes, TOML DTOs | RFC-0008, 0015 (subset) |
+| `functor-core` | Service traits (`async-trait`, dyn-compatible, [ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)), `FunctorError`, `Clock`, `IdGenerator`, system implementations | RFC-0002 |
+| `functor-repository` | Foundation service ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)): repository layout and paths, `repository.toml`, `format_version` check, `init`, `open`, `discover`, the write lock | RFC-0015 (subset) |
+| `functor-store` | `FileStore` and `MemoryStore`: artifact and relationship persistence, strict and lenient load, atomic writes, in-place TOML edits, entity TOML DTOs | RFC-0008 |
 | `functor-query` | `SnapshotQueryEngine`: lookup, search, traverse | RFC-0006 |
 | `functor-validation` | Rule catalog `V0001..`, `RuleValidationEngine`, report assembly | RFC-0007 (validation half) |
-| `functor-events` | `FileEventLog`: publish, subscribe, tailing, event DTO | RFC-0017 (subset) |
+| `functor-events` | `FileEventLog`: publish, rotation and pruning, subscribe, tailing, event DTO | RFC-0017 (subset) |
 | `functor-testkit` | `FixedClock`, `SequentialIds`, fixture builders, store conformance suite, snapshot helpers | testing support |
 | `functor-cli` | Argument parsing (clap), command handlers, rendering (text and JSON DTOs), exit-code mapping, composition root | RFC-0011 |
 
-Repository lifecycle (`init`, `open`, `discover`) lives in `functor-store` for the MVP. The earlier plan for a `functor-repository` crate is deferred until versioning (RFC-0016) and federation (RFC-0009) need to own repository-level concerns.
+Repository lifecycle lives in its own crate from the start ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)). Versioning (RFC-0016) and federation (RFC-0009) will extend `functor-repository` rather than create it.
 
 ## Deferred Crates
 
 | Crate | Reason | RFC |
 |-------|--------|-----|
 | `functor-runtime` | Execution is out of the MVP | RFC-0007 (execution), 0010 |
-| `functor-repository` | See above | RFC-0009, 0015, 0016 |
 | `functor-capabilities` | No capability discovery in the MVP | RFC-0010, 0014 |
 | `functor-sync`, `functor-security` | Federation and trust | RFC-0009, 0013 |
 | `functor-extensions` | No extensions | RFC-0014 |
@@ -121,7 +122,7 @@ Repository lifecycle (`init`, `open`, `discover`) lives in `functor-store` for t
 | 0012 | | Deferred |
 | 0013 | | Deferred (basic local safety in [nonfunctional-requirements.md](nonfunctional-requirements.md)) |
 | 0014 | | Deferred |
-| 0015 | model, store | Subset |
+| 0015 | model, repository, store | Subset |
 | 0016 | | Deferred (`revision` counter only) |
 | 0017 | events, cli | Subset (ADR-0003) |
 | 0018 | | Deferred |

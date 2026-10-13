@@ -35,7 +35,7 @@ Additional rules:
 
 - Unique within a repository, compared byte-for-byte (the grammar is already lowercase, so there is no case folding problem).
 - Must not start with `art_`, `rel_`, `repo_` or `evt_`. This makes the id and slug spaces disjoint, so `ArtifactRef` parsing is unambiguous. Underscores are not in the slug grammar, so the prefix rule is already satisfied; it is listed for the benefit of future grammar changes.
-- Slugs are **not identity**. They may be renamed with `functor artifact update <ref> --slug <new>`. The old slug is released immediately. The MVP keeps no slug history (a deferred concern).
+- Slugs are **not identity**. They may be renamed with `functor artifact update <ref> --slug <new>`. The old slug is released immediately. The MVP keeps no slug history and does not reserve old slugs: this is a decision, not an open question, and revisiting it needs a new ADR.
 - Reserved slugs: none in the MVP.
 - Slugs are never used in file names, relationships or events.
 

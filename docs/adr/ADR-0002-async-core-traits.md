@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0010](ADR-0010-async-trait-and-dyn.md)
 
 ## Context
 

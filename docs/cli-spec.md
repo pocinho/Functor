@@ -8,7 +8,7 @@ Related docs: [error-handling.md](error-handling.md), [identity-and-addressing.m
 
 ## Purpose
 
-The exact command surface, arguments, output and exit codes of the MVP CLI. The CLI is a **projection**: it parses arguments, calls the core API and renders results. It contains no domain logic (RFC-0002) and is the composition root that wires concrete implementations (ADR-0002).
+The exact command surface, arguments, output and exit codes of the MVP CLI. The CLI is a **projection**: it parses arguments, calls the core API and renders results. It contains no domain logic (RFC-0002) and is the composition root that wires concrete implementations ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)).
 
 ## Principles
 
@@ -96,7 +96,7 @@ List artifacts ordered by slug. Options: `--type <type>`, `--tag <tag>`, `--long
 | `--content-text`, `--content-path`, `--content-format`, `--clear-content` | Same as `create`, or remove |
 | `--expect-revision <n>` | Fail with exit 4 if the stored revision differs |
 
-At least one change option is required (exit 2). Increments `revision`. Emits `artifact.updated` listing the changed fields. If nothing actually changed, the command succeeds, writes nothing, emits nothing and says `no changes`.
+At least one change option is required (exit 2). Increments `revision`. The stored file is edited in place, so comments, formatting and unknown keys are preserved ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). Emits `artifact.updated` listing the changed fields. If nothing actually changed, the command succeeds, writes nothing, emits nothing and says `no changes`.
 
 ### `functor relation add <SOURCE> <TYPE> <TARGET>`
 

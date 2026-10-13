@@ -31,9 +31,9 @@ Candidate deliverables: `functor-runtime`, execution records, `supports` and `co
 Goals:
 
 - Real artifact versions and history (RFC-0016) replacing the `revision` counter.
-- Deletion with tombstones, event replay, log rotation.
+- Deletion with tombstones, event replay, configurable rotation and compaction.
 
-Candidate deliverables: `functor-repository` (versioning and lifecycle), a migration command for `format_version`.
+Candidate deliverables: versioning support in `functor-repository` (which already owns the repository lifecycle, [ADR-0009](adr/ADR-0009-functor-repository-crate.md)), a migration command for `format_version`.
 
 ## Phase 3: Capabilities and Extensions
 
@@ -49,7 +49,7 @@ Candidate deliverables: `functor-capabilities`, `functor-extensions`, a stable e
 Goals:
 
 - Expose the same API to other projections (RFC-0011): desktop (`src/app/desktop`), web, notebook, graph explorer.
-- Reopen the dynamic-dispatch question in ADR-0002 if needed.
+- Dynamic dispatch is already allowed for the core traits ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)), so a second projection or a plugin host can hold trait objects.
 
 Candidate deliverables: `functor-web`, `functor-editor`, REST and OpenAPI over the core traits.
 

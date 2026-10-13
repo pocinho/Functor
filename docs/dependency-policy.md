@@ -1,7 +1,7 @@
 # Dependency Policy
 
 Status: Draft
-Related ADRs: ADR-0002, ADR-0005
+Related ADRs: ADR-0005, ADR-0009, ADR-0010, ADR-0011
 Related docs: [crate-dependencies.md](crate-dependencies.md), [development-workflow.md](development-workflow.md)
 
 ## Purpose
@@ -22,11 +22,12 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 |---------|-------|--------|
 | Id generation and parsing | `ulid` | model |
 | Error types | `thiserror` | model, core and other libraries |
-| TOML read and write | `toml` with `serde` | store |
-| Serialization framework | `serde` (derive) | store, events, cli |
+| TOML read, create and in-place edit | `toml_edit` (with its `serde` feature for reading) | repository, store |
+| Serialization framework | `serde` (derive) | repository, store, events, cli |
 | JSON | `serde_json` | events, cli |
-| Async runtime | `tokio` (features: `rt`, `fs`, `sync`, `time`, `macros`, `signal`, `io-util`) | store, events, cli |
-| File locking | `fd-lock` | store |
+| Async trait support | `async-trait` | core and the crates implementing core traits |
+| Async runtime | `tokio` (features: `rt`, `fs`, `sync`, `time`, `macros`, `signal`, `io-util`) | repository, store, events, cli |
+| File locking | `fd-lock` | repository |
 | Filesystem notifications | `notify` | events |
 | CLI parsing | `clap` (derive) | cli |
 | CLI error glue | `anyhow` | cli only |
@@ -37,8 +38,8 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 
 Notes:
 
-- `toml` vs `toml_edit`: the MVP uses `toml` for deterministic, struct-driven output. `toml_edit` would preserve comments but makes canonical output harder; choosing it requires an ADR.
-- Async trait strategy: native `async fn` in traits, no `async-trait` (ADR-0002). `trait_variant` is the first tool considered if `Send` bounds or dynamic dispatch become necessary.
+- TOML: `toml_edit` is used for both reading and writing so that updates preserve comments and formatting ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). The plain `toml` crate is not used.
+- Async traits: `async-trait` on the core traits so they are dyn-compatible ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md), which supersedes ADR-0002). This is the approved exception to the rule that lower layers need an ADR for new dependencies.
 - `jsonschema` validates CLI JSON against `docs/schemas/*.json` in tests.
 
 ## Adding a Dependency

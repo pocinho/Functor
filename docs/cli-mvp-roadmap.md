@@ -28,10 +28,10 @@ M6, M7 and M8 depend only on M5 and may proceed in parallel.
 
 - Convert the root `Cargo.toml` to a virtual workspace and create the empty crates ([workspace-layout.md](workspace-layout.md), ADR-0004).
 - `rust-toolchain.toml`, `rustfmt.toml`, workspace lints, `deny.toml`.
-- CI workflow: fmt, clippy, test, deny on Linux, Windows and macOS ([development-workflow.md](development-workflow.md)).
+- CI workflow: fmt, clippy, test, deny on Windows (blocking), with Linux and macOS test jobs as non-blocking ([development-workflow.md](development-workflow.md)).
 - Dependency-edge check script ([crate-dependencies.md](crate-dependencies.md)).
 
-Done when: CI is green on all three platforms with empty crates and `functor --version` runs.
+Done when: CI is green on Windows with empty crates and `functor --version` runs.
 
 ## M1: Semantic Model (`functor-model`)
 
@@ -45,13 +45,16 @@ RFC-0002. Traits ([traits-and-interfaces.md](traits-and-interfaces.md)), `Functo
 
 Done when: the traits compile with doc comments and the conformance suite compiles; the error-to-exit-code mapping function has its exhaustive test.
 
-## M3: Storage (`functor-store`)
+## M3: Repository and Storage (`functor-repository`, `functor-store`)
 
-RFC-0008, 0015 subset. `MemoryStore` first (passes the conformance suite), then `FileStore`: `init`, `open`, `discover`, artifact and relationship persistence, strict and lenient loading, locking and atomic writes ([storage-design.md](storage-design.md), [artifact-format.md](artifact-format.md), [repository-layout.md](repository-layout.md)).
+RFC-0008, 0015 subset ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)).
+
+1. `functor-repository`: layout and path helpers, `repository.toml`, `format_version` check, `init`, `open`, `discover`, the write lock ([repository-layout.md](repository-layout.md), [repository-lifecycle.md](repository-lifecycle.md)).
+2. `functor-store`: `MemoryStore` first (passes the conformance suite), then `FileStore`: artifact and relationship persistence, strict and lenient loading, atomic writes and in-place `toml_edit` updates ([storage-design.md](storage-design.md), [artifact-format.md](artifact-format.md), [ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)).
 
 CLI: `functor init`.
 
-Done when: both stores pass the conformance suite; `FileStore` passes its specific tests (atomic replace, lock contention, CRLF, unknown fields, path traversal); `functor init` works and creates the documented layout.
+Done when: `functor-repository` passes its lifecycle and lock tests; both stores pass the conformance suite; `FileStore` passes its specific tests (atomic replace, lock contention, CRLF, comment and unknown-key preservation on update, path traversal); `functor init` works and creates the documented layout.
 
 ## M4: Artifact Management
 
@@ -81,21 +84,20 @@ Done when: each rule has its own fixture repository and the clean fixture passes
 
 RFC-0017 subset ([event-model-mvp.md](event-model-mvp.md), ADR-0003). Event log, publisher, subscription, `functor watch`; replace the no-op publisher in the mutating commands and `validate`.
 
-Done when: each mutating command emits exactly one event, sequence numbers are gap-free under concurrent writers, `watch` passes its tests (existing, new, truncated, filters) and a failed append only warns.
+Done when: each mutating command emits exactly one event, sequence numbers are gap-free under concurrent writers and across rotation (10 MiB, 10 archives, [ADR-0008](adr/ADR-0008-event-log-rotation.md)), `watch` passes its tests (existing, new, truncated, rotation, filters) and a failed append only warns.
 
 ## M9: Hardening and MVP Exit
 
-- Acceptance workflow on all platforms ([testing-strategy.md](testing-strategy.md)).
+- Acceptance workflow on Windows (the blocking platform); Linux and macOS results are informational ([testing-strategy.md](testing-strategy.md)).
 - `examples/getting-started/` fixture matching [getting-started.md](getting-started.md); JSON Schemas in `docs/schemas/`.
 - Performance check against [nonfunctional-requirements.md](nonfunctional-requirements.md).
 - [rfc-conformance.md](rfc-conformance.md) fully populated; README and docs index updated.
-- Review of every "Open Question" below.
 
 Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 
 ## Parallelization
 
-After M3, one engineer can work on the artifact CLI (M4) while another builds query (M6) and validation (M7) against `MemoryStore` and fixtures; M8 only needs the publisher trait from M2 and the store lock from M3.
+After M3, one engineer can work on the artifact CLI (M4) while another builds query (M6) and validation (M7) against `MemoryStore` and fixtures; M8 only needs the publisher trait from M2 and the repository lock from M3.
 
 ## Deferred Beyond the MVP
 
@@ -112,10 +114,12 @@ Execution (RFC-0007) and other projections (RFC-0011)
 
 They are implemented only after the core architecture proves itself; see [product-roadmap.md](product-roadmap.md).
 
-## Open Questions to Close During the MVP
+## Decisions Taken on Earlier Open Questions
 
-1. Event log rotation and size policy (currently unbounded).
-2. Whether `functor-repository` should be extracted once versioning begins.
-3. Whether dynamic dispatch is required by the first non-CLI projection (reopens ADR-0002 decision 2).
-4. Whether human-edited TOML comments must survive updates (currently they do not; `toml_edit` would be needed).
-5. Slug history after rename.
+| Question | Decision | Record |
+|----------|----------|--------|
+| Event log rotation and size policy | Rotate at 10 MiB, keep 10 archives | [ADR-0008](adr/ADR-0008-event-log-rotation.md) |
+| Extract `functor-repository`? | Yes, in the MVP | [ADR-0009](adr/ADR-0009-functor-repository-crate.md) |
+| Dynamic dispatch for core traits? | Allowed; `async-trait` | [ADR-0010](adr/ADR-0010-async-trait-and-dyn.md) |
+| Must hand-edited TOML comments survive updates? | Yes; `toml_edit` | [ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md) |
+| Slug history after rename | None in the MVP; the old slug is released | [identity-and-addressing.md](identity-and-addressing.md) |

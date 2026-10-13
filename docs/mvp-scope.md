@@ -73,7 +73,7 @@ Local filesystem, TOML for entities, JSON Lines for events, entity-per-file layo
 ### Cross-cutting
 
 - Text and JSON output modes with stable JSON schemas and exit codes ([cli-spec.md](cli-spec.md)).
-- Platforms: Windows, Linux and macOS (x86_64 and aarch64).
+- Platforms: Windows (x86_64) is supported and blocking; Linux and macOS are best-effort and non-blocking ([nonfunctional-requirements.md](nonfunctional-requirements.md)).
 - The CLI operates **exclusively** through the core API traits.
 
 ## Excluded Scope
@@ -87,7 +87,7 @@ Local filesystem, TOML for entities, JSON Lines for events, entity-per-file layo
 | Security and trust infrastructure | 0013 | Only the local safety baseline in [nonfunctional-requirements.md](nonfunctional-requirements.md) |
 | Extensions and plugins | 0014 | |
 | Versioning and history | 0016 | `revision` is a counter, with no history |
-| Event replay, rotation, subscription languages | 0017 | Only the subset above is included |
+| Event replay, subscription languages | 0017 | Only the subset above is included (log rotation is included, [ADR-0008](adr/ADR-0008-event-log-rotation.md)) |
 | Governance | 0018 | |
 | Execution engine | 0007 | Validation only |
 | Artifact and relationship deletion, relationship update | | Needs a deletion and tombstone policy |
@@ -116,7 +116,7 @@ and receive correct, reproducible results, with exit code 0 and output matching 
 The MVP is complete when all of the following are true:
 
 1. Every included command works as specified in [cli-spec.md](cli-spec.md), with text and JSON output.
-2. The acceptance workflow above passes on Windows, Linux and macOS in CI.
+2. The acceptance workflow above passes on Windows in CI. Results on Linux and macOS are informational.
 3. `functor validate` reports each rule `V0001` to `V0018` correctly on its fixture repository.
 4. `MemoryStore` and `FileStore` pass the same conformance suite.
 5. The CLI depends on core traits only for behavior (verified by the dependency-edge check in [crate-dependencies.md](crate-dependencies.md)); no domain logic lives in `functor-cli`.

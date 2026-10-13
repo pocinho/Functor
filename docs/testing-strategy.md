@@ -37,12 +37,17 @@ Every invariant in the table at the end of [domain-model.md](domain-model.md): i
 
 ### functor-core
 
-Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit).
+Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit), and a compile-time check that every core trait is object-safe (`&dyn Trait` coerces, [ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)).
+
+### functor-repository
+
+`init` (layout created, `repository.toml` written last, failure leaves no recognizable repository, existing repository and `--nested` rules), `open`, `discover` from nested directories, `format_version` check (`UnsupportedFormat`), `Locked` on lock timeout and lock contention across two processes.
 
 ### functor-store
 
-- Canonical serialization: `serialize(parse(serialize(x))) == serialize(x)` (property), golden TOML files for artifact, relationship and repository, unknown-field preservation.
-- `FileStore` specifics: atomic replace with failure injected before the rename, stray `.tmp-` files ignored, lock contention across two processes, read while write, CRLF input, size caps, path traversal in `content.path`, lenient `load()` reporting each `LoadIssue` kind, `UnsupportedFormat`.
+- Canonical serialization of **new** files: `serialize(parse(serialize(x))) == serialize(x)` (property), golden TOML files for artifact, relationship and repository.
+- In-place updates ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)): comments, key order, whitespace, line endings and unknown keys and tables survive an update; a new optional key is inserted at its canonical position; removing a value removes only its attached comments; a no-op update writes nothing; an update of a hand-edited, non-canonical file changes only the affected lines (diff-based assertion).
+- `FileStore` specifics: atomic replace with failure injected before the rename, stray `.tmp-` files ignored, read while write, CRLF input, size caps, path traversal in `content.path`, lenient `load()` reporting each `LoadIssue` kind.
 
 ### functor-query
 
@@ -54,7 +59,7 @@ One minimal fixture repository **per rule code** (`V0001` to `V0018`) that trigg
 
 ### functor-events
 
-Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap-free under concurrent writers (multi-process); truncated tail handling; watcher behavior (existing events, new events, log created later, `--after`, truncation, filters), using `count` and `timeout` instead of sleeps.
+Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap-free under concurrent writers (multi-process) and across rotation; rotation at 10 MiB with exactly 10 archives retained and the oldest pruned ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); truncated tail handling; watcher behavior (existing events, new events, log created later, `--after`, truncation, rotation while watching, filters), using `count` and `timeout` instead of sleeps.
 
 ## Conformance Suite
 
@@ -66,7 +71,7 @@ Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap
 - strict snapshot vs lenient load on damaged data (injected through a store-specific hook)
 - determinism: identical operation sequences with fixed clock and ids give identical snapshots
 
-`MemoryStore` and `FileStore` both run the suite. A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
+`MemoryStore` and `FileStore` both run the suite (the suite covers `RepositoryReader`, `ArtifactRepository` and `RelationshipRepository`; `RepositoryManager` is tested in `functor-repository`). A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
 
 ## Fixtures
 
@@ -116,7 +121,7 @@ Store functions accept a test hook (compiled under `cfg(test)` or a `test-hooks`
 
 ## Cross-Platform
 
-CI runs the full suite on Linux, Windows and macOS. Known differences to cover explicitly: path separators in outputs, CRLF checkouts, file replacement while a handle is open (Windows), case-insensitive filesystems, notification vs polling in `watch`.
+CI runs the full suite on Windows, which is the supported and blocking platform. Linux and macOS jobs run the same suite as best-effort and non-blocking checks ([nonfunctional-requirements.md](nonfunctional-requirements.md)); their failures are triaged only when someone maintains that port. Known differences to keep covered where possible: path separators in outputs, CRLF checkouts, file replacement while a handle is open (Windows), case-insensitive filesystems, notification vs polling in `watch`.
 
 ## Coverage
 
@@ -128,7 +133,7 @@ Coverage is measured with `cargo llvm-cov` and reported, not gated by a percenta
 
 ## Continuous Integration
 
-Runs formatting checks, clippy with warnings denied, unit, integration, conformance, golden, acceptance and doc tests on three platforms, plus dependency checks. See [development-workflow.md](development-workflow.md).
+Runs formatting checks, clippy with warnings denied, unit, integration, conformance, golden, acceptance and doc tests on Windows (required) and on Linux and macOS (non-blocking), plus dependency checks. See [development-workflow.md](development-workflow.md).
 
 ## Test Data Hygiene
 

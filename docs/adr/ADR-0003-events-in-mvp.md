@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR-0008](ADR-0008-event-log-rotation.md) (log rotation is in the MVP).
 
 ## Context
 

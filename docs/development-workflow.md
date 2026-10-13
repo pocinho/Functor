@@ -45,13 +45,14 @@ A GitHub Actions workflow (`.github/workflows/ci.yml`) on pull requests and push
 
 | Job | Runs on | Steps |
 |-----|---------|-------|
-| `check` | Linux | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check |
-| `test` | Linux, Windows, macOS | `cargo test --workspace` (includes acceptance and golden tests) |
-| `deny` | Linux | `cargo deny check` |
-| `docs` | Linux | `cargo doc --workspace --no-deps` with `RUSTDOCFLAGS=-D warnings`; markdown link check over `docs/` |
-| `bench` (non-gating, scheduled) | Linux | Performance scenarios from [nonfunctional-requirements.md](nonfunctional-requirements.md) |
+| `check` | Windows | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check |
+| `test` | Windows (required) | `cargo test --workspace` (includes acceptance and golden tests) |
+| `test-other` | Linux, macOS (`continue-on-error: true`, non-blocking) | same command; failures are informational |
+| `deny` | Windows | `cargo deny check` |
+| `docs` | Windows | `cargo doc --workspace --no-deps` with `RUSTDOCFLAGS=-D warnings`; markdown link check over `docs/` |
+| `bench` (non-gating, scheduled) | Windows | Performance scenarios from [nonfunctional-requirements.md](nonfunctional-requirements.md) |
 
-Use `Swatinem/rust-cache` or an equivalent cache keyed on `Cargo.lock`. A pull request is mergeable only when `check`, `test` and `deny` are green.
+Use `Swatinem/rust-cache` or an equivalent cache keyed on `Cargo.lock`. A pull request is mergeable only when `check`, `test` and `deny` (all on Windows) are green. `test-other` never blocks a merge (see the platform policy in [nonfunctional-requirements.md](nonfunctional-requirements.md)).
 
 ## Branching and Commits
 

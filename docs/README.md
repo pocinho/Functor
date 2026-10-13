@@ -53,7 +53,7 @@ ADRs have their own statuses ([adr/README.md](adr/README.md)).
 
 | Document | Purpose |
 |----------|---------|
-| [adr/](adr/README.md) | Architecture Decision Records (ADR-0001 to ADR-0007) |
+| [adr/](adr/README.md) | Architecture Decision Records (ADR-0001 to ADR-0011) |
 | [rfc-conformance.md](rfc-conformance.md) | RFC requirement to MVP status, implementation and test |
 | [glossary.md](glossary.md) | Canonical terminology |
 
@@ -148,7 +148,7 @@ Excluded from the MVP:
 - MCP integration
 - Extensions
 - Versioning and history
-- Full event streams (replay, subscriptions, rotation)
+- Full event streams (replay, subscriptions)
 - Trust infrastructure
 - Governance workflows
 - Execution

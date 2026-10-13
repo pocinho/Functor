@@ -85,13 +85,13 @@ note = "RFC-0001 builds on the vision"
 | `created` | yes | UTC timestamp |
 | `metadata` | no | same typing rules as artifact metadata |
 
-Relationships are immutable in the MVP. The same canonical serialization rules as artifacts apply (key order: `id`, `type`, `source`, `target`, `created`, then `[metadata]`).
+Relationships are immutable in the MVP. New relationship files use the same canonical form as artifacts (key order: `id`, `type`, `source`, `target`, `created`, then `[metadata]`).
 
 ## `events/`
 
 `events/current.log` is an append-only JSON Lines file, one event per line (see [event-model-mvp.md](event-model-mvp.md)). Events are informational and **not** authoritative state: deleting the log never loses artifacts or relationships. Teams that commit repositories to git typically add `events/current.log` to `.gitignore`; `functor init` does not modify `.gitignore`.
 
-`events/archive/` is reserved for rotation and is not implemented in the MVP.
+`events/archive/` holds rotated logs, `events-<first-seq>-<last-seq>.log` with sequence numbers zero-padded to 12 digits. The log is rotated at 10 MiB and only the 10 newest archives are kept ([ADR-0008](adr/ADR-0008-event-log-rotation.md)). Archives, like the log, are informational and are ordinarily git-ignored together with `events/current.log`.
 
 ## `validations/` (reserved)
 
@@ -115,5 +115,5 @@ Repositories must tolerate additional directories and files at the root that the
 ## Git Friendliness
 
 - Entity-per-file makes diffs and merges local to the changed entity.
-- Canonical serialization prevents spurious diffs.
+- Canonical form for new files and in-place updates for existing ones prevent spurious diffs.
 - Suggested `.gitignore` entries: `.functor/lock`, `events/current.log`.

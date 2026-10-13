@@ -18,7 +18,7 @@ Conventions for every public Rust API in the Functor workspace. They keep the AP
 
 ## Traits and Async
 
-- Core I/O traits are async with native `async fn` and are composed statically (ADR-0002). Do not write `Box<dyn Trait>` for core traits.
+- Core I/O traits are async with `#[async_trait]` and are dyn-compatible ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)). `Box<dyn Trait>` and `Arc<dyn Trait>` are allowed; static generics remain the recommended default inside services. Keep traits object-safe: no associated types, no generic methods, no `impl Trait` returns.
 - Do not expose a runtime type (`tokio::...`) in any signature outside `functor-cli`, `functor-store` and `functor-events` internals.
 - Pure logic stays synchronous. Do not make a function `async` unless it awaits I/O.
 - Do not hold a lock across an `.await`. Document cancellation behavior: dropping a future before completion must leave the repository consistent (writes are atomic, see [storage-design.md](storage-design.md)).

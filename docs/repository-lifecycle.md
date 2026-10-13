@@ -3,6 +3,7 @@
 Status: Draft
 Related RFCs: RFC-0015 (primary), RFC-0008, RFC-0016 (deferred)
 Related docs: [repository-layout.md](repository-layout.md), [storage-design.md](storage-design.md), [cli-spec.md](cli-spec.md)
+Owner crate: `functor-repository` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md))
 
 ## Purpose
 

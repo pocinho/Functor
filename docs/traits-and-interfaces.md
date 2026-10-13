@@ -3,7 +3,7 @@
 Status: Draft
 Related RFCs: RFC-0002 (primary), RFC-0006, RFC-0007, RFC-0008, RFC-0015, RFC-0017
 Owner crate: `functor-core`
-Related ADRs: ADR-0002, ADR-0005
+Related ADRs: ADR-0005, ADR-0009, ADR-0010
 
 ## Purpose
 
@@ -11,8 +11,10 @@ Defines the Rust traits that form the Functor core API for the CLI MVP. Every pr
 
 ## Design Rules
 
-- Traits live in `functor-core`, which depends only on `functor-model`.
-- I/O-facing traits are `async` using native `async fn` in traits. Services are composed with **generics**, not `dyn` (ADR-0002).
+- Traits live in `functor-core`, which depends only on `functor-model` (and `async-trait`).
+- I/O-facing traits are `async` and annotated with `#[async_trait]` ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)); the attribute is omitted from the listings below for brevity. They are **dyn-compatible**: `Box<dyn Trait>` and `Arc<dyn Trait>` are allowed. Static generics remain the recommended default inside services.
+- To stay object-safe, traits have **no associated types, no generic methods and no `impl Trait` returns**. Implementations are `Send + Sync`, and returned futures are `Send`.
+- A compile-time test asserts every core trait can be used as `dyn Trait`.
 - Traits are small and focused; services that need several capabilities take several type parameters or a single composed struct.
 - All fallible operations return `Result<T, FunctorError>`, aliased as `functor_core::Result<T>`.
 - "Not found" is expressed as `Ok(None)` by `get`-style lookups and as `Err(FunctorError::NotFound)` by operations that require existence (`update`, relationship creation with a missing endpoint).
@@ -37,18 +39,20 @@ Production implementations: `SystemClock`, `UlidGenerator` (in `functor-core`). 
 
 ```rust
 pub trait RepositoryManager {
-    type Repo;                                           // the opened repository handle
-    async fn init(&self, at: &Path, options: InitOptions) -> Result<Self::Repo>;
-    async fn open(&self, root: &Path) -> Result<Self::Repo>;
-    async fn discover(&self, start: &Path) -> Result<Self::Repo>;   // walks up to find `.functor/`
+    async fn init(&self, at: &Path, options: InitOptions) -> Result<RepositoryHandle>;
+    async fn open(&self, root: &Path) -> Result<RepositoryHandle>;
+    async fn discover(&self, start: &Path) -> Result<RepositoryHandle>;   // walks up to find `.functor/`
 }
 
-pub struct InitOptions { pub name: Option<String>, pub description: Option<String> }
+pub struct InitOptions { pub name: Option<String>, pub description: Option<String>, pub nested: bool }
+
+/// Concrete, storage-neutral handle: where the repository is and what it is.
+pub struct RepositoryHandle { pub root: PathBuf, pub info: RepositoryInfo }
 ```
 
-- `init` creates `.functor/repository.toml` and the directories listed in [repository-layout.md](repository-layout.md). It fails with `Conflict` if the target already contains `.functor/`. See [repository-lifecycle.md](repository-lifecycle.md).
+- `init` creates `.functor/repository.toml` and the directories listed in [repository-layout.md](repository-layout.md). It fails with `Conflict` if the target already contains `.functor/` (or an ancestor does, unless `nested`). See [repository-lifecycle.md](repository-lifecycle.md).
 - `discover` returns `NotARepository` if no ancestor contains `.functor/`.
-- In the MVP the implementation lives in `functor-store`. A separate `functor-repository` crate is deferred.
+- The implementation, `FileRepositoryManager`, lives in `functor-repository` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)), together with the write lock. `MemoryStore` does not implement this trait.
 
 ## Reading Repository State
 
@@ -141,11 +145,10 @@ pub trait EventPublisher {
 }
 
 pub trait EventSource {
-    type Subscription: EventSubscription;
-    async fn subscribe(&self, from: EventPosition) -> Result<Self::Subscription>;
+    async fn subscribe(&self, from: EventPosition) -> Result<Box<dyn EventSubscription>>;
 }
 
-pub trait EventSubscription {
+pub trait EventSubscription: Send {
     /// Returns the next event, waiting if none is available. `Ok(None)` means the source closed.
     async fn next(&mut self) -> Result<Option<Event>>;
 }
@@ -153,7 +156,7 @@ pub trait EventSubscription {
 pub enum EventPosition { Start, End, After(u64) }   // sequence number
 ```
 
-`functor-events` implements these over the event log, using `tokio` for waiting (ADR-0002). `functor-core` never names a runtime. The MVP has no push-style subscriber callbacks.
+`functor-events` implements these over the event log, using `tokio` for waiting. `functor-core` never names a runtime. The MVP has no push-style subscriber callbacks. The subscription is a boxed trait object so that `EventSource` has no associated type and stays object-safe ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md)).
 
 ## Not in the MVP
 
@@ -163,14 +166,15 @@ pub enum EventPosition { Start, End, After(u64) }   // sequence number
 
 | Trait | MVP implementation | Crate |
 |-------|--------------------|-------|
-| `RepositoryManager`, `RepositoryReader`, `ArtifactRepository`, `RelationshipRepository` | `FileStore` | `functor-store` |
+| `RepositoryManager` | `FileRepositoryManager` | `functor-repository` |
+| `RepositoryReader`, `ArtifactRepository`, `RelationshipRepository` | `FileStore` | `functor-store` |
 | same | `MemoryStore` (tests and examples) | `functor-store` |
-| `QueryEngine` | `SnapshotQueryEngine<R: RepositoryReader>` | `functor-query` |
-| `ValidationEngine` | `RuleValidationEngine<R: RepositoryReader>` | `functor-validation` |
+| `QueryEngine` | `SnapshotQueryEngine` (holds an `Arc<dyn RepositoryReader>` or a generic `R: RepositoryReader`) | `functor-query` |
+| `ValidationEngine` | `RuleValidationEngine` (same) | `functor-validation` |
 | `EventPublisher`, `EventSource` | `FileEventLog` | `functor-events` |
 | `Clock`, `IdGenerator` | `SystemClock`, `UlidGenerator` in `functor-core`; `FixedClock`, `SequentialIds` in `functor-testkit` | `functor-core`, `functor-testkit` |
 
-`MemoryStore` and `FileStore` must pass the same conformance test suite (see [testing-strategy.md](testing-strategy.md)); that suite is what makes the storage-independence promise of RFC-0008 enforceable.
+`MemoryStore` and `FileStore` must pass the same conformance test suite (see [testing-strategy.md](testing-strategy.md)); that suite is what makes the storage-independence promise of RFC-0008 enforceable. `RepositoryManager` is tested in `functor-repository`.
 
 ## Stability
 

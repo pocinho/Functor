@@ -2,7 +2,7 @@
 
 Status: Draft
 Related RFCs: RFC-0003 (primary), RFC-0005, RFC-0008
-Related ADRs: ADR-0001, ADR-0005, ADR-0006
+Related ADRs: ADR-0001, ADR-0005, ADR-0006, ADR-0011
 Owner crate: `functor-store` (DTOs); semantics in [domain-model.md](domain-model.md)
 
 ## Purpose
@@ -15,7 +15,7 @@ Defines the canonical TOML representation of an artifact in a repository for the
 2. One artifact per file, named by artifact id (ADR-0006).
 3. Metadata is explicit and extensible; it never changes semantics.
 4. Relationships are **not** stored in artifacts; they are separate entities.
-5. Serialization is deterministic: the same artifact always produces byte-identical output.
+5. Serialization of new files is deterministic, and updates preserve what is already in the file: comments, order and formatting survive ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)).
 6. Projections must not alter semantics.
 
 ## File Location
@@ -113,9 +113,9 @@ Rules:
 
 Suggested well-known types: `document`, `rfc`, `note`, `specification`, `dataset`, `workflow`, `source`, `report`. The set is open; unknown types are valid.
 
-## Canonical Serialization
+## Canonical Serialization (new files)
 
-Writers must emit this exact form so that diffs are minimal and runs are reproducible:
+When the tool **creates** an artifact it must emit this exact form so that diffs are minimal and runs are reproducible:
 
 - UTF-8, no byte order mark, LF line endings (the repository's `.gitattributes` also normalizes line endings), exactly one trailing newline.
 - Key order: `id`, `slug`, `type`, `title`, `revision`, `description`, `created`, `updated`, `tags`, then tables `[metadata]` (keys sorted ascending) and `[content]` (`format`, then `text` or `path`).
@@ -124,7 +124,17 @@ Writers must emit this exact form so that diffs are minimal and runs are reprodu
 - Optional fields that are absent are omitted.
 - Timestamps are `YYYY-MM-DDThh:mm:ssZ`.
 
-Unknown top-level keys and tables found when reading are **preserved** (written after the known keys, sorted by key) so editing with an older tool does not lose data written by a newer one. Comments and original formatting are not preserved on rewrite. See [storage-design.md](storage-design.md).
+## Updating Existing Files
+
+Updates do **not** re-render the file ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). The store edits the existing document in place (`toml_edit`):
+
+- Only the values that change are modified, plus `revision` and `updated`.
+- Comments, key order, whitespace, line endings, unknown top-level keys and unknown tables are preserved exactly, so hand-edited files and data written by a newer tool survive an update by an older one.
+- A key that does not exist yet (for example `description` on first use) is inserted at its canonical position, using the canonical value format.
+- Removing a value (for example `--clear-description`) removes the key and any comment lines directly attached above it; other comments are kept.
+- An update that results in identical text writes nothing.
+
+Hand-edited files therefore need not match the canonical form. `functor validate` does not report formatting differences; it only reports unknown fields as info `V0018`. See [storage-design.md](storage-design.md).
 
 ## Compatibility
 

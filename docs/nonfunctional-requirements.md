@@ -11,12 +11,13 @@ Quality attributes the CLI MVP must meet beyond functional behavior, stated so t
 ## Determinism and Reproducibility
 
 - The same repository state and the same command produce byte-identical output (text and JSON). All collections have documented orders ([domain-model.md](domain-model.md)); no `HashMap` iteration order reaches output.
-- The same operation sequence with the same injected clock and id source produces byte-identical files.
+- The same operation sequence with the same injected clock and id source, starting from the same files, produces byte-identical files. Files created by the tool use the canonical form; updates edit in place and preserve existing comments and formatting ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)).
 - Output contains no machine-specific data (absolute paths appear only where the command is about a path: `init` and error messages).
 
 ## Portability
 
-- Supported platforms: Windows 10 or later, Linux (glibc and musl), macOS 13 or later; x86_64 and aarch64 where the Rust toolchain supports them. CI runs on one runner per OS.
+- **Supported and blocking platform: Windows 10 or later (x86_64).** It is the only platform the project can currently build, test and maintain.
+- **Linux and macOS are best-effort and non-blocking.** The code should stay portable (the rules below exist for that reason) and CI may run those targets, but a build or test failure there does not block merging or the MVP exit criteria, and is fixed only when a contributor volunteers to maintain that port. A platform is promoted to supported when someone owns it.
 - Filenames, line endings and path separators: see [repository-layout.md](repository-layout.md) and [storage-design.md](storage-design.md). A repository created on one OS must validate cleanly on the others, including after a git checkout with different `autocrlf` settings.
 - No required network access, no required environment configuration, no daemon.
 
