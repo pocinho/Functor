@@ -1,5 +1,10 @@
 # Functor
 
+[![CI](https://github.com/pocinho/functor/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/pocinho/functor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.txt)
+[![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange.svg)](rust-toolchain.toml)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)](docs/quality/nonfunctional-requirements.md)
+
 > **What if understanding itself were a first-class computational resource?**
 
 Functor is an API-first platform for creating, relating, validating, and evolving structured artifacts.
