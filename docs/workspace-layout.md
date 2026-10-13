@@ -49,7 +49,7 @@ functor/
 │   │   ├── functor-query/        # snapshot query engine
 │   │   ├── functor-validation/   # rule catalog and engine
 │   │   ├── functor-events/       # event log, rotation, publisher, watcher
-│   │   └── functor-testkit/      # test doubles, conformance suite, fixtures (publish = false)
+│   │   └── functor-testkit/      # test doubles, conformance suite, fixtures
 │   └── app/
 │       ├── cli/                  # package functor-cli, binary "functor"
 │       └── desktop/              # reserved; not a workspace member in the MVP
@@ -70,6 +70,7 @@ members = ["src/crates/*", "src/app/cli"]
 edition = "2024"
 license = "MIT"
 rust-version = "<pinned MSRV>"
+publish = false            # no crate is published until an ADR decides otherwise; crates inherit it with `publish.workspace = true`
 
 [workspace.dependencies]   # all external crates and internal path dependencies, versions in one place
 [workspace.lints.rust]     # unsafe_code = "forbid", missing_docs = "warn"
@@ -134,4 +135,4 @@ The authoritative, requirement-level table is [rfc-conformance.md](rfc-conforman
 - Dependencies flow downward only; see [crate-dependencies.md](crate-dependencies.md).
 - New crates require a short justification in the pull request and an update to this document.
 - Crate names are `functor-<noun>`; the binary is named `functor`.
-- All crates are `publish = false` until the first public release decision.
+- All crates are `publish = false` until decided otherwise: set once in `[workspace.package]` and inherited by every crate. Enabling publication for any crate requires an ADR.

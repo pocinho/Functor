@@ -93,4 +93,4 @@ Use the repository pull request template (`.github/pull_request_template.md`). A
 
 ## Releases
 
-Out of scope for the MVP. When started: tag-based release workflow, `cargo-dist` or equivalent for binaries, changelog from conventional commits, and a decision on crates.io publication.
+Out of scope for the MVP. Every crate is `publish = false` (set workspace-wide, see [workspace-layout.md](workspace-layout.md)); enabling publication is a deliberate decision that starts with an ADR. When releases start: tag-based release workflow, `cargo-dist` or equivalent for binaries, and a changelog from conventional commits.
