@@ -1,0 +1,20 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+slug:        rfc-0000
+id:          art_00000000000000000000000034
+type:        rfc
+title:       Functor Vision
+revision:    1
+created:     2026-10-12T18:00:00Z
+updated:     2026-10-12T18:00:00Z
+description: Platform vision and goals
+tags:        architecture, core
+metadata:
+  author: Paulo
+  status: draft
+content:     markdown, inline (8 bytes)
+--- stderr ---

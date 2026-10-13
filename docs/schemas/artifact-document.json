@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor artifact (create, show, update)",
+  "description": "Output of `functor artifact create|show|update --output json` (docs/cli-spec.md). `changed` appears only for `update`; `content.text` appears for `show --content` and for inline content.",
+  "type": "object",
+  "required": ["schema_version", "artifact"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "artifact": { "$ref": "#/$defs/Artifact" },
+    "changed": {
+      "type": "array",
+      "items": { "enum": ["slug", "title", "description", "tags", "metadata", "content"] },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "Artifact": {
+      "type": "object",
+      "required": [
+        "id", "ref", "slug", "type", "title", "revision", "description", "tags", "metadata",
+        "content", "created", "updated"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "ref": { "type": "string", "pattern": "^functor:artifact:art_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 64 },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "revision": { "type": "integer", "minimum": 1 },
+        "description": { "type": ["string", "null"] },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$" },
+          "uniqueItems": true
+        },
+        "metadata": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$" },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer" },
+              { "type": "boolean" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        },
+        "content": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["format"],
+              "additionalProperties": false,
+              "properties": {
+                "format": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.+-]{0,31}$" },
+                "text": { "type": "string" },
+                "path": { "type": "string", "minLength": 1 }
+              },
+              "anyOf": [{ "required": ["text"] }, { "required": ["path"] }]
+            }
+          ]
+        },
+        "created": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "updated": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+      }
+    }
+  }
+}

@@ -18,7 +18,7 @@ How code is built, checked and merged for the Rust implementation. These are the
 ```bash
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace
+cargo test --workspace --all-features
 cargo test --workspace --doc
 cargo deny check
 cargo run -p functor-cli -- <args>
@@ -46,7 +46,7 @@ A GitHub Actions workflow (`.github/workflows/ci.yml`) on pull requests and push
 | Job | Runs on | Steps |
 |-----|---------|-------|
 | `check` | Windows | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check |
-| `test` | Windows (required) | `cargo test --workspace` (includes acceptance and golden tests) |
+| `test` | Windows (required) | `cargo test --workspace --all-features` (includes acceptance and golden tests; `--all-features` enables `functor-cli`'s `test-support`, which the golden tests require) |
 | `test-other` | Linux, macOS (`continue-on-error: true`, non-blocking) | same command; failures are informational |
 | `deny` | Windows | `cargo deny check` |
 | `docs` | Windows | `cargo doc --workspace --no-deps` with `RUSTDOCFLAGS=-D warnings`; markdown link check over `docs/` |
@@ -69,7 +69,7 @@ Use `Swatinem/rust-cache` or an equivalent cache keyed on `Cargo.lock`. A pull r
 - [ ] No new dependency without the checklist in [dependency-policy.md](dependency-policy.md).
 - [ ] The dependency-edge check passes; no library crate prints or reads the environment.
 - [ ] Golden files and JSON schemas updated deliberately (reviewed as part of the diff).
-- [ ] `cargo fmt`, `clippy -D warnings`, `cargo test --workspace` pass locally.
+- [ ] `cargo fmt`, `clippy -D warnings`, `cargo test --workspace --all-features` pass locally (`scripts/ci.ps1` runs them).
 
 ## Pull Request Description
 
@@ -87,9 +87,9 @@ Use the repository pull request template (`.github/pull_request_template.md`). A
 
 ## Golden and Snapshot Files
 
-- Located next to the tests that use them (`tests/golden/`, `snapshots/`).
-- Updated only with the explicit `INSTA_UPDATE=always` (or `cargo insta review`) workflow, and the diff reviewed.
-- Test-only environment variables for fixed time and ids exist only under the `test-support` feature ([cli-spec.md](cli-spec.md)) and are never compiled into release builds. CI builds release with default features and asserts the variables are not recognized.
+- Located next to the tests that use them (`tests/snapshots/`).
+- Updated only with the explicit `INSTA_UPDATE=always` (or `cargo insta review`) workflow, and the diff reviewed. Details in [testing-strategy.md](testing-strategy.md#how-the-harness-works-m4).
+- Test-only environment variables for fixed time and ids exist only under the `test-support` feature ([cli-spec.md](cli-spec.md)), which is off by default and never enabled in release builds (the golden test targets declare `required-features`, so only `--all-features` test runs compile it in). A release build with default features does not recognize the variables.
 
 ## Releases
 

@@ -28,7 +28,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - run: cargo test --workspace --all-features
+      # Default features: proves release builds ignore the test-only environment variables.
+      - run: cargo test -p functor-cli
 
   test-other:
     name: test-other (${{ matrix.os }})
@@ -41,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      - run: cargo test --workspace --all-features
 
   deny:
     runs-on: windows-latest

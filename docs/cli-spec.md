@@ -208,7 +208,16 @@ Finding       {"code","severity","subject":{"kind","id"|"path"},"message","relat
 | `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}` |
 | `watch` | one event envelope per line, exactly as stored in the log |
 
-Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` (created when the CLI is implemented) and is used by the tests.
+Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json` (the `Artifact` definition in the last two is kept identical by a test); the rest arrive with their commands.
+
+## Implementation Notes (M4)
+
+- **Not yet implemented:** `--no-color` (nothing is colored yet) and `tracing` logging; `-v` currently prints the error cause chain (`caused by:` lines, text mode only), `-q` silences confirmations in `text` mode only.
+- **Events:** `artifact create`/`update` already build their events and hand them to a no-op recorder; the real publisher arrives in M8.
+- **`artifact show`:** text mode prints labeled fields; with `--content` it strips one trailing newline and escapes control characters except newline and tab. JSON `content.text` is present for inline content and for `show --content` (referenced file text), otherwise absent.
+- **`artifact list`:** sorted by slug, then id; `--long` adds id and updated time.
+- **`--content-path`:** resolved against the current directory (not the repository root), canonicalized, and must be an existing file inside the repository. `--content-format` without content is exit 2.
+- **Test-only variables** `FUNCTOR_TEST_FIXED_TIME` and `FUNCTOR_TEST_ID_SEED` exist only with the `test-support` feature ([testing-strategy.md](testing-strategy.md)).
 
 ## Logging
 

@@ -1,0 +1,11 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+SLUG      TYPE      REV  TITLE
+notes     document  1    notes
+rfc-0000  rfc       1    Functor Vision
+rfc-0001  rfc       1    Core Semantic Model
+--- stderr ---

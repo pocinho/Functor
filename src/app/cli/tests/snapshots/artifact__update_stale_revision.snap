@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&stale)
+---
+exit: 4
+--- stdout ---
+--- stderr ---
+error: expected revision 2, but `rfc-0000` is at revision 1

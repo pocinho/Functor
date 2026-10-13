@@ -1,0 +1,14 @@
+---
+source: src/app/cli/tests/artifact.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+slug:        notes
+id:          art_00000000000000000000000036
+type:        document
+title:       notes
+revision:    1
+created:     2026-10-12T18:00:00Z
+updated:     2026-10-12T18:00:00Z
+--- stderr ---

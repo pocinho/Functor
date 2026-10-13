@@ -277,3 +277,27 @@ fn a_new_repository_is_not_a_conflict_for_a_sibling_directory() {
         .assert()
         .success();
 }
+
+/// Release builds (default features) must not honor the test-only determinism variables. Run
+/// with `cargo test -p functor-cli` (CI does); it is compiled out under `--all-features`.
+#[cfg(not(feature = "test-support"))]
+#[test]
+fn test_only_variables_are_ignored_without_the_test_support_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    functor()
+        .current_dir(dir.path())
+        .env("FUNCTOR_TEST_FIXED_TIME", "2001-01-01T00:00:00Z")
+        .env("FUNCTOR_TEST_ID_SEED", "1")
+        .arg("init")
+        .assert()
+        .success();
+    let toml = fs::read_to_string(dir.path().join(".functor/repository.toml")).unwrap();
+    assert!(
+        !toml.contains("2001-01-01"),
+        "the clock must be the real one: {toml}"
+    );
+    assert!(
+        !toml.contains("repo_00000000000000000000000001"),
+        "ids must be real ULIDs: {toml}"
+    );
+}

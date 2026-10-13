@@ -11,6 +11,16 @@ publish.workspace = true
 name = "functor"
 path = "src/main.rs"
 
+# Golden tests need deterministic time and ids, which exist only with the `test-support` feature.
+[[test]]
+name = "artifact"
+required-features = ["test-support"]
+
+[features]
+# Test-only environment variables (FUNCTOR_TEST_FIXED_TIME, FUNCTOR_TEST_ID_SEED). Never enabled
+# in release builds.
+test-support = []
+
 [lints]
 workspace = true
 
@@ -28,7 +38,11 @@ serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+functor-testkit.workspace = true
 assert_cmd.workspace = true
 predicates.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
+insta.workspace = true
+jsonschema.workspace = true
+tokio = { workspace = true, features = ["macros"] }

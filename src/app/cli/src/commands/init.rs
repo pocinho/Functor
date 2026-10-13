@@ -1,16 +1,13 @@
 //! `functor init`.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use functor_core::{
-    FunctorError, InitOptions, RepositoryManager, Result, SystemClock, UlidGenerator,
-};
-use functor_repository::FileRepositoryManager;
+use functor_core::{FunctorError, InitOptions, RepositoryManager, Result};
 use serde::Serialize;
 
-use crate::cli::{InitArgs, OutputMode};
-use crate::output::{SCHEMA_VERSION, print_result};
+use crate::cli::InitArgs;
+use crate::context::{Globals, Services};
+use crate::output::{SCHEMA_VERSION, print_confirmation};
 
 #[derive(Serialize)]
 struct RepositoryDto {
@@ -29,16 +26,21 @@ struct InitDocument {
 /// Creates a repository and reports it.
 ///
 /// The target is `args.path`, else `--repo`, else the current directory.
-pub async fn run(args: InitArgs, repo: Option<PathBuf>, mode: OutputMode) -> Result<()> {
-    let manager = FileRepositoryManager::new(Arc::new(SystemClock), Arc::new(UlidGenerator::new()));
-    let target = args.path.or(repo).unwrap_or_else(|| PathBuf::from("."));
+///
+/// # Errors
+/// See `RepositoryManager::init`.
+pub async fn run(args: InitArgs, globals: &Globals, services: &Services) -> Result<()> {
+    let target = args
+        .path
+        .or_else(|| globals.repo.clone())
+        .unwrap_or_else(|| PathBuf::from("."));
 
     let mut options = InitOptions::new();
     options.name = args.name;
     options.description = args.description;
     options.nested = args.nested;
 
-    let handle = manager.init(&target, options).await?;
+    let handle = services.manager().init(&target, options).await?;
     let root = handle.root.display().to_string();
     let text = format!(
         "initialized repository \"{}\" ({}) at {root}",
@@ -54,6 +56,6 @@ pub async fn run(args: InitArgs, repo: Option<PathBuf>, mode: OutputMode) -> Res
             format_version: handle.info.format_version().get(),
         },
     };
-    print_result(&text, &document, mode)
+    print_confirmation(&text, &document, globals)
         .map_err(|error| FunctorError::storage("write output", "stdout", error))
 }

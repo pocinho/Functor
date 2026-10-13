@@ -27,6 +27,14 @@ pub struct Cli {
     #[arg(short, long, global = true, value_enum, default_value_t = OutputMode::Text)]
     pub output: OutputMode,
 
+    /// Show the cause chain of errors.
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
+
+    /// Suppress confirmations in text mode (query results are still printed).
+    #[arg(short, long, global = true)]
+    pub quiet: bool,
+
     /// The command to run.
     #[command(subcommand)]
     pub command: Command,
@@ -37,6 +45,9 @@ pub struct Cli {
 pub enum Command {
     /// Create a repository.
     Init(InitArgs),
+    /// Create, inspect and change artifacts.
+    #[command(subcommand)]
+    Artifact(ArtifactCommand),
 }
 
 /// Arguments of `functor init`.
@@ -58,11 +69,149 @@ pub struct InitArgs {
     pub nested: bool,
 }
 
+/// The `functor artifact` subcommands.
+#[derive(Debug, Subcommand)]
+pub enum ArtifactCommand {
+    /// Create an artifact with the given slug.
+    Create(ArtifactCreateArgs),
+    /// Show one artifact.
+    Show(ArtifactShowArgs),
+    /// List artifacts ordered by slug.
+    List(ArtifactListArgs),
+    /// Change an artifact.
+    Update(ArtifactUpdateArgs),
+}
+
+/// Arguments of `functor artifact create`.
+#[derive(Debug, Args)]
+pub struct ArtifactCreateArgs {
+    /// The slug: a unique, human-friendly alias such as `rfc-0000`.
+    pub slug: String,
+
+    /// Artifact type.
+    #[arg(long = "type", value_name = "TYPE", default_value = "document")]
+    pub artifact_type: String,
+
+    /// Title (default: the slug).
+    #[arg(long)]
+    pub title: Option<String>,
+
+    /// Description.
+    #[arg(long)]
+    pub description: Option<String>,
+
+    /// A tag; repeat for several.
+    #[arg(long = "tag", value_name = "TAG")]
+    pub tags: Vec<String>,
+
+    /// String metadata as KEY=VALUE; repeat for several.
+    #[arg(long = "meta", value_name = "KEY=VALUE")]
+    pub metadata: Vec<String>,
+
+    /// Inline content.
+    #[arg(long, value_name = "TEXT", conflicts_with = "content_path")]
+    pub content_text: Option<String>,
+
+    /// Reference an existing file inside the repository (it is not copied).
+    #[arg(long, value_name = "PATH")]
+    pub content_path: Option<PathBuf>,
+
+    /// Content format (default: guessed from the file extension, else `text`).
+    #[arg(long, value_name = "FORMAT")]
+    pub content_format: Option<String>,
+}
+
+/// Arguments of `functor artifact show`.
+#[derive(Debug, Args)]
+pub struct ArtifactShowArgs {
+    /// An artifact id, canonical reference or slug.
+    pub artifact: String,
+
+    /// Include the content (inline text, or the referenced file, up to 1 MiB).
+    #[arg(long)]
+    pub content: bool,
+}
+
+/// Arguments of `functor artifact list`.
+#[derive(Debug, Args)]
+pub struct ArtifactListArgs {
+    /// Only artifacts of this type.
+    #[arg(long = "type", value_name = "TYPE")]
+    pub artifact_type: Option<String>,
+
+    /// Only artifacts carrying this tag.
+    #[arg(long, value_name = "TAG")]
+    pub tag: Option<String>,
+
+    /// Also show ids and update times.
+    #[arg(long)]
+    pub long: bool,
+}
+
+/// Arguments of `functor artifact update`.
+#[derive(Debug, Args)]
+pub struct ArtifactUpdateArgs {
+    /// An artifact id, canonical reference or slug.
+    pub artifact: String,
+
+    /// Rename the slug.
+    #[arg(long)]
+    pub slug: Option<String>,
+
+    /// New title.
+    #[arg(long)]
+    pub title: Option<String>,
+
+    /// New description.
+    #[arg(long, conflicts_with = "clear_description")]
+    pub description: Option<String>,
+
+    /// Remove the description.
+    #[arg(long)]
+    pub clear_description: bool,
+
+    /// Replace the whole tag set with these comma-separated tags (`--tags ""` clears it).
+    #[arg(long, value_name = "A,B,C")]
+    pub tags: Option<String>,
+
+    /// Set a metadata key as KEY=VALUE; repeat for several.
+    #[arg(long = "meta", value_name = "KEY=VALUE")]
+    pub metadata: Vec<String>,
+
+    /// Remove a metadata key; repeat for several.
+    #[arg(long = "unset-meta", value_name = "KEY")]
+    pub unset_metadata: Vec<String>,
+
+    /// Replace the content with inline text.
+    #[arg(long, value_name = "TEXT", conflicts_with_all = ["content_path", "clear_content"])]
+    pub content_text: Option<String>,
+
+    /// Replace the content with a reference to a file inside the repository.
+    #[arg(long, value_name = "PATH", conflicts_with = "clear_content")]
+    pub content_path: Option<PathBuf>,
+
+    /// Format of the new content.
+    #[arg(long, value_name = "FORMAT")]
+    pub content_format: Option<String>,
+
+    /// Remove the content.
+    #[arg(long)]
+    pub clear_content: bool,
+
+    /// Fail with exit code 4 unless the artifact is at this revision.
+    #[arg(long, value_name = "N")]
+    pub expect_revision: Option<u64>,
+}
+
 #[cfg(test)]
 mod tests {
     use clap::CommandFactory;
 
     use super::*;
+
+    fn parse<const N: usize>(args: [&str; N]) -> Result<Cli, clap::Error> {
+        Cli::try_parse_from(args)
+    }
 
     #[test]
     fn the_argument_grammar_is_consistent() {
@@ -71,7 +220,7 @@ mod tests {
 
     #[test]
     fn init_accepts_its_documented_options() {
-        let cli = Cli::try_parse_from([
+        let cli = parse([
             "functor",
             "init",
             "demo",
@@ -85,7 +234,9 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(cli.output, OutputMode::Json);
-        let Command::Init(args) = cli.command;
+        let Command::Init(args) = cli.command else {
+            panic!("expected init");
+        };
         assert_eq!(args.path, Some(PathBuf::from("demo")));
         assert_eq!(args.name.as_deref(), Some("N"));
         assert_eq!(args.description.as_deref(), Some("D"));
@@ -93,20 +244,176 @@ mod tests {
     }
 
     #[test]
-    fn output_defaults_to_text_and_global_options_work_after_the_command() {
-        let cli = Cli::try_parse_from(["functor", "init"]).unwrap();
+    fn global_options_work_before_and_after_the_command() {
+        let cli = parse(["functor", "init"]).unwrap();
         assert_eq!(cli.output, OutputMode::Text);
-        let cli =
-            Cli::try_parse_from(["functor", "init", "--output", "json", "--repo", "x"]).unwrap();
+        assert!(!cli.verbose && !cli.quiet);
+        let cli = parse([
+            "functor", "init", "--output", "json", "--repo", "x", "-v", "-q",
+        ])
+        .unwrap();
         assert_eq!(cli.output, OutputMode::Json);
         assert_eq!(cli.repo, Some(PathBuf::from("x")));
+        assert!(cli.verbose && cli.quiet);
+        let cli = parse(["functor", "-o", "json", "artifact", "list"]).unwrap();
+        assert_eq!(cli.output, OutputMode::Json);
+    }
+
+    #[test]
+    fn artifact_create_accepts_its_documented_options() {
+        let cli = parse([
+            "functor",
+            "artifact",
+            "create",
+            "rfc-0000",
+            "--type",
+            "rfc",
+            "--title",
+            "Vision",
+            "--description",
+            "d",
+            "--tag",
+            "a",
+            "--tag",
+            "b",
+            "--meta",
+            "k=v",
+            "--meta",
+            "x=y",
+            "--content-text",
+            "hello",
+            "--content-format",
+            "markdown",
+        ])
+        .unwrap();
+        let Command::Artifact(ArtifactCommand::Create(args)) = cli.command else {
+            panic!("expected artifact create");
+        };
+        assert_eq!(args.slug, "rfc-0000");
+        assert_eq!(args.artifact_type, "rfc");
+        assert_eq!(args.tags, ["a", "b"]);
+        assert_eq!(args.metadata, ["k=v", "x=y"]);
+        assert_eq!(args.content_text.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn artifact_create_defaults_to_the_document_type() {
+        let cli = parse(["functor", "artifact", "create", "a"]).unwrap();
+        let Command::Artifact(ArtifactCommand::Create(args)) = cli.command else {
+            panic!("expected artifact create");
+        };
+        assert_eq!(args.artifact_type, "document");
+        assert_eq!(args.title, None);
+    }
+
+    #[test]
+    fn mutually_exclusive_options_are_rejected() {
+        assert!(
+            parse([
+                "functor",
+                "artifact",
+                "create",
+                "a",
+                "--content-text",
+                "x",
+                "--content-path",
+                "y"
+            ])
+            .is_err()
+        );
+        assert!(
+            parse([
+                "functor",
+                "artifact",
+                "update",
+                "a",
+                "--description",
+                "x",
+                "--clear-description"
+            ])
+            .is_err()
+        );
+        assert!(
+            parse([
+                "functor",
+                "artifact",
+                "update",
+                "a",
+                "--content-text",
+                "x",
+                "--clear-content"
+            ])
+            .is_err()
+        );
+        assert!(
+            parse([
+                "functor",
+                "artifact",
+                "update",
+                "a",
+                "--content-text",
+                "x",
+                "--content-path",
+                "y"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn artifact_update_and_list_parse() {
+        let cli = parse([
+            "functor",
+            "artifact",
+            "update",
+            "a",
+            "--slug",
+            "b",
+            "--tags",
+            "x,y",
+            "--unset-meta",
+            "k",
+            "--expect-revision",
+            "3",
+        ])
+        .unwrap();
+        let Command::Artifact(ArtifactCommand::Update(args)) = cli.command else {
+            panic!("expected artifact update");
+        };
+        assert_eq!(args.slug.as_deref(), Some("b"));
+        assert_eq!(args.tags.as_deref(), Some("x,y"));
+        assert_eq!(args.unset_metadata, ["k"]);
+        assert_eq!(args.expect_revision, Some(3));
+
+        let cli = parse([
+            "functor", "artifact", "list", "--type", "rfc", "--tag", "core", "--long",
+        ])
+        .unwrap();
+        let Command::Artifact(ArtifactCommand::List(args)) = cli.command else {
+            panic!("expected artifact list");
+        };
+        assert!(args.long);
+        assert_eq!(args.artifact_type.as_deref(), Some("rfc"));
     }
 
     #[test]
     fn bad_input_is_rejected() {
-        assert!(Cli::try_parse_from(["functor"]).is_err());
-        assert!(Cli::try_parse_from(["functor", "init", "--bogus"]).is_err());
-        assert!(Cli::try_parse_from(["functor", "init", "-o", "xml"]).is_err());
-        assert!(Cli::try_parse_from(["functor", "nope"]).is_err());
+        assert!(parse(["functor"]).is_err());
+        assert!(parse(["functor", "init", "--bogus"]).is_err());
+        assert!(parse(["functor", "init", "-o", "xml"]).is_err());
+        assert!(parse(["functor", "nope"]).is_err());
+        assert!(parse(["functor", "artifact"]).is_err());
+        assert!(parse(["functor", "artifact", "create"]).is_err());
+        assert!(
+            parse([
+                "functor",
+                "artifact",
+                "update",
+                "a",
+                "--expect-revision",
+                "x"
+            ])
+            .is_err()
+        );
     }
 }

@@ -78,6 +78,8 @@ CLI: `artifact create|show|list|update`, argument resolver ([identity-and-addres
 
 Done when: artifacts can be stored and retrieved through the CLI and through the library API; golden tests cover success and every error path of these commands. (Event emission is added in M8 once `functor-events` exists; handlers already call a `publish` seam backed by a no-op publisher until then.)
 
+Status: implemented. `artifact create|show|list|update`, the resolver (id, slug, canonical, with suggestions), `-v`/`-q`, text and JSON rendering, four JSON Schemas in `docs/schemas/`, and a golden/schema/cross-process e2e harness (47 artifact tests, 28 CLI unit tests; see [testing-strategy.md](testing-strategy.md)). Golden tests need `--all-features`; CI and `scripts/ci.ps1` also run default features to prove release builds ignore the test-only variables. Deferred: `--no-color` and `tracing` logs (see [cli-spec.md](cli-spec.md#implementation-notes-m4)). Events are a no-op seam until M8.
+
 ## M5: Relationship Management
 
 CLI: `relation add|list|show`. Endpoint existence, duplicate and self-reference rules ([traits-and-interfaces.md](traits-and-interfaces.md), ADR-0007).

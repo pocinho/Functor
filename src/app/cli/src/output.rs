@@ -6,13 +6,27 @@
 use std::io::{self, Write};
 
 use functor_core::{ErrorKind, FunctorError};
+use functor_model::EntityKind;
 use serde::Serialize;
 
 use crate::cli::OutputMode;
+use crate::context::Globals;
 use crate::exit;
 
 /// The version of the JSON output schemas.
 pub const SCHEMA_VERSION: u32 = 1;
+
+/// Writes a confirmation of a mutating command (`created ...`). `--quiet` silences it in text
+/// mode; JSON output is never suppressed.
+///
+/// # Errors
+/// Returns I/O errors other than a broken pipe.
+pub fn print_confirmation(text: &str, json: &impl Serialize, globals: &Globals) -> io::Result<()> {
+    if globals.quiet && globals.output == OutputMode::Text {
+        return Ok(());
+    }
+    print_result(text, json, globals.output)
+}
 
 /// Writes a command result to stdout.
 ///
@@ -83,15 +97,35 @@ fn error_body(error: &FunctorError) -> ErrorBody {
 #[must_use]
 pub fn error_text(error: &FunctorError) -> String {
     let mut text = format!("error: {error}");
-    if let FunctorError::NotFound { suggestions, .. } = error
-        && !suggestions.is_empty()
+    if let FunctorError::NotFound {
+        entity,
+        suggestions,
+        ..
+    } = error
     {
-        text = format!("{text}\n  did you mean: {}", suggestions.join(", "));
+        if !suggestions.is_empty() {
+            text = format!("{text}\n  did you mean: {}", suggestions.join(", "));
+        }
+        if *entity == EntityKind::Artifact {
+            text.push_str("\nhint: run `functor artifact list` to see available artifacts");
+        }
     }
     if error.kind() == ErrorKind::NotARepository {
         text.push_str("\nhint: run `functor init` to create a repository here");
     }
     text
+}
+
+/// The `caused by:` lines for an error's source chain, shown with `--verbose`.
+#[must_use]
+pub fn error_chain(error: &FunctorError) -> String {
+    let mut lines = Vec::new();
+    let mut source = std::error::Error::source(error);
+    while let Some(cause) = source {
+        lines.push(format!("  caused by: {cause}"));
+        source = cause.source();
+    }
+    lines.join("\n")
 }
 
 /// The JSON document printed for an error in `json` mode.
@@ -102,16 +136,28 @@ pub fn error_json(error: &FunctorError, exit_code: u8) -> String {
         exit_code,
     };
     serde_json::to_string(&document).unwrap_or_else(|_| {
-        format!(r#"{{"error":{{"code":"internal","message":"could not render error"}},"exit_code":{}}}"#, exit::INTERNAL)
+        format!(
+            r#"{{"error":{{"code":"internal","message":"could not render error"}},"exit_code":{}}}"#,
+            exit::INTERNAL
+        )
     })
 }
 
 /// Prints an error to stderr in the requested mode and returns its exit code.
+///
+/// With `verbose`, text mode also prints the cause chain.
 #[must_use]
-pub fn report_error(error: &FunctorError, mode: OutputMode) -> u8 {
+pub fn report_error(error: &FunctorError, mode: OutputMode, verbose: bool) -> u8 {
     let code = exit::exit_code(error.kind());
     let rendered = match mode {
-        OutputMode::Text => error_text(error),
+        OutputMode::Text => {
+            let mut text = error_text(error);
+            let chain = error_chain(error);
+            if verbose && !chain.is_empty() {
+                text = format!("{text}\n{chain}");
+            }
+            text
+        }
         OutputMode::Json => error_json(error, code),
     };
     // Nothing useful can be done if stderr itself is closed.
@@ -134,7 +180,7 @@ mod tests {
         };
         assert_eq!(
             error_text(&error),
-            "error: artifact not found: rfc-9\n  did you mean: rfc-0, rfc-1"
+            "error: artifact not found: rfc-9\n  did you mean: rfc-0, rfc-1\nhint: run `functor artifact list` to see available artifacts"
         );
         assert_eq!(
             error_text(&FunctorError::invalid_input("name", "must not be empty")),
