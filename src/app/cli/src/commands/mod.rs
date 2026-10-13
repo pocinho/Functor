@@ -3,4 +3,5 @@
 
 pub mod artifact;
 pub mod init;
+pub mod query;
 pub mod relation;

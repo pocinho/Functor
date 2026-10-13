@@ -171,7 +171,7 @@ pub enum EventPosition { Start, End, After(u64) }   // sequence number
 | `RepositoryManager` | `FileRepositoryManager` | `functor-repository` |
 | `RepositoryReader`, `ArtifactRepository`, `RelationshipRepository` | `FileStore` | `functor-store` |
 | same | `MemoryStore` (tests and examples) | `functor-store` |
-| `QueryEngine` | `SnapshotQueryEngine` (holds an `Arc<dyn RepositoryReader>` or a generic `R: RepositoryReader`) | `functor-query` |
+| `QueryEngine` | `SnapshotQueryEngine<'a, R>` (borrows any `R: RepositoryReader + ?Sized`; one fresh snapshot per call) | `functor-query` |
 | `ValidationEngine` | `RuleValidationEngine` (same) | `functor-validation` |
 | `EventPublisher`, `EventSource` | `FileEventLog` | `functor-events` |
 | `Clock`, `IdGenerator` | `SystemClock`, `UlidGenerator` in `functor-core`; `FixedClock`, `SequentialIds` in `functor-testkit` | `functor-core`, `functor-testkit` |

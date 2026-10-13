@@ -94,6 +94,8 @@ RFC-0006 subset. Snapshot engine, `query artifacts|dependencies|dependents|relat
 
 Done when: table-driven and property tests pass for traversal on both stores, and users can discover and navigate repository content.
 
+Status: implemented. `functor-query` has `search`, `traverse`, `relationships_of` and `SnapshotQueryEngine` (30 unit tests, 5 oracle-checked property tests, 5 engine tests that compare `MemoryStore` and `FileStore` and pin one snapshot per call); the CLI has `query artifacts|dependencies|dependents|relationships` with schemas `query-traversal.json` and `query-relationships.json` and 29 e2e tests (golden transcripts, schemas, filters, depth and type options, cycles, read-only check, error paths). See [query-model-mvp.md](query-model-mvp.md#implementation-notes-m6) and [cli-spec.md](cli-spec.md#implementation-notes-m6).
+
 ## M7: Validation (`functor-validation`)
 
 RFC-0007 validation subset. The rule catalog `V0001` to `V0018`, report, exit-code policy, `validate [artifact] [--strict]` ([validation-rules.md](validation-rules.md)).

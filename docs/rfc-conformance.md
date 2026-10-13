@@ -69,8 +69,8 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 | C-0004-3 | Relationships should have stable identifiers | Implemented | `rel_<ULID>` | `conf:relationship_has_identity` |
 | C-0004-4 | Metadata must not alter semantic meaning | Implemented | Opaque metadata map | `store:relationship_metadata_roundtrip` |
 | C-0004-5 | Validate existence of referenced artifacts and detect cycles | Implemented | `V0006`, `V0007`, `V0009`, `V0011` ([validation-rules.md](validation-rules.md)) | `val:V0006`, `val:V0007`, `val:V0009`, `val:V0011` |
-| C-0004-6 | API: create, remove, list, find_related, traverse | Subset | No remove | `conf:relationships`, `query:traverse` |
-| C-0004-7 | Reverse relationships via indexing or query | Implemented | Inbound traversal ([query-model-mvp.md](query-model-mvp.md)) | `query:inbound` |
+| C-0004-6 | API: create, remove, list, find_related, traverse | Subset | No remove | `conf:relationships`, `query:traverse::*`, `cli:query`, `cli:relation` |
+| C-0004-7 | Reverse relationships via indexing or query | Implemented | Inbound traversal ([query-model-mvp.md](query-model-mvp.md)) | `query:properties::inbound_of_the_outbound_neighbours_includes_the_start`, `cli:query::dependents_follow_edges_backwards` |
 
 ### RFC-0005 Identity and Addressing
 
@@ -90,12 +90,12 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0006-1 | Lookup by identity | Implemented | `lookup` | `query:lookup` |
-| C-0006-2 | Search by metadata and content | Subset | Metadata, type, tag, text on slug, title and description; no content search | `query:search` |
-| C-0006-3 | Traverse relationships, inbound, outbound, bidirectional, depth limit | Implemented | `traverse` | `query:traverse_table` |
-| C-0006-4 | Storage-independent semantics | Implemented | Queries run over snapshots | `query:same_on_both_stores` |
-| C-0006-5 | Results immutable during execution | Implemented | Single snapshot per query | `query:snapshot_consistency` |
-| C-0006-6 | Filter and project | Subset | Filter fields in `SearchQuery`; projection is a rendering concern of the CLI (fixed columns, full JSON) | `query:search`, `cli:json_schema` |
+| C-0006-1 | Lookup by identity | Implemented | `lookup` | `query:engine::memory_and_file_stores_answer_identically` |
+| C-0006-2 | Search by metadata and content | Subset | Metadata, type, tag, text on slug, title and description; no content search | `query:search::*`, `cli:query::artifact_criteria_combine_with_and` |
+| C-0006-3 | Traverse relationships, inbound, outbound, bidirectional, depth limit | Implemented | `traverse` | `query:traverse::*`, `query:properties::traversal_matches_a_brute_force_oracle` |
+| C-0006-4 | Storage-independent semantics | Implemented | Queries run over snapshots | `query:engine::memory_and_file_stores_answer_identically` |
+| C-0006-5 | Results immutable during execution | Implemented | Single snapshot per query | `query:engine::every_engine_call_reads_exactly_one_snapshot`, `cli:query::queries_never_change_the_repository` |
+| C-0006-6 | Filter and project | Subset | Filter fields in `SearchQuery`; projection is a rendering concern of the CLI (fixed columns, full JSON) | `query:search::*`, `cli:query::artifacts_in_json_matches_the_schema` |
 | C-0006-7 | Query language, ranking, federation | Deferred | | |
 
 ### RFC-0007 Validation and Execution
@@ -116,7 +116,7 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 | C-0008-2 | Durable identity across storage engines | Implemented | Id is in the entity, not the location | `store:move_repository_dir` |
 | C-0008-3 | Local-first, offline | Implemented | Filesystem only | `cli:no_network` (review rule) |
 | C-0008-4 | Preserve historical states when practical | Deferred | `revision` only | |
-| C-0008-5 | Indexes must not affect semantics | Implemented | In-memory indexes rebuilt per snapshot | `query:same_on_both_stores` |
+| C-0008-5 | Indexes must not affect semantics | Implemented | In-memory indexes rebuilt per snapshot | `query:engine::memory_and_file_stores_answer_identically` |
 | C-0008-6 | Portability, no proprietary representation | Implemented | TOML and JSON Lines | `store:cross_platform_checkout` |
 
 ### RFC-0011 Projection Model

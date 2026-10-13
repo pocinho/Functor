@@ -51,6 +51,9 @@ pub enum Command {
     /// Create and inspect relationships between artifacts.
     #[command(subcommand)]
     Relation(RelationCommand),
+    /// Search artifacts and navigate relationships (read-only).
+    #[command(subcommand)]
+    Query(QueryCommand),
 }
 
 /// Arguments of `functor init`.
@@ -260,6 +263,98 @@ pub struct RelationListArgs {
 pub struct RelationShowArgs {
     /// A relationship id (`rel_...`) or canonical reference.
     pub relation: String,
+}
+
+/// The `functor query` subcommands. All are read-only.
+#[derive(Debug, Subcommand)]
+pub enum QueryCommand {
+    /// Find artifacts by type, tag, text or metadata.
+    Artifacts(QueryArtifactsArgs),
+    /// What an artifact depends on.
+    Dependencies(QueryTraverseArgs),
+    /// What depends on an artifact.
+    Dependents(QueryTraverseArgs),
+    /// Every relationship touching an artifact.
+    Relationships(QueryRelationshipsArgs),
+}
+
+/// Arguments of `functor query artifacts`. Criteria combine with AND.
+#[derive(Debug, Args)]
+pub struct QueryArtifactsArgs {
+    /// Only artifacts of this type.
+    #[arg(long = "type", value_name = "TYPE")]
+    pub artifact_type: Option<String>,
+
+    /// Only artifacts carrying this tag.
+    #[arg(long, value_name = "TAG")]
+    pub tag: Option<String>,
+
+    /// Only artifacts whose slug, title or description contains this text (any case).
+    #[arg(long, value_name = "TEXT")]
+    pub text: Option<String>,
+
+    /// Only artifacts with this string metadata, as KEY=VALUE; repeat for several.
+    #[arg(long = "meta", value_name = "KEY=VALUE")]
+    pub metadata: Vec<String>,
+}
+
+/// How far a traversal goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Depth {
+    /// At most this many steps.
+    Limited(u32),
+    /// The whole reachable closure.
+    All,
+}
+
+fn parse_depth(text: &str) -> Result<Depth, String> {
+    if text.eq_ignore_ascii_case("all") {
+        return Ok(Depth::All);
+    }
+    text.parse::<u32>()
+        .map(Depth::Limited)
+        .map_err(|_| format!("`{text}` is not a whole number or `all`"))
+}
+
+/// Arguments of `functor query dependencies` and `functor query dependents`.
+#[derive(Debug, Args)]
+pub struct QueryTraverseArgs {
+    /// An artifact id, canonical reference or slug.
+    pub artifact: String,
+
+    /// How many steps to follow: a number, or `all` for the transitive closure.
+    #[arg(long, value_name = "N|all", value_parser = parse_depth, default_value = "1")]
+    pub depth: Depth,
+
+    /// Relationship type to follow instead of `depends_on`; repeat for several.
+    #[arg(long = "type", value_name = "TYPE")]
+    pub types: Vec<String>,
+}
+
+/// Which relationships of an artifact to list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RelationshipDirection {
+    /// Relationships pointing at the artifact.
+    In,
+    /// Relationships starting at the artifact.
+    Out,
+    /// Both.
+    Both,
+}
+
+/// Arguments of `functor query relationships`.
+#[derive(Debug, Args)]
+pub struct QueryRelationshipsArgs {
+    /// An artifact id, canonical reference or slug.
+    pub artifact: String,
+
+    /// Only relationships of this type; repeat for several.
+    #[arg(long = "type", value_name = "TYPE")]
+    pub types: Vec<String>,
+
+    /// Which direction to list.
+    #[arg(long, value_enum, default_value_t = RelationshipDirection::Both)]
+    pub direction: RelationshipDirection,
 }
 
 #[cfg(test)]
@@ -474,6 +569,113 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn query_artifacts_accepts_every_criterion() {
+        let cli = parse([
+            "functor",
+            "query",
+            "artifacts",
+            "--type",
+            "rfc",
+            "--tag",
+            "core",
+            "--text",
+            "vision",
+            "--meta",
+            "status=draft",
+            "--meta",
+            "owner=ana",
+        ])
+        .unwrap();
+        let Command::Query(QueryCommand::Artifacts(args)) = cli.command else {
+            panic!("expected query artifacts");
+        };
+        assert_eq!(args.artifact_type.as_deref(), Some("rfc"));
+        assert_eq!(args.tag.as_deref(), Some("core"));
+        assert_eq!(args.text.as_deref(), Some("vision"));
+        assert_eq!(args.metadata, ["status=draft", "owner=ana"]);
+    }
+
+    #[test]
+    fn traversal_depth_is_a_number_or_all_and_defaults_to_one() {
+        let depth = |extra: &[&str]| {
+            let mut args = vec!["functor", "query", "dependencies", "a"];
+            args.extend(extra);
+            match Cli::try_parse_from(args).map(|cli| cli.command) {
+                Ok(Command::Query(QueryCommand::Dependencies(args))) => Ok(args.depth),
+                Ok(_) => panic!("expected query dependencies"),
+                Err(error) => Err(error),
+            }
+        };
+        assert_eq!(depth(&[]).unwrap(), Depth::Limited(1));
+        assert_eq!(depth(&["--depth", "0"]).unwrap(), Depth::Limited(0));
+        assert_eq!(depth(&["--depth", "7"]).unwrap(), Depth::Limited(7));
+        assert_eq!(depth(&["--depth", "all"]).unwrap(), Depth::All);
+        assert_eq!(depth(&["--depth", "ALL"]).unwrap(), Depth::All);
+        for bad in ["x", "1.5", "", "4294967296"] {
+            assert!(depth(&["--depth", bad]).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn dependencies_and_dependents_share_their_options() {
+        for name in ["dependencies", "dependents"] {
+            let cli = parse([
+                "functor",
+                "query",
+                name,
+                "rfc-0001",
+                "--type",
+                "depends_on",
+                "--type",
+                "extends",
+            ])
+            .unwrap();
+            let Command::Query(QueryCommand::Dependencies(args) | QueryCommand::Dependents(args)) =
+                cli.command
+            else {
+                panic!("expected a traversal command");
+            };
+            assert_eq!(args.artifact, "rfc-0001");
+            assert_eq!(args.types, ["depends_on", "extends"]);
+        }
+    }
+
+    #[test]
+    fn query_relationships_directions_default_to_both() {
+        let direction = |extra: &[&str]| {
+            let mut args = vec!["functor", "query", "relationships", "a"];
+            args.extend(extra);
+            match Cli::try_parse_from(args).map(|cli| cli.command) {
+                Ok(Command::Query(QueryCommand::Relationships(args))) => Ok(args.direction),
+                Ok(_) => panic!("expected query relationships"),
+                Err(error) => Err(error),
+            }
+        };
+        assert_eq!(direction(&[]).unwrap(), RelationshipDirection::Both);
+        assert_eq!(
+            direction(&["--direction", "in"]).unwrap(),
+            RelationshipDirection::In
+        );
+        assert_eq!(
+            direction(&["--direction", "out"]).unwrap(),
+            RelationshipDirection::Out
+        );
+        assert_eq!(
+            direction(&["--direction", "both"]).unwrap(),
+            RelationshipDirection::Both
+        );
+        assert!(direction(&["--direction", "sideways"]).is_err());
+    }
+
+    #[test]
+    fn query_needs_a_subcommand_and_artifact() {
+        assert!(parse(["functor", "query"]).is_err());
+        assert!(parse(["functor", "query", "dependencies"]).is_err());
+        assert!(parse(["functor", "query", "relationships"]).is_err());
+        assert!(parse(["functor", "query", "nope"]).is_err());
     }
 
     #[test]

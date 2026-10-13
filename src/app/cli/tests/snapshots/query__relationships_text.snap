@@ -1,0 +1,11 @@
+---
+source: src/app/cli/tests/query.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+ID                              SOURCE    TYPE          TARGET
+rel_00000000000000000000000069  rfc-0002  depends_on    rfc-0001
+rel_0000000000000000000000006A  notes     references    rfc-0002
+rel_0000000000000000000000006B  rfc-0002  derived_from  rfc-0000
+--- stderr ---

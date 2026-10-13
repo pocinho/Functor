@@ -5,7 +5,10 @@
 use std::collections::BTreeMap;
 
 use functor_core::FunctorError;
-use functor_model::{Artifact, ArtifactField, ArtifactId, Content, MetadataValue, Relationship};
+use functor_model::{
+    Artifact, ArtifactField, ArtifactId, Content, Direction, MetadataValue, Relationship,
+    RelationshipType, TraversalResult,
+};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -286,6 +289,15 @@ impl EndpointDto {
             slug: slugs.slug(id)?.to_owned(),
         })
     }
+
+    /// The `{id, slug}` reference of an artifact.
+    #[must_use]
+    pub fn of(artifact: &Artifact) -> Self {
+        Self {
+            id: artifact.id().to_string(),
+            slug: artifact.slug().to_string(),
+        }
+    }
 }
 
 /// A relationship as it appears in JSON output.
@@ -356,6 +368,137 @@ impl RelationshipListDocument {
             relationships,
         }
     }
+}
+
+/// An artifact reached by a traversal, with the edge that reached it.
+#[derive(Debug, Serialize)]
+pub struct NodeDto {
+    depth: u32,
+    artifact: ArtifactDto,
+    via: RelationshipDto,
+}
+
+/// The document printed by `query dependencies` and `query dependents`.
+#[derive(Debug, Serialize)]
+pub struct TraversalDocument {
+    schema_version: u32,
+    start: EndpointDto,
+    direction: &'static str,
+    relationship_types: Vec<String>,
+    max_depth: Option<u32>,
+    nodes: Vec<NodeDto>,
+    edges: Vec<RelationshipDto>,
+}
+
+impl TraversalDocument {
+    /// Builds the document from a traversal result.
+    ///
+    /// # Errors
+    /// `Internal` when an edge endpoint is neither the start nor a reached node.
+    pub fn new(
+        result: &TraversalResult,
+        direction: Direction,
+        types: &[RelationshipType],
+        max_depth: Option<u32>,
+    ) -> Result<Self, FunctorError> {
+        let slugs = traversal_slugs(result);
+        Ok(Self {
+            schema_version: SCHEMA_VERSION,
+            start: EndpointDto::of(&result.start),
+            direction: match direction {
+                Direction::Inbound => "inbound",
+                _ => "outbound",
+            },
+            relationship_types: types.iter().map(ToString::to_string).collect(),
+            max_depth,
+            nodes: result
+                .nodes
+                .iter()
+                .map(|node| {
+                    Ok(NodeDto {
+                        depth: node.depth,
+                        artifact: ArtifactDto::new(&node.artifact, None),
+                        via: RelationshipDto::new(&node.via, &slugs)?,
+                    })
+                })
+                .collect::<Result<_, FunctorError>>()?,
+            edges: result
+                .edges
+                .iter()
+                .map(|edge| RelationshipDto::new(edge, &slugs))
+                .collect::<Result<_, FunctorError>>()?,
+        })
+    }
+}
+
+/// The slugs of every artifact a traversal touched: the start and the reached nodes.
+fn traversal_slugs(result: &TraversalResult) -> SlugIndex {
+    let mut artifacts = vec![result.start.clone()];
+    artifacts.extend(result.nodes.iter().map(|node| node.artifact.clone()));
+    SlugIndex::new(&artifacts)
+}
+
+/// The document printed by `query relationships`.
+#[derive(Debug, Serialize)]
+pub struct RelationshipsDocument {
+    schema_version: u32,
+    artifact: EndpointDto,
+    relationships: Vec<RelationshipDto>,
+}
+
+impl RelationshipsDocument {
+    /// Builds the document.
+    ///
+    /// # Errors
+    /// `Internal` when an endpoint has no slug in the index.
+    pub fn new(
+        artifact: &Artifact,
+        relationships: &[Relationship],
+        slugs: &SlugIndex,
+    ) -> Result<Self, FunctorError> {
+        Ok(Self {
+            schema_version: SCHEMA_VERSION,
+            artifact: EndpointDto::of(artifact),
+            relationships: relationships
+                .iter()
+                .map(|r| RelationshipDto::new(r, slugs))
+                .collect::<Result<_, FunctorError>>()?,
+        })
+    }
+}
+
+/// The text printed by `query dependencies` and `query dependents`: a heading and a table, or
+/// `no <things> found`.
+#[must_use]
+pub fn traversal_text(
+    things: &str,
+    result: &TraversalResult,
+    types: &[RelationshipType],
+    max_depth: Option<u32>,
+) -> String {
+    if result.nodes.is_empty() {
+        return format!("no {things} found");
+    }
+    let types: Vec<String> = types.iter().map(ToString::to_string).collect();
+    let depth = max_depth.map_or_else(|| "all".to_owned(), |depth| depth.to_string());
+    let rows: Vec<Vec<String>> = result
+        .nodes
+        .iter()
+        .map(|node| {
+            vec![
+                node.depth.to_string(),
+                node.artifact.slug().to_string(),
+                node.artifact.artifact_type().to_string(),
+                sanitize(node.artifact.title().as_str()),
+            ]
+        })
+        .collect();
+    format!(
+        "{things} of {} ({}, depth {depth})\n{}",
+        result.start.slug(),
+        types.join(", "),
+        table(&["DEPTH", "SLUG", "TYPE", "TITLE"], &rows)
+    )
 }
 
 /// `added <rel id>: <source> <type> <target>`

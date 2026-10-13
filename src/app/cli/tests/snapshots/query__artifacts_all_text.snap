@@ -1,0 +1,12 @@
+---
+source: src/app/cli/tests/query.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+SLUG      TYPE      REV  TITLE
+notes     document  1    Meeting Notes
+rfc-0000  rfc       1    Functor Vision
+rfc-0001  rfc       1    Core Semantic Model
+rfc-0002  rfc       1    Query Model
+--- stderr ---

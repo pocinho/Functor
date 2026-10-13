@@ -63,7 +63,7 @@ Serialization belongs to the crate that owns the representation (ADR-0005): the 
 FileRepositoryManager (functor-repository) -> RepositoryManager
 FileStore                                  -> RepositoryReader, ArtifactRepository, RelationshipRepository
 FileEventLog                               -> EventPublisher, EventSource
-SnapshotQueryEngine<FileStore>
+SnapshotQueryEngine<'_, FileStore>        -> QueryEngine
 RuleValidationEngine<FileStore>
 SystemClock, UlidGenerator
 ```

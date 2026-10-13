@@ -1,0 +1,10 @@
+---
+source: src/app/cli/tests/query.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+dependencies of rfc-0002 (depends_on, depth 1)
+DEPTH  SLUG      TYPE  TITLE
+1      rfc-0001  rfc   Core Semantic Model
+--- stderr ---

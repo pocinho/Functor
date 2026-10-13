@@ -378,7 +378,7 @@ pub async fn run(command: ArtifactCommand, context: &Context, globals: &Globals)
     }
 }
 
-fn list_text(artifacts: &[Artifact], long: bool) -> String {
+pub(crate) fn list_text(artifacts: &[Artifact], long: bool) -> String {
     use crate::render::sanitize;
 
     if artifacts.is_empty() {

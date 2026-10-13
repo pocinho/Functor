@@ -82,7 +82,7 @@ Show one artifact. `--content` includes inline content or the referenced file te
 
 ### `functor artifact list`
 
-List artifacts ordered by slug. Options: `--type <type>`, `--tag <tag>`, `--long` (also show ids and timestamps). Equivalent to `query artifacts` with the same filters but with a simpler column set.
+List artifacts ordered by slug. Options: `--type <type>`, `--tag <tag>`, `--long` (also show ids and update times). The same artifacts and output as `query artifacts` with the `--type` and `--tag` filters; `query` adds `--text` and `--meta`.
 
 ### `functor artifact update <ARTIFACT>`
 
@@ -124,7 +124,14 @@ All `query` subcommands are read-only and emit no events. Semantics: [query-mode
 | `query artifacts` | Options `--type`, `--tag`, `--text <substr>`, `--meta <key=value>` (repeatable) |
 | `query dependencies <ARTIFACT>` | What the artifact depends on. Options `--depth <n\|all>` (default `1`), `--type <t>` (repeatable, default `depends_on`) |
 | `query dependents <ARTIFACT>` | What depends on the artifact. Same options |
-| `query relationships <ARTIFACT>` | Every relationship touching the artifact. Options `--type`, `--direction <in\|out\|both>` (default `both`) |
+| `query relationships <ARTIFACT>` | Every relationship touching the artifact. Options `--type` (repeatable), `--direction <in\|out\|both>` (default `both`) |
+
+Output and errors:
+
+- `query artifacts` prints the same table and JSON document as `artifact list` (`SLUG TYPE REV TITLE`); no match prints `no artifacts found`. Malformed criteria are exit 2.
+- `query dependencies|dependents` print a heading `<dependencies|dependents> of <slug> (<types>, depth <n|all>)` and a table `DEPTH SLUG TYPE TITLE` ordered by depth, slug, id; no match prints `no dependencies found` or `no dependents found`. `--depth` is a whole number (0 allowed) or `all`; `--type` replaces the default `depends_on`, is repeatable and accepts the kebab-case alias. An unknown artifact is exit 3 with suggestions.
+- `query relationships` prints the table of `relation list` (`ID SOURCE TYPE TARGET`) ordered by relationship id; none prints `no relationships found`.
+- `-q` does not silence query results. A repository with a dangling relationship fails every query with exit 5 (`inconsistent`).
 
 ### `functor validate [ARTIFACT]`
 
@@ -203,12 +210,12 @@ Finding       {"code","severity","subject":{"kind","id"|"path"},"message","relat
 | `artifact list`, `query artifacts` | `{"schema_version":1,"artifacts":[Artifact]}` |
 | `relation add`, `show` | `{"schema_version":1,"relationship":Relationship}` |
 | `relation list` | `{"schema_version":1,"relationships":[Relationship]}` |
-| `query dependencies`, `query dependents` | `{"schema_version":1,"start":ArtifactRef,"direction":"outbound"\|"inbound","relationship_types":[...],"max_depth":1\|null,"nodes":[{"depth","artifact":Artifact,"via":Relationship}],"edges":[Relationship]}` |
+| `query dependencies`, `query dependents` | `{"schema_version":1,"start":ArtifactRef,"direction":"outbound"\|"inbound","relationship_types":[...],"max_depth":n\|null,"nodes":[{"depth","artifact":Artifact,"via":Relationship}],"edges":[Relationship]}` |
 | `query relationships` | `{"schema_version":1,"artifact":ArtifactRef,"relationships":[Relationship]}` |
 | `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}` |
 | `watch` | one event envelope per line, exactly as stored in the log |
 
-Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json`, `relationship-document.json`, `relationship-list.json` (the shared definitions of each pair are kept identical by a test); the rest arrive with their commands.
+Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json`, `relationship-document.json`, `relationship-list.json`, `query-traversal.json`, `query-relationships.json` (shared definitions are kept identical by tests); the rest arrive with their commands.
 
 ## Implementation Notes (M4)
 
@@ -225,6 +232,12 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 - **Duplicate message.** The store reports a duplicate with artifact ids rather than slugs (`depends_on already relates art_… to art_…`), because it knows no slugs.
 - **Events:** `relation add` builds `relationship.created` and hands it to the same no-op recorder as the artifact commands until M8.
 - **Not yet checked at add time:** cycles across several relationships. They are reported by `validate` (V0011, M7).
+
+## Implementation Notes (M6)
+
+- **Engine.** The `query` commands call `functor-query` through `SnapshotQueryEngine`; see [query-model-mvp.md](query-model-mvp.md#implementation-notes-m6) for the semantics decisions (edge listing, text and metadata matching, two snapshot reads).
+- **`--meta` in queries is a string match.** It finds string metadata and members of string lists; integer and boolean metadata written by hand do not match `--meta key=3`.
+- **Schemas.** `query-traversal.json` serves `dependencies` and `dependents`; `query-relationships.json` serves `relationships`; `query artifacts` uses `artifact-list.json`.
 
 ## Logging
 

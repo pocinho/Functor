@@ -41,6 +41,10 @@ async fn run(cli: Cli) -> Result<(), FunctorError> {
             let context = context::open(&globals, &services).await?;
             commands::relation::run(command, &context, &globals).await
         }
+        Command::Query(command) => {
+            let context = context::open(&globals, &services).await?;
+            commands::query::run(command, &context, &globals).await
+        }
     }
 }
 

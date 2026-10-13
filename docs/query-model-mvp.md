@@ -120,3 +120,13 @@ Building a snapshot is O(N) in files. Traversal is O(V + E) over the requested c
 - Property: traversal terminates on any generated graph, reports each node once, and `Inbound` of `Outbound` neighbours includes the start.
 - Search: every filter alone and in combination; ordering.
 - Same results from `MemoryStore` and `FileStore` snapshots.
+
+## Implementation Notes (M6)
+
+- **Shape.** `functor-query` exports three pure functions over a `RepositorySnapshot`: `search`, `traverse` and `relationships_of`. `SnapshotQueryEngine<'a, R>` borrows any `R: RepositoryReader + ?Sized`, loads one strict snapshot per call and implements `QueryEngine`. `relationships_of` is also available as the engine's inherent `relationships` method, because the named query "relationships of an artifact" is not part of the `QueryEngine` trait.
+- **Oracle-checked.** The property tests compare `traverse` with a brute-force shortest-path oracle (reported nodes, minimum depths, `via` choice, examined edges, ordering) over generated graphs with cycles, self-loops and mixed types, and check that a deliberately wrong depth limit is caught.
+- **`edges` definition.** An edge is examined, and so listed, when it leaves a node at a depth below the limit in the followed direction (both endpoints count for `Both`). With `max_depth = Some(1)` only edges touching the start are listed.
+- **Text matching.** `text` lowercases the needle and the fields with Unicode lowercasing (`str::to_lowercase`), not full case folding, so `ß` does not match `ss`.
+- **Metadata matching.** Values compare by exact equality, so the CLI's `--meta key=value` (always a string) matches string metadata and string-list members but not an integer or boolean value written by hand into a file.
+- **CLI resolution.** The CLI resolves the start artifact with the artifact resolver first (for suggestions) and passes its id to the engine, so a traversal reads two snapshots; no query mutates anything, so they agree unless another process writes in between.
+- **Depth.** `--depth 0` is accepted and yields no nodes, as the engine defines it.

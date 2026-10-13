@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/query.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+{"schema_version":1,"artifact":{"id":"art_00000000000000000000000036","slug":"rfc-0002"},"relationships":[{"id":"rel_00000000000000000000000069","ref":"functor:relationship:rel_00000000000000000000000069","type":"depends_on","source":{"id":"art_00000000000000000000000036","slug":"rfc-0002"},"target":{"id":"art_00000000000000000000000035","slug":"rfc-0001"},"created":"2026-10-12T18:00:00Z","metadata":{}},{"id":"rel_0000000000000000000000006A","ref":"functor:relationship:rel_0000000000000000000000006A","type":"references","source":{"id":"art_00000000000000000000000037","slug":"notes"},"target":{"id":"art_00000000000000000000000036","slug":"rfc-0002"},"created":"2026-10-12T18:00:00Z","metadata":{}},{"id":"rel_0000000000000000000000006B","ref":"functor:relationship:rel_0000000000000000000000006B","type":"derived_from","source":{"id":"art_00000000000000000000000036","slug":"rfc-0002"},"target":{"id":"art_00000000000000000000000034","slug":"rfc-0000"},"created":"2026-10-12T18:00:00Z","metadata":{}}]}
+--- stderr ---
