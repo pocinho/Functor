@@ -24,3 +24,7 @@ Accepted
 ## RFC Impact
 
 Supports RFC-0001 and RFC-0008: semantics are independent of any representation.
+
+## Implementation Note (M3)
+
+The boundary holds as decided: `functor-model` has no serialization framework, and each crate owns its representation. For TOML, the "DTO" layer is implemented as hand-written codecs over the `toml_edit` document (`parse_*`, `render_*`, `edit_artifact_file`) instead of `serde`-derived structs, because loading must classify every kind of problem separately and preserve comments and unknown keys (ADR-0011). `serde` is used only for JSON output (`functor-cli`, later `functor-events`). See [../dependency-policy.md](../dependency-policy.md).

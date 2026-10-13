@@ -22,14 +22,14 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 |---------|-------|--------|
 | Id generation and parsing | `ulid` | model |
 | Error types | `thiserror` | model, core and other libraries |
-| TOML read, create and in-place edit | `toml_edit` (with its `serde` feature for reading) | repository, store |
-| Serialization framework | `serde` (derive) | repository, store, events, cli |
+| TOML read, create and in-place edit | `toml_edit` (document API, no serde) | repository, store |
+| Serialization framework | `serde` (derive) | events, cli (JSON output) |
 | JSON | `serde_json` | events, cli |
 | Async trait support | `async-trait` | core and the crates implementing core traits |
-| Async runtime | `tokio` (features: `rt`, `fs`, `sync`, `time`, `macros`, `signal`, `io-util`) | repository, store, events, cli |
-| File locking | `fd-lock` | repository |
+| Async runtime | `tokio` (features: `rt`; later `time`, `signal`, `io-util`, `sync` where needed; `macros` in dev-dependencies for `#[tokio::test]`) | repository, store, events, cli |
+| File locking | the standard library (`File::try_lock`, stable since Rust 1.89); no crate | repository |
 | Filesystem notifications | `notify` | events |
-| CLI parsing | `clap` (derive) | cli |
+| CLI parsing | `clap` (derive, `env`) | cli |
 | CLI error glue | `anyhow` | cli only |
 | Logging | `tracing`, `tracing-subscriber` | cli (subscriber), libraries (`tracing` macros only) |
 | Terminal color | `anstream` / `anstyle` (or `owo-colors`) honoring `NO_COLOR` | cli |
@@ -38,7 +38,9 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 
 Notes:
 
-- TOML: `toml_edit` is used for both reading and writing so that updates preserve comments and formatting ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). The plain `toml` crate is not used.
+- TOML: `toml_edit` is used for both reading and writing so that updates preserve comments and formatting ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). The plain `toml` crate is not used. Files are mapped to and from model types by hand from the `toml_edit` document (not through `serde` derives), because the loader must classify every kind of problem separately (`LoadIssueKind`) and keep unknown keys; `serde` therefore appears only where JSON is produced.
+- File locking: the write lock uses `std::fs::File::try_lock` with a bounded poll, so no locking crate is needed.
+- Blocking filesystem work runs through `tokio::task::spawn_blocking` (`functor_repository::run_blocking`), so `tokio` needs only the `rt` feature, not `fs`.
 - Async traits: `async-trait` on the core traits so they are dyn-compatible ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md), which supersedes ADR-0002). This is the approved exception to the rule that lower layers need an ADR for new dependencies.
 - `jsonschema` validates CLI JSON against `docs/schemas/*.json` in tests.
 

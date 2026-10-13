@@ -17,7 +17,7 @@ Implementation guidance for the MVP storage layer: how `FileStore` achieves dura
 | Repository lifecycle: layout paths, `repository.toml`, `format_version` check, `init`, `open`, `discover`, the write lock | `functor-repository` | Implements `RepositoryManager` ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)) |
 | `FileStore` | `functor-store` | Implements `RepositoryReader`, `ArtifactRepository`, `RelationshipRepository` over an opened repository |
 | `MemoryStore` | `functor-store` | Same traits, in memory. Used by unit tests, examples and as the second implementation in the conformance suite. It does not implement `RepositoryManager` |
-| DTOs (`ArtifactFile`, `RelationshipFile`, `RepositoryFile`) | `functor-store` (entities), `functor-repository` (`repository.toml`) | `toml_edit` mapping between TOML and model types (ADR-0005, ADR-0011) |
+| File codecs: `artifact_file`, `relationship_file` (store) and `repository_file`, `toml_support` (repository) | `functor-store`, `functor-repository` | Hand-written mapping between `toml_edit` documents and model types: `parse_*` (classifying every problem), `render_*` (canonical form) and `edit_artifact_file` (in-place edits). ADR-0005 and ADR-0011 |
 | `fs` helpers | `functor-repository` | Atomic write, safe path joins, locking, shared with `functor-store` and `functor-events` |
 
 Index structures are in-memory only and rebuilt on every snapshot (RFC-0008: indexes are implementation details and must not affect semantics). There is no on-disk index or cache in the MVP.
@@ -43,7 +43,7 @@ A single operation modifies **one** entity file, so it is atomic. Operations tha
 ## Locking
 
 - Advisory exclusive lock on `.functor/lock` for writers; readers do not lock. Readers always see complete files because of atomic rename, but a snapshot taken while a writer works may miss an in-flight entity. This is acceptable: a snapshot is a consistent view of **committed** entities (each file is old or new, never partial).
-- Implementation crate: `fd-lock` (see [dependency-policy.md](dependency-policy.md)), exposed as a `RepositoryLock` guard by `functor-repository`; `functor-store` and `functor-events` both use it. The lock file is created on demand and is not part of repository state.
+- Implementation: the standard library's `File::try_lock` on `.functor/lock`, polled until the timeout (see [dependency-policy.md](dependency-policy.md)). It is exposed as `WriteLock::run(closure)` by `functor-repository`, because a guard cannot outlive the file handle it borrows; `functor-store` and `functor-events` both use it. The lock file is created on demand and is not part of repository state.
 - Locks are per repository, not global. `watch` never takes the write lock.
 - Cancellation: dropping a write future before the rename leaves only a temp file. After the rename the write is committed. No other state exists.
 
@@ -53,7 +53,7 @@ A single operation modifies **one** entity file, so it is atomic. Operations tha
 
 1. `functor-repository` opens the repository: read and parse `.functor/repository.toml` and check `format_version` first. `FileStore` receives the opened repository handle.
 2. List `artifacts/` and `relationships/`, ignoring `.gitkeep` and files in the reserved set. Sort by file name for determinism.
-3. Parse each file into a DTO, then into a model value through the validating constructors.
+3. Parse each file with the file codecs, then into a model value through the validating constructors.
 4. Build indexes (id, slug, outgoing and incoming adjacency) in memory.
 
 `snapshot()` stops with `Inconsistent` at the first problem. `load()` collects every problem as a `LoadIssue` and continues:
@@ -65,6 +65,7 @@ A single operation modifies **one** entity file, so it is atomic. Operations tha
 | `DuplicateArtifactId` | `V0003` |
 | `DuplicateSlug` | `V0004` |
 | `InvalidIdentifier` | `V0005` |
+| `SelfReference` (an acyclic relationship pointing at its own source; the model constructor rejects it, so the loader reports it instead of building it) | `V0009` |
 | `DuplicateRelationshipId` | `V0008` |
 | `UnsafeContentPath`, `MissingContentFile` | `V0010` |
 | `UnsupportedFormat` | `V0013` |
@@ -123,7 +124,25 @@ Owned by `functor-events`, which depends on `functor-repository` for the log pat
 
 Version history and snapshots (RFC-0016), pluggable backends (SQLite, git objects, remote), on-disk indexes, repository export and import, packaging, content-addressable storage, and migration tooling.
 
+## Implementation Notes (M3)
+
+Decisions taken while implementing `functor-repository` and `functor-store` that refine the sections above:
+
+- **Blocking work.** The stores implement their logic synchronously (plain `std::fs`) and the async trait methods run it through `functor_repository::run_blocking` (`tokio::task::spawn_blocking`). `FileRepositoryManager` also offers `init_blocking`, `open_blocking` and `discover_blocking` for synchronous callers such as test factories.
+- **Reads.** Every read (`get`, `resolve`, `list`, `snapshot`) is a strict load of the whole repository, O(N) in files. There is no per-entity fast path and no cache in the MVP.
+- **Writes.** Every mutation takes the write lock, strict-loads, runs the rules in `functor-store`'s `rules` module (shared with `MemoryStore`), then writes one file. A damaged repository refuses writes with `Inconsistent`. A no-op update returns before writing; the file is not touched (verified by modification time).
+- **Loader semantics.**
+  - Candidates are `*.toml` files sorted by name. `.gitkeep` is skipped; files with the `.tmp-` marker, other extensions and subdirectories are `UnexpectedFile`.
+  - Duplicates: the first file in name order wins and the later one is reported (`DuplicateArtifactId`, `DuplicateSlug`, `DuplicateRelationshipId`) and **excluded**, so the lenient result stays internally consistent.
+  - `FilenameMismatch` keeps the entity (its id inside the file is authoritative) and reports the mismatch.
+  - Entities that cannot be represented are **excluded**: malformed files, bad identifiers, an unsafe content path (the model rejects it), and an acyclic relationship pointing at its own source (`SelfReference`). Relationships to an excluded artifact then show up as dangling, which validation reports as `V0006`/`V0007` next to the cause.
+  - `MissingContentFile` and a content link that resolves outside the repository (`UnsafeContentPath`, checked by canonicalizing both paths) keep the entity.
+  - Dangling relationship endpoints are **not** load issues; validation finds them from the loaded entities, and the strict snapshot rejects them.
+  - Files over 2 MiB and non-UTF-8 files are `MalformedFile`.
+- **Init.** `init` writes `.functor/repository.toml` last and atomically. It does not create `.functor/lock`; the first writer does. The default name is the directory name, falling back to `repository`. On failure it removes only what it created.
+- **Lock.** `WriteLock::run(closure)` polls `File::try_lock` every 10 ms until the timeout. `FileStore` takes the timeout from `StoreOptions` (the CLI will read `FUNCTOR_LOCK_TIMEOUT` and pass it in; libraries never read the environment).
+
 ## Test Obligations
 
 - The shared store **conformance suite** runs against `MemoryStore` and `FileStore` (see [testing-strategy.md](testing-strategy.md)). Repository lifecycle tests (`init`, `open`, `discover`, lock, format version) live in `functor-repository`.
-- `FileStore`-specific tests: atomic replace with injected failure before rename, stray temp-file handling, lock contention from two processes, read-while-write, CRLF input, in-place update preserving comments, key order, whitespace and unknown keys, a no-op update writing nothing, path-traversal attempts in `content.path`, files above size caps.
+- `FileStore`-specific tests (all implemented in `functor-store/tests/file_store.rs`): canonical files named by id, in-place update preserving comments, key order, whitespace and unknown keys, a no-op update writing nothing, CRLF checkouts, every `LoadIssueKind` from damaged files, stray temp files, content path safety (including a symbolic link escaping the root where links can be created), size caps, writes refused in a damaged repository, lock contention, concurrent writers and a racing slug, moving the repository directory. Atomic replace with a failure injected before the rename is tested in `functor-repository` (`atomic_write`).

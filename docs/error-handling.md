@@ -23,7 +23,7 @@ pub enum FunctorError {
     #[error("{entity} not found: {reference}")]
     NotFound { entity: EntityKind, reference: String, suggestions: Vec<String> },
 
-    #[error("{entity} already exists or conflicts: {detail}")]
+    #[error("{detail}")]
     Conflict { entity: EntityKind, detail: String },        // duplicate slug, stale revision, duplicate relationship
 
     #[error("invalid {field}: {reason}")]

@@ -96,6 +96,8 @@ pub enum LoadIssueKind {
     DuplicateSlug,
     /// A malformed identifier or slug (`V0005`).
     InvalidIdentifier,
+    /// A relationship of an acyclic type points at its own source (`V0009`).
+    SelfReference,
     /// Two relationship files claim the same id (`V0008`).
     DuplicateRelationshipId,
     /// A content path escapes the repository or is otherwise unsafe (`V0010`).
@@ -284,6 +286,7 @@ mod tests {
             LoadIssueKind::DuplicateArtifactId,
             LoadIssueKind::DuplicateSlug,
             LoadIssueKind::InvalidIdentifier,
+            LoadIssueKind::SelfReference,
             LoadIssueKind::DuplicateRelationshipId,
             LoadIssueKind::UnsafeContentPath,
             LoadIssueKind::MissingContentFile,

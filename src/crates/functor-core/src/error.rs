@@ -26,8 +26,9 @@ pub enum FunctorError {
     },
 
     /// The operation conflicts with existing state: duplicate slug, stale revision, duplicate
-    /// relationship.
-    #[error("{entity} already exists or conflicts: {detail}")]
+    /// relationship, an existing repository. The message is the detail alone; `entity` is data
+    /// for projections.
+    #[error("{detail}")]
     Conflict {
         /// The kind of entity involved.
         entity: EntityKind,

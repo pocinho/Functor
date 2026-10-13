@@ -67,6 +67,11 @@ CLI: `functor init`.
 
 Done when: `functor-repository` passes its lifecycle and lock tests; both stores pass the conformance suite; `FileStore` passes its specific tests (atomic replace, lock contention, CRLF, comment and unknown-key preservation on update, path traversal); `functor init` works and creates the documented layout.
 
+Status: implemented.
+- `functor-repository` (44 tests): `Layout`, `repository.toml` codec, `atomic_write` (with failure injection before the rename), `WriteLock` (contention and timeout tests), `FileRepositoryManager` (`init` with failure cleanup, `open`, `discover`, `--nested` rule, format version check) and the shared `toml_support` helpers.
+- `functor-store` (60 tests): `MemoryStore` and `FileStore` both pass the conformance suite; artifact and relationship codecs with canonical rendering and in-place edits; the lenient loader with every `LoadIssueKind`; 29 `FileStore`-specific scenarios. Notes in [storage-design.md](storage-design.md#implementation-notes-m3).
+- `functor-cli`: `functor init [PATH] [--name] [--description] [--nested]` with global `--repo` and `--output text|json`, error rendering in both modes and exit codes (12 end-to-end tests).
+
 ## M4: Artifact Management
 
 CLI: `artifact create|show|list|update`, argument resolver ([identity-and-addressing.md](identity-and-addressing.md)), text and JSON rendering, error rendering and exit codes ([cli-spec.md](cli-spec.md)). Introduce the golden-file and JSON-schema test harness.

@@ -17,7 +17,8 @@ pub const NOT_FOUND: u8 = 3;
 pub const CONFLICT: u8 = 4;
 /// Not a repository, an unsupported format, or inconsistent repository data.
 pub const REPOSITORY: u8 = 5;
-/// Validation failed; this is an outcome, not an error kind.
+/// Validation failed; this is an outcome, not an error kind. Used by `validate` (M7).
+#[allow(dead_code)]
 pub const VALIDATION_FAILED: u8 = 6;
 /// A storage or locking failure.
 pub const STORAGE: u8 = 7;
