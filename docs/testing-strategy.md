@@ -1,58 +1,100 @@
 # Testing Strategy
 
+Status: Draft
+Related RFCs: all implemented RFCs (via [rfc-conformance.md](rfc-conformance.md))
+Related docs: [development-workflow.md](development-workflow.md), [traits-and-interfaces.md](traits-and-interfaces.md), [validation-rules.md](validation-rules.md), [cli-spec.md](cli-spec.md)
+
 ## Purpose
 
-Defines the testing approach for the Functor CLI MVP.
+Defines how the Functor CLI MVP is tested, what must be covered at each level, and how tests prove RFC compliance.
 
 ## Principles
 
-- Test core semantics first.
-- Favor deterministic tests.
-- Validate RFC compliance.
-- Keep tests independent.
+- Test core semantics first, at the lowest layer that can express them.
+- Deterministic tests only: injected clock and id generator, no sleeping on wall-clock time, no dependence on directory order, no network.
+- Tests are independent and run in parallel; each uses its own temporary directory.
+- **Traceability:** every "Implemented" and "Subset" row in [rfc-conformance.md](rfc-conformance.md) names at least one test. A requirement without a test is not done.
+- Test the contract, not the implementation: the same suites run against every implementation of a trait.
 
-## Unit Tests
+## Test Pyramid
 
-Cover:
+| Level | Where | Purpose |
+|-------|-------|---------|
+| Unit | `#[cfg(test)]` modules in each crate | Invariants and pure logic |
+| Property | `proptest` in model, store, query | Round trips, determinism, termination |
+| Conformance | `functor-testkit`, run from `functor-store` | Same behavior across `MemoryStore` and `FileStore` |
+| Integration (library) | `tests/` of services, using the traits only | Whole workflows without the CLI |
+| CLI end-to-end | `src/app/cli/tests/` with `assert_cmd` | Arguments, output, exit codes, files on disk |
+| Golden and schema | `insta` snapshots, JSON Schema validation | Output contracts |
+| Acceptance | one end-to-end test | The MVP success path |
+| Benchmarks | scheduled CI job | [nonfunctional-requirements.md](nonfunctional-requirements.md) budgets |
 
-- Artifact models
-- Identity rules
-- Relationship rules
-- Validation logic
+## Unit and Property Tests by Crate
 
-## Integration Tests
+### functor-model
 
-Cover:
+Every invariant in the table at the end of [domain-model.md](domain-model.md): id round trips, slug grammar tables, relationship type parsing (including the kebab alias and the built-in-never-custom rule), `Revision` non-zero, tag normalization, `ContentPath` rejection cases, outcome derivation.
 
-- Repository initialization
-- Artifact creation
-- Relationship creation
-- Query workflows
-- Validation workflows
+### functor-core
 
-## Repository Fixtures
+Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit).
 
-Use small sample repositories as test fixtures.
+### functor-store
 
-## CLI Tests
+- Canonical serialization: `serialize(parse(serialize(x))) == serialize(x)` (property), golden TOML files for artifact, relationship and repository, unknown-field preservation.
+- `FileStore` specifics: atomic replace with failure injected before the rename, stray `.tmp-` files ignored, lock contention across two processes, read while write, CRLF input, size caps, path traversal in `content.path`, lenient `load()` reporting each `LoadIssue` kind, `UnsupportedFormat`.
 
-Validate:
+### functor-query
 
-```bash
-functor init
-functor artifact create
-functor relation add
-functor query
-functor validate
-```
+Table-driven traversal tests (chain, diamond, cycle, disconnected, depth 0, 1, n and unlimited, each direction, type filters), search filter combinations and ordering, property: traversal terminates and reports each node once on arbitrary generated graphs.
 
-## Snapshot Tests
+### functor-validation
 
-Use golden files for CLI output where practical.
+One minimal fixture repository **per rule code** (`V0001` to `V0018`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
 
-## Acceptance Tests
+### functor-events
 
-The MVP is successful if the following workflow passes:
+Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap-free under concurrent writers (multi-process); truncated tail handling; watcher behavior (existing events, new events, log created later, `--after`, truncation, filters), using `count` and `timeout` instead of sleeps.
+
+## Conformance Suite
+
+`functor-testkit` exports `fn run_store_conformance<S: Store>(factory: impl Fn() -> S)` (macro or generic harness) covering `RepositoryManager`, `RepositoryReader`, `ArtifactRepository` and `RelationshipRepository`:
+
+- create, get, resolve by id and slug, list ordering
+- duplicate slug conflict, slug rename, revision increment, stale `--expect-revision` conflict
+- relationship endpoint existence, duplicate triple conflict, self-reference rejection
+- strict snapshot vs lenient load on damaged data (injected through a store-specific hook)
+- determinism: identical operation sequences with fixed clock and ids give identical snapshots
+
+`MemoryStore` and `FileStore` both run the suite. A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
+
+## Fixtures
+
+- Builders in `functor-testkit` create repositories programmatically (`RepoBuilder::new().artifact("rfc-0000").relation("rfc-0001", "depends_on", "rfc-0000")`).
+- Static fixture repositories live in `examples/` and `tests/fixtures/`: `clean/`, `one-per-rule/V00NN/`, `getting-started/`. They are real repositories on disk, created once by tests using the library and committed; a test verifies the checked-in fixtures are still produced by the current serializer (prevents silent drift).
+- Fixtures use fixed ids and timestamps.
+
+## CLI End-to-End Tests
+
+Run the built binary with `assert_cmd` in a temporary directory:
+
+- Every command, in `text` and `json` modes.
+- Every exit code in [error-handling.md](error-handling.md) from a real scenario.
+- Repository discovery from a nested directory, `--repo`, `FUNCTOR_REPO`.
+- Stdout vs stderr separation, JSON errors on stderr, `NO_COLOR`.
+- Closed-pipe behavior for `watch` and large listings.
+- Test-only determinism variables (`FUNCTOR_TEST_FIXED_TIME`, `FUNCTOR_TEST_ID_SEED`) under the `test-support` feature.
+
+## Golden Files and Schemas
+
+- Text output goldens for the examples in [cli-spec.md](cli-spec.md); `insta` snapshots stored in repository.
+- JSON output of every command validated against `docs/schemas/*.json`, and additionally snapshotted.
+- Help text snapshots.
+- Updating goldens is a deliberate review step ([development-workflow.md](development-workflow.md)).
+
+## Acceptance Test
+
+One test runs the full MVP success path on a clean temporary directory with fixed time and ids and asserts exit codes and goldens after each step:
 
 ```bash
 functor init
@@ -60,14 +102,34 @@ functor artifact create rfc-0000
 functor artifact create rfc-0001
 functor relation add rfc-0001 depends_on rfc-0000
 functor query dependencies rfc-0001
+functor query dependents rfc-0000
 functor validate
 ```
 
+and then the negative variant: delete `artifacts/<rfc-0000 id>.toml`, run `functor validate`, expect exit 6, finding `V0007` and an unchanged exit-code mapping. The same scenario also runs through the library API only (no CLI), which proves the CLI is a pure projection (exit criterion 6 in [mvp-scope.md](mvp-scope.md)).
+
+Matches the walkthrough in [getting-started.md](getting-started.md).
+
+## Failure Injection
+
+Store functions accept a test hook (compiled under `cfg(test)` or a `test-hooks` feature of `functor-store`) to fail at defined points: before rename, after rename, during event append. Tests assert the crash table in [storage-design.md](storage-design.md).
+
+## Cross-Platform
+
+CI runs the full suite on Linux, Windows and macOS. Known differences to cover explicitly: path separators in outputs, CRLF checkouts, file replacement while a handle is open (Windows), case-insensitive filesystems, notification vs polling in `watch`.
+
+## Coverage
+
+Coverage is measured with `cargo llvm-cov` and reported, not gated by a percentage, except these hard requirements:
+
+- every validation rule code has a triggering and a non-triggering test;
+- every `FunctorError` variant is produced by at least one test and mapped to an exit code;
+- every CLI command has a success test and at least one failure test.
+
 ## Continuous Integration
 
-Run:
+Runs formatting checks, clippy with warnings denied, unit, integration, conformance, golden, acceptance and doc tests on three platforms, plus dependency checks. See [development-workflow.md](development-workflow.md).
 
-- Unit tests
-- Integration tests
-- Formatting checks
-- Linting
+## Test Data Hygiene
+
+No test touches the real user home or the repository working tree: always use `tempfile::tempdir()`. Tests never depend on the order of `read_dir`; any listing comparison sorts explicitly.

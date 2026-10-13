@@ -226,28 +226,32 @@ Together these documents define the semantic and architectural foundation of Fun
 
 The documentation directory bridges the gap between architecture and implementation.
 
-Examples include:
+Start with [docs/README.md](docs/README.md) for the full index and reading order. Examples include:
 
 ```text
+mvp-scope.md
 cli-mvp-roadmap.md
+cli-spec.md
+
+domain-model.md
+identity-and-addressing.md
+artifact-format.md
+repository-layout.md
+storage-design.md
+
+query-model-mvp.md
+validation-rules.md
+event-model-mvp.md
 
 workspace-layout.md
-
 crate-dependencies.md
-
 traits-and-interfaces.md
-
-artifact-format.md
-
-repository-layout.md
-
 api-design-guidelines.md
-
-mvp-scope.md
-
-repository-lifecycle.md
+error-handling.md
 
 testing-strategy.md
+rfc-conformance.md
+adr/
 ```
 
 These documents are intended to support implementation.

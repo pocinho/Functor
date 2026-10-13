@@ -1,294 +1,136 @@
 # Functor Workspace Layout
 
+Status: Draft
+Related RFCs: RFC-0002, RFC-0011 (projections), RFC-0008
+Related ADRs: ADR-0002, ADR-0004, ADR-0005
+Related docs: [crate-dependencies.md](crate-dependencies.md), [dependency-policy.md](dependency-policy.md)
+
 ## Purpose
 
-This document proposes an initial Rust workspace structure for the Functor CLI MVP and the broader Functor ecosystem. The layout maps RFC concepts to concrete crates and establishes clear architectural boundaries.
+Defines the Rust workspace for the CLI MVP: where code lives, which crates exist now, which are deferred, and which RFCs each crate implements.
 
 ## Design Principles
 
-- API-first architecture
-- Semantic model at the center
-- Frontends as projections
-- Extension-friendly composition
-- Minimal coupling between crates
-- Progressive evolution from MVP to ecosystem
+- API-first: contracts in `functor-core`, implementations elsewhere.
+- Semantic model at the center; projections at the edge.
+- Minimal coupling; one reason to change per crate.
+- Grow by adding crates, not by widening existing ones.
 
-## Workspace Structure
+## Current State of the Repository
+
+The skeleton in the repository today:
+
+```text
+Cargo.toml            # a single [package] "functor" (edition 2024), no [workspace]
+.cargo/config.toml    # build.target-dir = "out/cargo"
+src/app/cli/          # empty
+src/app/desktop/      # empty (future projection)
+src/crates/           # empty
+```
+
+Earlier drafts of this document described `crates/` at the repository root and a `roadmaps/` directory. Both are obsolete (ADR-0004).
+
+## Target Layout (MVP)
 
 ```text
 functor/
-├── Cargo.toml
-├── crates/
-│   ├── functor-model/
-│   ├── functor-core/
-│   ├── functor-store/
-│   ├── functor-query/
-│   ├── functor-validation/
-│   ├── functor-runtime/
-│   ├── functor-events/
-│   ├── functor-repository/
-│   ├── functor-capabilities/
-│   ├── functor-cli/
-│   └── functor-mcp/
+├── Cargo.toml                 # virtual workspace; no root package
+├── rust-toolchain.toml        # pinned toolchain (see development-workflow.md)
+├── rustfmt.toml
+├── deny.toml                  # cargo-deny: licenses, bans, advisories
+├── .cargo/config.toml
+├── .github/workflows/ci.yml
+├── src/
+│   ├── crates/
+│   │   ├── functor-model/        # domain types, no I/O
+│   │   ├── functor-core/         # traits, errors, Clock and IdGenerator
+│   │   ├── functor-store/        # FileStore, MemoryStore, TOML DTOs, repository lifecycle
+│   │   ├── functor-query/        # snapshot query engine
+│   │   ├── functor-validation/   # rule catalog and engine
+│   │   ├── functor-events/       # event log, publisher, watcher
+│   │   └── functor-testkit/      # test doubles, conformance suite, fixtures (publish = false)
+│   └── app/
+│       ├── cli/                  # package functor-cli, binary "functor"
+│       └── desktop/              # reserved; not a workspace member in the MVP
+├── examples/                     # sample repositories used as docs and fixtures
+├── docs/                         # this documentation (including docs/schemas/ JSON Schemas)
 ├── rfcs/
-├── examples/
-├── roadmaps/
-└── docs/
+└── vision/
 ```
+
+Root `Cargo.toml` outline:
+
+```toml
+[workspace]
+resolver = "3"
+members = ["src/crates/*", "src/app/cli"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+rust-version = "<pinned MSRV>"
+
+[workspace.dependencies]   # all external crates and internal path dependencies, versions in one place
+[workspace.lints.rust]     # unsafe_code = "forbid", missing_docs = "warn"
+[workspace.lints.clippy]   # see development-workflow.md
+```
+
+Each crate sets `[lints] workspace = true`.
 
 ## Crate Responsibilities
 
-### functor-model
-
-Owns the core semantic types.
-
-Relevant RFCs:
-
-- RFC-0001 Core Semantic Model
-- RFC-0003 Artifact Model
-- RFC-0004 Relationship Model
-- RFC-0005 Identity and Addressing
-
-Example contents:
-
-```rust
-Artifact
-ArtifactId
-Relationship
-RelationshipId
-RepositoryId
-VersionId
-```
-
-### functor-core
-
-Defines the primary platform interfaces.
-
-Relevant RFCs:
-
-- RFC-0002 API-First Architecture
-
-Example contents:
-
-```rust
-ArtifactStore
-QueryEngine
-ValidationEngine
-Runtime
-Repository
-```
-
-### functor-store
-
-Persistence implementations.
-
-Relevant RFCs:
-
-- RFC-0008 Storage and Persistence
-
-Initial MVP:
-
-- File-based storage
-- TOML serialization
-- Local repositories
-
-### functor-query
-
-Query execution and graph traversal.
-
-Relevant RFCs:
-
-- RFC-0006 Query Model
-
-Responsibilities:
-
-- Filtering
-- Traversal
-- Selection
-- Projection support
-
-### functor-validation
-
-Validation framework.
-
-Relevant RFCs:
-
-- RFC-0007 Validation and Execution
-
-Examples:
-
-- Missing references
-- Invalid identities
-- Repository consistency
-
-### functor-runtime
-
-Execution infrastructure.
-
-Relevant RFCs:
-
-- RFC-0007 Validation and Execution
-
-MVP scope:
-
-- Local execution hooks
-- Future execution providers
-
-### functor-events
-
-Event publication and consumption.
-
-Relevant RFCs:
-
-- RFC-0017 Event Model
-
-Examples:
-
-```text
-artifact.created
-artifact.updated
-repository.changed
-```
-
-### functor-repository
-
-Repository lifecycle services.
-
-Relevant RFCs:
-
-- RFC-0009 Federation and Synchronization
-- RFC-0015 Repository Model
-- RFC-0016 Versioning Model
-
-Responsibilities:
-
-- Repository initialization
-- Repository metadata
-- Version tracking
-- Synchronization support
-
-### functor-capabilities
-
-Capability discovery and registration.
-
-Relevant RFCs:
-
-- RFC-0010 Capability Model
-- RFC-0014 Extension Model
-
-Responsibilities:
-
-- Capability registration
-- Capability inspection
-- Extension contribution
-
-### functor-cli
-
-CLI projection over the API.
-
-Relevant RFCs:
-
-- RFC-0011 Projection Model
-
-Examples:
-
-```bash
-functor init
-functor artifact create
-functor query
-functor validate
-```
-
-### functor-mcp
-
-MCP integration layer.
-
-Relevant RFCs:
-
-- RFC-0012 Interoperability and Integration
-
-Responsibilities:
-
-- Tool exposure
-- Resource exposure
-- Agent interoperability
-
-## Dependency Direction
-
-```text
-functor-model
-      ↑
-functor-core
-      ↑
-+--------------------------+
-| store                    |
-| query                    |
-| validation               |
-| runtime                  |
-| repository               |
-| events                   |
-| capabilities             |
-+--------------------------+
-      ↑
-+----------------+
-| CLI            |
-| MCP            |
-+----------------+
-```
-
-Rules:
-
-- Lower layers must not depend on upper layers.
-- Model must remain dependency-light.
-- Projections depend on services.
-- Services depend on contracts.
-
-## MVP Scope
-
-Required crates:
-
-```text
-functor-model
-functor-core
-functor-store
-functor-query
-functor-validation
-functor-cli
-```
-
-Deferred until later:
-
-```text
-functor-runtime
-functor-events
-functor-repository
-functor-capabilities
-functor-mcp
-```
-
-## Mapping RFCs to Implementation
-
-| RFC | Primary Crates |
-|------|----------------|
-| 0001 | model |
-| 0002 | core |
-| 0003 | model |
-| 0004 | model, query |
-| 0005 | model |
-| 0006 | query |
-| 0007 | validation, runtime |
-| 0008 | store |
-| 0009 | repository |
-| 0010 | capabilities |
-| 0011 | cli, mcp |
-| 0012 | mcp |
-| 0013 | repository, validation |
-| 0014 | capabilities |
-| 0015 | repository |
-| 0016 | repository |
-| 0017 | events |
-| 0018 | ecosystem governance |
-
-## Long-Term Goal
-
-The workspace should support multiple projections and integrations while preserving a stable semantic core. Implementations may evolve, but the semantic model and API contracts should remain the center of the architecture.
+| Crate | Responsibility | Implements |
+|-------|----------------|------------|
+| `functor-model` | Identifiers, `Artifact`, `Relationship`, `RepositoryInfo`, `RepositorySnapshot`, query, validation and event value types. No I/O, no serde, no runtime | RFC-0001, 0003, 0004, 0005 |
+| `functor-core` | Service traits, `FunctorError`, `Clock`, `IdGenerator`, system implementations | RFC-0002 |
+| `functor-store` | `FileStore` and `MemoryStore`: repository init/open/discover, artifact and relationship persistence, strict and lenient load, locking, atomic writes, TOML DTOs | RFC-0008, 0015 (subset) |
+| `functor-query` | `SnapshotQueryEngine`: lookup, search, traverse | RFC-0006 |
+| `functor-validation` | Rule catalog `V0001..`, `RuleValidationEngine`, report assembly | RFC-0007 (validation half) |
+| `functor-events` | `FileEventLog`: publish, subscribe, tailing, event DTO | RFC-0017 (subset) |
+| `functor-testkit` | `FixedClock`, `SequentialIds`, fixture builders, store conformance suite, snapshot helpers | testing support |
+| `functor-cli` | Argument parsing (clap), command handlers, rendering (text and JSON DTOs), exit-code mapping, composition root | RFC-0011 |
+
+Repository lifecycle (`init`, `open`, `discover`) lives in `functor-store` for the MVP. The earlier plan for a `functor-repository` crate is deferred until versioning (RFC-0016) and federation (RFC-0009) need to own repository-level concerns.
+
+## Deferred Crates
+
+| Crate | Reason | RFC |
+|-------|--------|-----|
+| `functor-runtime` | Execution is out of the MVP | RFC-0007 (execution), 0010 |
+| `functor-repository` | See above | RFC-0009, 0015, 0016 |
+| `functor-capabilities` | No capability discovery in the MVP | RFC-0010, 0014 |
+| `functor-sync`, `functor-security` | Federation and trust | RFC-0009, 0013 |
+| `functor-extensions` | No extensions | RFC-0014 |
+| `functor-mcp`, `functor-web`, `functor-editor` | Other projections and integrations | RFC-0011, 0012 |
+
+## RFC to Crate Mapping (MVP)
+
+| RFC | Primary crates | MVP status |
+|-----|----------------|------------|
+| 0001 | model | Implemented |
+| 0002 | core, cli | Implemented |
+| 0003 | model, store | Implemented (version as `revision`) |
+| 0004 | model, store, validation | Subset (4 built-in types, custom allowed) |
+| 0005 | model | Implemented (slug extension in ADR-0001) |
+| 0006 | query | Subset |
+| 0007 | validation | Validation only |
+| 0008 | store | Subset (file store, no history) |
+| 0009 | | Deferred |
+| 0010 | | Deferred |
+| 0011 | cli | Subset (CLI is the only projection) |
+| 0012 | | Deferred |
+| 0013 | | Deferred (basic local safety in [nonfunctional-requirements.md](nonfunctional-requirements.md)) |
+| 0014 | | Deferred |
+| 0015 | model, store | Subset |
+| 0016 | | Deferred (`revision` counter only) |
+| 0017 | events, cli | Subset (ADR-0003) |
+| 0018 | | Deferred |
+
+The authoritative, requirement-level table is [rfc-conformance.md](rfc-conformance.md).
+
+## Rules
+
+- Dependencies flow downward only; see [crate-dependencies.md](crate-dependencies.md).
+- New crates require a short justification in the pull request and an update to this document.
+- Crate names are `functor-<noun>`; the binary is named `functor`.
+- All crates are `publish = false` until the first public release decision.

@@ -1,320 +1,103 @@
 # CLI MVP Roadmap
 
+Status: Draft
+Related docs: [mvp-scope.md](mvp-scope.md), [workspace-layout.md](workspace-layout.md), [testing-strategy.md](testing-strategy.md), [development-workflow.md](development-workflow.md), [product-roadmap.md](product-roadmap.md) (long term)
+
 ## Purpose
 
-This document describes a practical implementation roadmap for the first Functor CLI MVP.
+The ordered, milestone-level plan to build the CLI MVP. The goal is not to implement every RFC; it is to validate the core architectural assumptions of RFC-0000 to RFC-0018 through a working API-first implementation. Scope is in [mvp-scope.md](mvp-scope.md); this document says in what order and with what acceptance evidence.
 
-The goal of the MVP is not to implement every RFC. The goal is to validate the core architectural assumptions defined in RFC-0000 through RFC-0018 through a working API-first implementation.
+## Guiding Rules
 
----
+- **API first.** Each capability is implemented and tested through core traits before the CLI exposes it. The CLI never becomes the system of record.
+- **Semantic first.** Follow the RFC-derived model in [domain-model.md](domain-model.md).
+- **Every milestone is usable and shippable.** It leaves `main` green: format, clippy, tests and the dependency-edge check pass.
+- **Tests with the code.** A milestone is not done until its test obligations in the linked docs exist.
+- **Contracts before code.** If implementation requires changing a contract doc, change the doc (or add an ADR) in the same pull request.
 
-# MVP Goal
-
-Demonstrate:
-
-- Artifact creation
-- Relationship management
-- Repository persistence
-- Query capabilities
-- Validation workflows
-- API-first architecture
-- CLI as a projection over the API
-
-Success is measured by proving the platform architecture, not by feature completeness.
-
----
-
-# Guiding Principles
-
-## API First
-
-All functionality must be implemented in reusable APIs before being exposed through the CLI.
+## Milestone Map
 
 ```text
-Core API
-    ↓
-CLI Commands
+M0 Bootstrap -> M1 Model -> M2 Core + Testkit -> M3 Storage -> M4 Artifact CLI
+   -> M5 Relationship CLI -> M6 Query -> M7 Validation -> M8 Events -> M9 Hardening
 ```
 
-The CLI must never become the system of record.
+M6, M7 and M8 depend only on M5 and may proceed in parallel.
 
-## Semantic First
+## M0: Workspace Bootstrap
 
-Implementation must follow the semantic model defined by the RFC series.
+- Convert the root `Cargo.toml` to a virtual workspace and create the empty crates ([workspace-layout.md](workspace-layout.md), ADR-0004).
+- `rust-toolchain.toml`, `rustfmt.toml`, workspace lints, `deny.toml`.
+- CI workflow: fmt, clippy, test, deny on Linux, Windows and macOS ([development-workflow.md](development-workflow.md)).
+- Dependency-edge check script ([crate-dependencies.md](crate-dependencies.md)).
 
-## Incremental Delivery
+Done when: CI is green on all three platforms with empty crates and `functor --version` runs.
 
-Each milestone must produce a usable result.
+## M1: Semantic Model (`functor-model`)
 
----
+RFC-0001, 0003, 0004, 0005. Identifiers, slug, artifact, relationship and type enums, snapshot with indexes, query, validation and event value types.
 
-# Workspace Structure
+Done when: every invariant in [domain-model.md](domain-model.md) has a unit or property test, and artifacts and relationships can be created entirely in memory.
 
-Suggested Rust workspace:
+## M2: Core Contracts and Testkit (`functor-core`, `functor-testkit`)
 
-```text
-functor/
-├── crates/
-│   ├── functor-model
-│   ├── functor-core
-│   ├── functor-store
-│   ├── functor-query
-│   ├── functor-validation
-│   └── functor-cli
-├── examples/
-├── rfcs/
-└── roadmaps/
-```
+RFC-0002. Traits ([traits-and-interfaces.md](traits-and-interfaces.md)), `FunctorError` ([error-handling.md](error-handling.md)), `Clock`, `IdGenerator`, test doubles and the **store conformance suite** (written against the traits, initially without an implementation).
 
----
+Done when: the traits compile with doc comments and the conformance suite compiles; the error-to-exit-code mapping function has its exhaustive test.
 
-# Phase 1 - Core Domain Model
+## M3: Storage (`functor-store`)
 
-## Objective
+RFC-0008, 0015 subset. `MemoryStore` first (passes the conformance suite), then `FileStore`: `init`, `open`, `discover`, artifact and relationship persistence, strict and lenient loading, locking and atomic writes ([storage-design.md](storage-design.md), [artifact-format.md](artifact-format.md), [repository-layout.md](repository-layout.md)).
 
-Implement RFC-0001 through RFC-0005.
+CLI: `functor init`.
 
-## Deliverables
+Done when: both stores pass the conformance suite; `FileStore` passes its specific tests (atomic replace, lock contention, CRLF, unknown fields, path traversal); `functor init` works and creates the documented layout.
 
-### functor-model
+## M4: Artifact Management
 
-Core types:
+CLI: `artifact create|show|list|update`, argument resolver ([identity-and-addressing.md](identity-and-addressing.md)), text and JSON rendering, error rendering and exit codes ([cli-spec.md](cli-spec.md)). Introduce the golden-file and JSON-schema test harness.
 
-```rust
-Artifact
-ArtifactId
-Relationship
-RelationshipId
-Repository
-Query
-```
+Done when: artifacts can be stored and retrieved through the CLI and through the library API; golden tests cover success and every error path of these commands. (Event emission is added in M8 once `functor-events` exists; handlers already call a `publish` seam backed by a no-op publisher until then.)
 
-### Identity Support
+## M5: Relationship Management
 
-```rust
-ArtifactId
-RelationshipId
-RepositoryId
-```
+CLI: `relation add|list|show`. Endpoint existence, duplicate and self-reference rules ([traits-and-interfaces.md](traits-and-interfaces.md), ADR-0007).
 
-### Relationship Types
+Done when: artifacts form a navigable graph on disk; `functor relation add rfc-0001 depends_on rfc-0000` works with slugs, ids and the kebab alias.
 
-Examples:
+## M6: Query (`functor-query`)
 
-```text
-depends_on
-references
-extends
-derived_from
-```
+RFC-0006 subset. Snapshot engine, `query artifacts|dependencies|dependents|relationships` ([query-model-mvp.md](query-model-mvp.md)).
 
-## Completion Criteria
+Done when: table-driven and property tests pass for traversal on both stores, and users can discover and navigate repository content.
 
-Artifacts and relationships can be created entirely in memory.
+## M7: Validation (`functor-validation`)
 
----
+RFC-0007 validation subset. The rule catalog `V0001` to `V0018`, report, exit-code policy, `validate [artifact] [--strict]` ([validation-rules.md](validation-rules.md)).
 
-# Phase 2 - Core APIs
+Done when: each rule has its own fixture repository and the clean fixture passes; output is byte-identical across runs.
 
-## Objective
+## M8: Events (`functor-events`)
 
-Implement RFC-0002.
+RFC-0017 subset ([event-model-mvp.md](event-model-mvp.md), ADR-0003). Event log, publisher, subscription, `functor watch`; replace the no-op publisher in the mutating commands and `validate`.
 
-### functor-core
+Done when: each mutating command emits exactly one event, sequence numbers are gap-free under concurrent writers, `watch` passes its tests (existing, new, truncated, filters) and a failed append only warns.
 
-Traits only.
+## M9: Hardening and MVP Exit
 
-```rust
-ArtifactRepository
-RelationshipRepository
-QueryEngine
-ValidationEngine
-```
+- Acceptance workflow on all platforms ([testing-strategy.md](testing-strategy.md)).
+- `examples/getting-started/` fixture matching [getting-started.md](getting-started.md); JSON Schemas in `docs/schemas/`.
+- Performance check against [nonfunctional-requirements.md](nonfunctional-requirements.md).
+- [rfc-conformance.md](rfc-conformance.md) fully populated; README and docs index updated.
+- Review of every "Open Question" below.
 
-No storage implementation.
+Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 
-## Completion Criteria
+## Parallelization
 
-Domain operations can be performed through API contracts.
+After M3, one engineer can work on the artifact CLI (M4) while another builds query (M6) and validation (M7) against `MemoryStore` and fixtures; M8 only needs the publisher trait from M2 and the store lock from M3.
 
----
-
-# Phase 3 - Repository Storage
-
-## Objective
-
-Implement foundational RFC-0008 support.
-
-### functor-store
-
-Local file-backed implementation.
-
-Suggested layout:
-
-```text
-.functor/
-    repository.toml
-
-artifacts/
-relationships/
-```
-
-## Commands
-
-```bash
-functor init
-```
-
-## Completion Criteria
-
-Repositories persist to disk.
-
----
-
-# Phase 4 - Artifact Management
-
-## Objective
-
-Implement RFC-0003.
-
-## Commands
-
-```bash
-functor artifact create
-functor artifact list
-functor artifact show
-```
-
-Example:
-
-```bash
-functor artifact create rfc-0000
-```
-
-## Completion Criteria
-
-Artifacts can be stored and retrieved.
-
----
-
-# Phase 5 - Relationship Management
-
-## Objective
-
-Implement RFC-0004.
-
-## Commands
-
-```bash
-functor relation add
-functor relation list
-```
-
-Example:
-
-```bash
-functor relation add \
-  rfc-0001 \
-  depends-on \
-  rfc-0000
-```
-
-## Completion Criteria
-
-Artifacts form a navigable graph.
-
----
-
-# Phase 6 - Query Engine
-
-## Objective
-
-Implement RFC-0006.
-
-### functor-query
-
-Support:
-
-```text
-Lookup
-Traversal
-Dependency inspection
-Reverse dependency inspection
-```
-
-## Commands
-
-```bash
-functor query artifacts
-functor query dependencies rfc-0001
-functor query dependents rfc-0000
-```
-
-## Completion Criteria
-
-Users can discover and navigate repository content.
-
----
-
-# Phase 7 - Validation
-
-## Objective
-
-Implement an initial RFC-0007 subset.
-
-### functor-validation
-
-Checks:
-
-```text
-Missing references
-Invalid identities
-Duplicate identifiers
-Broken relationships
-```
-
-## Commands
-
-```bash
-functor validate
-```
-
-## Completion Criteria
-
-Repository integrity can be verified.
-
----
-
-# Phase 8 - Events
-
-## Objective
-
-Implement an RFC-0017 subset.
-
-### Event Types
-
-```text
-artifact.created
-artifact.updated
-relationship.created
-validation.completed
-```
-
-## Commands
-
-```bash
-functor watch
-```
-
-## Completion Criteria
-
-Consumers can observe repository activity.
-
----
-
-# Future Phases
-
-The following RFCs are intentionally deferred:
+## Deferred Beyond the MVP
 
 ```text
 RFC-0009 Federation and Synchronization
@@ -324,41 +107,15 @@ RFC-0013 Security and Trust Model
 RFC-0014 Extension Model
 RFC-0016 Versioning Model
 RFC-0018 Governance Model
+Execution (RFC-0007) and other projections (RFC-0011)
 ```
 
-These should be implemented only after the core architecture proves itself.
+They are implemented only after the core architecture proves itself; see [product-roadmap.md](product-roadmap.md).
 
----
+## Open Questions to Close During the MVP
 
-# MVP Success Criteria
-
-The MVP is considered successful when the following workflow exists:
-
-```bash
-functor init
-
-functor artifact create rfc-0000
-functor artifact create rfc-0001
-
-functor relation add \
-  rfc-0001 \
-  depends-on \
-  rfc-0000
-
-functor query dependencies rfc-0001
-
-functor validate
-```
-
-This demonstrates:
-
-- Semantic Model
-- API-First Architecture
-- Artifact Model
-- Relationship Model
-- Identity and Addressing
-- Query Model
-- Validation
-- Persistence
-
-and provides a strong foundation for future evolution.
+1. Event log rotation and size policy (currently unbounded).
+2. Whether `functor-repository` should be extracted once versioning begins.
+3. Whether dynamic dispatch is required by the first non-CLI projection (reopens ADR-0002 decision 2).
+4. Whether human-edited TOML comments must survive updates (currently they do not; `toml_edit` would be needed).
+5. Slug history after rename.

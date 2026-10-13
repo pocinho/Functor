@@ -1,115 +1,104 @@
 # MVP Scope
 
+Status: Draft
+Related RFCs: RFC-0000 to RFC-0008, RFC-0011, RFC-0015, RFC-0017 (subsets)
+Related docs: [cli-mvp-roadmap.md](cli-mvp-roadmap.md), [cli-spec.md](cli-spec.md), [rfc-conformance.md](rfc-conformance.md), [adr/README.md](adr/README.md)
+
 ## Purpose
 
-This document defines the scope of the initial Functor CLI MVP.
-
-The MVP exists to validate the core architectural foundations defined by the RFC series while minimizing implementation complexity.
+Defines what is in and out of the Functor CLI MVP. The MVP exists to validate the architectural foundations of the RFC series (API-first, semantic model, projections) with the least implementation complexity. Success is measured by proving the architecture, not by feature completeness.
 
 ## Included Scope
 
-### Repository Management
-
-Commands:
+### Repository management
 
 ```bash
 functor init
 ```
 
-Capabilities:
+Create a repository: metadata (`repository.toml` with identity and format version) and the directory structure ([repository-layout.md](repository-layout.md)).
 
-- Create a repository
-- Create repository metadata
-- Create repository directory structure
-
-### Artifact Management
-
-Commands:
+### Artifact management
 
 ```bash
-functor artifact create
-functor artifact show
+functor artifact create <slug>
+functor artifact show <artifact>
 functor artifact list
+functor artifact update <artifact>
 ```
 
-Capabilities:
+Create, load, list and update artifacts. Artifacts have an opaque id and a unique slug (ADR-0001) and a `revision` counter. There is **no delete** in the MVP (see exclusions).
 
-- Create artifacts
-- Load artifacts
-- List artifacts
-- Display artifact metadata
-
-### Relationship Management
-
-Commands:
+### Relationship management
 
 ```bash
-functor relation add
+functor relation add <source> <type> <target>
 functor relation list
-functor relation show
+functor relation show <relation>
 ```
 
-Supported relationship types:
+Built-in relationship types: `depends_on`, `references`, `derived_from`, `extends`. Other well-formed type names are accepted with `--allow-custom-type` and flagged by validation (ADR-0007). Relationships are immutable.
 
-- depends_on
-- references
-- derived_from
-
-### Query Operations
-
-Commands:
+### Query operations
 
 ```bash
-functor query
+functor query artifacts
+functor query dependencies <artifact>
+functor query dependents <artifact>
+functor query relationships <artifact>
 ```
 
-Minimum queries:
-
-- List artifacts
-- Show dependencies
-- Show dependents
-- Show relationships
+Lookup, search with filters and relationship traversal with direction and depth ([query-model-mvp.md](query-model-mvp.md)).
 
 ### Validation
 
-Commands:
-
 ```bash
-functor validate
+functor validate [artifact] [--strict]
 ```
 
-Validation rules:
+Rule catalog `V0001` to `V0018`: missing and duplicate identifiers, missing relationship endpoints, invalid references, dependency cycles, repository structure violations ([validation-rules.md](validation-rules.md)).
 
-- Missing identifiers
-- Duplicate identifiers
-- Missing relationship targets
-- Invalid references
-- Repository structure violations
+### Events
+
+```bash
+functor watch
+```
+
+Event subset `artifact.created`, `artifact.updated`, `relationship.created`, `validation.completed`, stored as JSON Lines and streamed by `watch` (ADR-0003, [event-model-mvp.md](event-model-mvp.md)).
 
 ### Storage
 
-The MVP uses:
+Local filesystem, TOML for entities, JSON Lines for events, entity-per-file layout ([storage-design.md](storage-design.md)).
 
-- Local filesystem
-- TOML serialization
+### Cross-cutting
+
+- Text and JSON output modes with stable JSON schemas and exit codes ([cli-spec.md](cli-spec.md)).
+- Platforms: Windows, Linux and macOS (x86_64 and aarch64).
+- The CLI operates **exclusively** through the core API traits.
 
 ## Excluded Scope
 
-The following are intentionally excluded from the MVP:
+| Excluded | RFC | Note |
+|----------|-----|------|
+| Federation and synchronization | 0009 | |
+| Dynamic capability discovery | 0010 | |
+| Non-CLI projections (desktop, web, notebook) | 0011 | `src/app/desktop` is a placeholder only |
+| MCP and interoperability layers | 0012 | |
+| Security and trust infrastructure | 0013 | Only the local safety baseline in [nonfunctional-requirements.md](nonfunctional-requirements.md) |
+| Extensions and plugins | 0014 | |
+| Versioning and history | 0016 | `revision` is a counter, with no history |
+| Event replay, rotation, subscription languages | 0017 | Only the subset above is included |
+| Governance | 0018 | |
+| Execution engine | 0007 | Validation only |
+| Artifact and relationship deletion, relationship update | | Needs a deletion and tombstone policy |
+| Persisted validation reports | 0007 | Reports are printed and summarized in an event |
+| Interactive prompts, shell completion, config files | | Possible later; not required to validate the architecture |
+| Remote repositories, authentication, encryption | | |
+| Import and export, repository migration | | `format_version = 1` only |
 
-- Federation (RFC-0009)
-- Dynamic capability discovery (RFC-0010)
-- Non-CLI projections (RFC-0011)
-- MCP integration (RFC-0012)
-- Security and trust infrastructure (RFC-0013)
-- Extensions and plugins (RFC-0014)
-- Versioning (RFC-0016)
-- Events and subscriptions (RFC-0017)
-- Governance concerns (RFC-0018)
+## Success Criteria
 
-## MVP Success Criteria
-
-A user should be able to execute:
+A user can run, on a clean directory:
 
 ```bash
 functor init
@@ -120,16 +109,24 @@ functor query dependencies rfc-0001
 functor validate
 ```
 
-and receive correct, reproducible results.
+and receive correct, reproducible results, with exit code 0 and output matching the golden files in the acceptance test ([testing-strategy.md](testing-strategy.md)). The walkthrough with expected output is [getting-started.md](getting-started.md).
 
 ## Exit Criteria
 
-The MVP phase is complete when:
+The MVP is complete when all of the following are true:
 
-- Repository operations work
-- Artifact management works
-- Relationship management works
-- Queries work
-- Validation works
-- The CLI operates exclusively through the API layer
-- Future projections can be built without modifying the core model
+1. Every included command works as specified in [cli-spec.md](cli-spec.md), with text and JSON output.
+2. The acceptance workflow above passes on Windows, Linux and macOS in CI.
+3. `functor validate` reports each rule `V0001` to `V0018` correctly on its fixture repository.
+4. `MemoryStore` and `FileStore` pass the same conformance suite.
+5. The CLI depends on core traits only for behavior (verified by the dependency-edge check in [crate-dependencies.md](crate-dependencies.md)); no domain logic lives in `functor-cli`.
+6. Adding a second projection would not require changes to `functor-model` or `functor-core` (demonstrated by the library-level integration tests, which exercise the whole workflow without the CLI).
+7. Every row of [rfc-conformance.md](rfc-conformance.md) has a status, and every "Implemented" or "Subset" row names a test.
+8. Format and output contracts (artifact format, JSON schemas, rule codes, exit codes) are frozen and documented.
+9. `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace` and `cargo deny check` pass in CI.
+
+## Non-Goals
+
+- Performance beyond the targets in [nonfunctional-requirements.md](nonfunctional-requirements.md).
+- Backward compatibility with pre-MVP prototypes (none exist).
+- Stability promises for Rust APIs before the first release; contracts that **are** stable are listed in exit criterion 8.

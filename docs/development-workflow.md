@@ -1,0 +1,95 @@
+# Development Workflow
+
+Status: Draft
+Related docs: [dependency-policy.md](dependency-policy.md), [testing-strategy.md](testing-strategy.md), [workspace-layout.md](workspace-layout.md), [../CONTRIBUTING.md](../CONTRIBUTING.md)
+
+## Purpose
+
+How code is built, checked and merged for the Rust implementation. These are the mechanics behind the "Continuous Integration" and "Definition of Done" requirements. [../CONTRIBUTING.md](../CONTRIBUTING.md) remains the general contribution guide; this document adds Rust-specific rules.
+
+## Toolchain
+
+- `rust-toolchain.toml` pins a stable toolchain with the `rustfmt` and `clippy` components. Updating it is a normal pull request.
+- Edition 2024; resolver 3 (ADR-0004).
+- Build output goes to `out/cargo` (`.cargo/config.toml`, already configured and git-ignored via `out/`).
+
+## Standard Commands
+
+```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
+cargo test --workspace --doc
+cargo deny check
+cargo run -p functor-cli -- <args>
+```
+
+Optional `cargo` aliases in `.cargo/config.toml`: `cargo ci` runs the first four commands in sequence.
+
+## Workspace Lints
+
+`[workspace.lints]` in the root manifest, inherited by every crate:
+
+```text
+rust:   unsafe_code = "forbid", missing_docs = "warn" (library crates), unused_must_use = "deny"
+clippy: all = "warn", pedantic = "warn" (selected lints allowed with a reason),
+        unwrap_used = "warn", expect_used = "warn", dbg_macro = "deny", print_stdout/print_stderr = "deny"
+        in library crates (the CLI crate is the only crate that may print)
+```
+
+CI runs clippy with `-D warnings`, so warnings are failures.
+
+## Continuous Integration
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) on pull requests and pushes to `develop` and `main`:
+
+| Job | Runs on | Steps |
+|-----|---------|-------|
+| `check` | Linux | `cargo fmt --check`, `cargo clippy -D warnings`, dependency-edge check |
+| `test` | Linux, Windows, macOS | `cargo test --workspace` (includes acceptance and golden tests) |
+| `deny` | Linux | `cargo deny check` |
+| `docs` | Linux | `cargo doc --workspace --no-deps` with `RUSTDOCFLAGS=-D warnings`; markdown link check over `docs/` |
+| `bench` (non-gating, scheduled) | Linux | Performance scenarios from [nonfunctional-requirements.md](nonfunctional-requirements.md) |
+
+Use `Swatinem/rust-cache` or an equivalent cache keyed on `Cargo.lock`. A pull request is mergeable only when `check`, `test` and `deny` are green.
+
+## Branching and Commits
+
+- Work happens on `pp/<topic>` or feature branches and is merged into `develop` through pull requests (see the repository history).
+- Conventional commits, matching the existing history (`docs:`, `feat:`, `fix:`, `test:`, `refactor:`, `chore:`, `ci:`), with the crate as an optional scope: `feat(store): add atomic write helper`.
+- One logical change per pull request. Mixed refactors and behavior changes are split.
+
+## Definition of Done (per pull request)
+
+- [ ] Traces to an RFC row in [rfc-conformance.md](rfc-conformance.md) or an ADR. New decisions have an ADR.
+- [ ] Behavior matches the relevant contract document; if the contract needed to change, the doc is updated **in the same pull request**.
+- [ ] Tests exist for new behavior at the right level ([testing-strategy.md](testing-strategy.md)), including error paths.
+- [ ] Public items are documented (purpose, inputs, outputs, errors, guarantees).
+- [ ] No new dependency without the checklist in [dependency-policy.md](dependency-policy.md).
+- [ ] The dependency-edge check passes; no library crate prints or reads the environment.
+- [ ] Golden files and JSON schemas updated deliberately (reviewed as part of the diff).
+- [ ] `cargo fmt`, `clippy -D warnings`, `cargo test --workspace` pass locally.
+
+## Pull Request Description
+
+Use the repository pull request template (`.github/pull_request_template.md`). Add:
+
+- **RFC / ADR:** the conformance rows or decisions touched.
+- **Validation evidence:** the exact commands run and their results.
+
+## Code Review Focus
+
+1. Architecture: layer boundaries, composition root, no domain logic in the CLI.
+2. Contracts: ordering, determinism, error variants, exit codes.
+3. Safety: path handling, atomicity, lock usage, cancellation behavior.
+4. Tests: failure injection, platform differences.
+
+## Golden and Snapshot Files
+
+- Located next to the tests that use them (`tests/golden/`, `snapshots/`).
+- Updated only with the explicit `INSTA_UPDATE=always` (or `cargo insta review`) workflow, and the diff reviewed.
+- Test-only environment variables for fixed time and ids exist only under the `test-support` feature ([cli-spec.md](cli-spec.md)) and are never compiled into release builds. CI builds release with default features and asserts the variables are not recognized.
+
+## Releases
+
+Out of scope for the MVP. When started: tag-based release workflow, `cargo-dist` or equivalent for binaries, changelog from conventional commits, and a decision on crates.io publication.
