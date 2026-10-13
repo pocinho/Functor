@@ -12,3 +12,5 @@ workspace = true
 
 [dependencies]
 functor-model.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true

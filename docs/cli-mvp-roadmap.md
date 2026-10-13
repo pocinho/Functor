@@ -49,6 +49,13 @@ RFC-0002. Traits ([traits-and-interfaces.md](traits-and-interfaces.md)), `Functo
 
 Done when: the traits compile with doc comments and the conformance suite compiles; the error-to-exit-code mapping function has its exhaustive test.
 
+Status: implemented.
+- `functor-core`: all service traits (dyn-compatible, with a compile-time test), `FunctorError` and `ErrorKind`, `LoadIssue` types with `SnapshotLoad::into_snapshot`, `SystemClock` and `UlidGenerator`.
+- `functor-testkit`: `FixedClock`, `SequentialIds`, `RepoFixture` and the store conformance suite (14 scenarios), validated by a reference store that passes it and six deliberately broken stores that it rejects.
+- `functor-cli`: `exit_code(ErrorKind)` with its table test.
+
+Real stores (`MemoryStore`, `FileStore`) run the suite in M3.
+
 ## M3: Repository and Storage (`functor-repository`, `functor-store`)
 
 RFC-0008, 0015 subset ([ADR-0009](adr/ADR-0009-functor-repository-crate.md)).

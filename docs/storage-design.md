@@ -58,15 +58,23 @@ A single operation modifies **one** entity file, so it is atomic. Operations tha
 
 `snapshot()` stops with `Inconsistent` at the first problem. `load()` collects every problem as a `LoadIssue` and continues:
 
-| LoadIssue kind | Validation rule |
-|----------------|-----------------|
-| Malformed TOML or missing or invalid field | `V0001` |
-| Duplicate artifact id | `V0003` |
-| Duplicate slug | `V0004` |
-| Filename and id mismatch | `V0017` |
-| Duplicate relationship id | `V0008` |
-| Unreadable file | reported as `Unknown` outcome |
-| File larger than the size cap | `V0001` |
+| LoadIssueKind | Validation rule |
+|---------------|-----------------|
+| `MalformedFile` (invalid TOML, missing or invalid field, file over the size cap) | `V0001` |
+| `MissingIdentifier` | `V0002` |
+| `DuplicateArtifactId` | `V0003` |
+| `DuplicateSlug` | `V0004` |
+| `InvalidIdentifier` | `V0005` |
+| `DuplicateRelationshipId` | `V0008` |
+| `UnsafeContentPath`, `MissingContentFile` | `V0010` |
+| `UnsupportedFormat` | `V0013` |
+| `MissingStructure` | `V0014` |
+| `UnexpectedFile` (non-fatal for a strict load) | `V0016` |
+| `FilenameMismatch` | `V0017` |
+| `UnknownField` (non-fatal for a strict load) | `V0018` |
+| `Unreadable` | reported as an `Unknown` outcome |
+
+The enum and `SnapshotLoad::into_snapshot` (which turns fatal issues into `Inconsistent`) live in `functor-core`.
 
 When two files claim the same id, the loader keeps the one with the lexicographically smaller file name and reports the other, so results stay deterministic.
 

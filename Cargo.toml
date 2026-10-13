@@ -22,6 +22,7 @@ functor-testkit = { path = "src/crates/functor-testkit" }
 
 clap = { version = "4", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
 thiserror = "2"
+async-trait = "0.1"
 ulid = "1"
 proptest = "1"
 assert_cmd = "2"

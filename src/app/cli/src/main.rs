@@ -7,6 +7,10 @@
 
 use clap::Parser;
 
+// Wired into command handling in M4; until then only the tests use it.
+#[cfg_attr(not(test), allow(dead_code))]
+mod exit;
+
 /// Create, relate, validate and evolve structured artifacts.
 #[derive(Parser)]
 #[command(name = "functor", version, about, arg_required_else_help = true)]

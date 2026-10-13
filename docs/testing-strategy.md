@@ -63,19 +63,29 @@ Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap
 
 ## Conformance Suite
 
-`functor-testkit` exports `fn run_store_conformance<S: Store>(factory: impl Fn() -> S)` (macro or generic harness) covering `RepositoryManager`, `RepositoryReader`, `ArtifactRepository` and `RelationshipRepository`:
+`functor-testkit` exports `run_store_conformance(factory)` and one public `async fn` per scenario. The factory receives an `Env` (a `FixedClock` and `SequentialIds` the store must use for time and ids) and returns a `Fresh<S>` (an empty store plus an optional guard such as a temporary directory). The suite is runtime-agnostic: it returns futures, and the calling test drives them (`#[tokio::test]` in `functor-store`). Example:
 
-- create, get, resolve by id and slug, list ordering
-- duplicate slug conflict, slug rename, revision increment, stale `--expect-revision` conflict
-- relationship endpoint existence, duplicate triple conflict, self-reference rejection
-- strict snapshot vs lenient load on damaged data (injected through a store-specific hook)
-- determinism: identical operation sequences with fixed clock and ids give identical snapshots
+```rust
+run_store_conformance(|env| Fresh::new(MemoryStore::new(env.clock(), env.ids()))).await;
+```
 
-`MemoryStore` and `FileStore` both run the suite (the suite covers `RepositoryReader`, `ArtifactRepository` and `RelationshipRepository`; `RepositoryManager` is tested in `functor-repository`). A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
+It covers `RepositoryReader`, `ArtifactRepository` and `RelationshipRepository` with these scenarios, each against a fresh store:
+
+- create, get, resolve by id and slug, list ordering (`create_get_resolve_and_list`)
+- duplicate slug conflict, slug rename releasing the old slug, rename to a taken slug, revision increment, no-op update writes nothing, stale expected revision conflict, update of an unknown artifact
+- relationship endpoint existence, self-reference rejection (`references` may self-reference), duplicate triple conflict, direction and types, list order and timestamps
+- strict snapshot agrees with individual operations; lenient load of a clean repository has no issues; `info` is stable
+- determinism: identical operation sequences with fixed clock and ids give identical state
+
+Strict-versus-lenient behavior on **damaged** data needs store-specific injection and is tested in each store's own tests, not in the shared suite.
+
+`MemoryStore` and `FileStore` both run the suite (`RepositoryManager` is tested in `functor-repository`). A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
+
+**The suite is itself tested.** `functor-testkit` contains a small reference store that must pass, plus deliberately broken variants (duplicate slugs allowed, expected revision ignored, endpoint check skipped, duplicate relationships allowed, list in reverse, revision bumped on a no-op) that the suite must reject. A suite that cannot fail would prove nothing.
 
 ## Fixtures
 
-- Builders in `functor-testkit` create repositories programmatically (`RepoBuilder::new().artifact("rfc-0000").relation("rfc-0001", "depends_on", "rfc-0000")`).
+- Builders in `functor-testkit` create repositories programmatically (`RepoFixture::new().artifact("rfc-0000").artifact("rfc-0001").relation("rfc-0001", "depends_on", "rfc-0000").build()` returns a strict `RepositorySnapshot`).
 - Static fixture repositories live in `examples/` and `tests/fixtures/`: `clean/`, `one-per-rule/V00NN/`, `getting-started/`. They are real repositories on disk, created once by tests using the library and committed; a test verifies the checked-in fixtures are still produced by the current serializer (prevents silent drift).
 - Fixtures use fixed ids and timestamps.
 

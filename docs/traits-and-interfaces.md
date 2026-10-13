@@ -75,7 +75,9 @@ pub struct SnapshotLoad {
 pub struct LoadIssue { pub kind: LoadIssueKind, pub path: RepoPath, pub detail: String }
 ```
 
-`load` exists so `validate` can report problems with a damaged repository instead of failing at the first one (RFC-0007 "Unknown" and "Failed" outcomes). Everything else uses `snapshot`, which turns any `LoadIssue` into an error pointing the user to `functor validate`.
+`LoadIssueKind` (non-exhaustive) lists the problem kinds and their validation rules in [storage-design.md](storage-design.md). Two kinds are non-fatal for a strict load (`UnexpectedFile`, `UnknownField`).
+
+`load` exists so `validate` can report problems with a damaged repository instead of failing at the first one (RFC-0007 "Unknown" and "Failed" outcomes). Everything else uses `snapshot`, which turns any fatal `LoadIssue` into an `Inconsistent` error pointing the user to `functor validate`. `snapshot` has a **default implementation** (`load().into_snapshot()`, with `SnapshotLoad::into_snapshot` in `functor-core`) so stores only have to implement `info` and `load`; they may override it for efficiency but must keep the same semantics.
 
 ## Artifacts
 
@@ -90,12 +92,12 @@ pub trait ArtifactRepository {
         id: &ArtifactId,
         patch: ArtifactPatch,
         expected: Option<Revision>,        // optimistic concurrency
-    ) -> Result<Artifact>;
+    ) -> Result<Patched>;
 }
 ```
 
 - `create` generates the id, checks slug uniqueness (`Conflict` on duplicate) and sets `revision = 1` and `created = updated = now`.
-- `update` applies the patch, increments the revision and updates `updated`. If `expected` is `Some` and differs from the stored revision, it returns `Conflict` without writing.
+- `update` applies the patch and returns `Patched { artifact, changed }` (see [domain-model.md](domain-model.md)). A real change increments the revision and updates `updated`. A patch that changes nothing writes nothing and returns an empty `changed` list, so callers can skip the event and say `no changes`. If `expected` is `Some` and differs from the stored revision, it returns `Conflict` without writing. A slug already used by another artifact is `Conflict`; an unknown id is `NotFound`.
 - No `delete` in the MVP. Deleting would orphan relationships and requires a deletion policy (RFC-0016 territory).
 
 ## Relationships
@@ -122,7 +124,7 @@ pub trait QueryEngine {
 }
 ```
 
-Aligned with the RFC-0006 operations (Lookup, Search, Traverse). Filter and Project are expressed through `SearchQuery` fields and output selection in the projection. See [query-model-mvp.md](query-model-mvp.md). Implementations build a `RepositorySnapshot` once per call, then run pure synchronous functions over it.
+Aligned with the RFC-0006 operations (Lookup, Search, Traverse). `execute` has a default implementation that dispatches to the other three. Filter and Project are expressed through `SearchQuery` fields and output selection in the projection. See [query-model-mvp.md](query-model-mvp.md). Implementations build a `RepositorySnapshot` once per call, then run pure synchronous functions over it.
 
 ## Validation
 

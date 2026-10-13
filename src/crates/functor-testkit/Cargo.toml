@@ -13,3 +13,6 @@ workspace = true
 [dependencies]
 functor-core.workspace = true
 functor-model.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true

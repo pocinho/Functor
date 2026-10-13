@@ -23,7 +23,7 @@ pub enum FunctorError {
     #[error("{entity} not found: {reference}")]
     NotFound { entity: EntityKind, reference: String, suggestions: Vec<String> },
 
-    #[error("{entity} already exists: {detail}")]
+    #[error("{entity} already exists or conflicts: {detail}")]
     Conflict { entity: EntityKind, detail: String },        // duplicate slug, stale revision, duplicate relationship
 
     #[error("invalid {field}: {reason}")]
@@ -49,7 +49,9 @@ pub enum FunctorError {
 }
 ```
 
-`EntityKind` is `Artifact | Relationship | Repository | Event`.
+`EntityKind` is `Artifact | Relationship | Repository | Event` and is defined in `functor-model`.
+
+`FunctorError::kind()` returns a data-less `ErrorKind` (one per variant, `ErrorKind::ALL` lists them, `ErrorKind::as_str()` is the stable wire code). Projections map **kinds**, not errors, so adding a variant forces every mapping to be updated at compile time. `From<ModelError>` produces `InvalidInput`; `From<SnapshotError>` produces `Inconsistent`.
 
 ## Exit Codes
 
@@ -95,7 +97,7 @@ In `--output json` mode errors go to **stderr** as one JSON object so scripts ca
 ## Propagation Rules
 
 - Library crates convert foreign errors at their boundary (`std::io::Error` to `Storage` with the operation and path; TOML parse errors during a strict load to `Inconsistent`). Foreign error types never appear in public signatures.
-- `functor-cli` uses `anyhow` only for glue (argument handling); every error is converted to a `FunctorError` or a usage error before the top-level handler maps it to an exit code. The mapping lives in **one** function (`exit_code(&FunctorError)`) with an exhaustive test.
+- `functor-cli` uses `anyhow` only for glue (argument handling); every error is converted to a `FunctorError` or a usage error before the top-level handler maps it to an exit code. The mapping lives in **one** function, `exit_code(ErrorKind)` in `src/app/cli/src/exit.rs`, written as a `match` without a wildcard arm and covered by a test that lists every kind. The exit-code constants (`SUCCESS`, `USAGE`, `VALIDATION_FAILED`, ...) live in the same module.
 - A warning (for example, "event could not be appended") is not an error. It is printed to stderr as `warning: ...` and does not change the exit code, per [event-model-mvp.md](event-model-mvp.md).
 
 ## Logging vs Errors
