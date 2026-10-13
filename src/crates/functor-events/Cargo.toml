@@ -14,3 +14,14 @@ workspace = true
 functor-core.workspace = true
 functor-model.workspace = true
 functor-repository.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+notify.workspace = true
+tokio = { workspace = true, features = ["time", "sync"] }
+
+[dev-dependencies]
+functor-testkit.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "time", "sync"] }
+proptest.workspace = true

@@ -171,7 +171,7 @@ pub async fn create(
     }
 
     let artifact = store.create(new).await?;
-    recorder.record(events::artifact_created(&artifact));
+    recorder.record(events::artifact_created(&artifact)).await;
     Ok(artifact)
 }
 
@@ -316,10 +316,12 @@ pub async fn update(
 
     let patched = store.update(current.id(), patch, expected).await?;
     if !patched.changed.is_empty() {
-        recorder.record(events::artifact_updated(
-            &patched.artifact,
-            &patched.changed,
-        ));
+        recorder
+            .record(events::artifact_updated(
+                &patched.artifact,
+                &patched.changed,
+            ))
+            .await;
     }
     Ok(patched)
 }
@@ -337,11 +339,11 @@ fn output_error(error: std::io::Error) -> FunctorError {
 pub async fn run(command: ArtifactCommand, context: &Context, globals: &Globals) -> Result<()> {
     let root = context.handle.root.as_path();
     let store: &dyn ArtifactRepository = &context.store;
-    let recorder = Recorder;
+    let recorder = &context.recorder;
 
     match command {
         ArtifactCommand::Create(args) => {
-            let artifact = create(store, root, args, &recorder).await?;
+            let artifact = create(store, root, args, recorder).await?;
             let document = ArtifactDocument::new(ArtifactDto::new(&artifact, None));
             print_confirmation(&created_text(&artifact), &document, globals).map_err(output_error)
         }
@@ -367,7 +369,7 @@ pub async fn run(command: ArtifactCommand, context: &Context, globals: &Globals)
             print_result(&text, &document, globals.output).map_err(output_error)
         }
         ArtifactCommand::Update(args) => {
-            let patched = update(store, root, args, &recorder).await?;
+            let patched = update(store, root, args, recorder).await?;
             let document = ArtifactDocument::updated(
                 ArtifactDto::new(&patched.artifact, None),
                 &patched.changed,

@@ -7,7 +7,7 @@ use functor_validation::RuleValidationEngine;
 
 use crate::cli::ValidateArgs;
 use crate::context::{self, Globals, Services};
-use crate::events::{self, Recorder};
+use crate::events;
 use crate::exit::validation_exit_code;
 use crate::output::print_result;
 use crate::render::{ValidateDocument, validate_text};
@@ -75,11 +75,14 @@ pub async fn run(args: ValidateArgs, globals: &Globals, services: &Services) -> 
     // The run always publishes `validation.completed`, even when it found problems; it cannot
     // when the repository identity is unreadable.
     if let Ok(info) = store.info().await {
-        Recorder.record(events::validation_completed(
-            *info.id(),
-            &report,
-            args.strict,
-        ));
+        let recorder = context::event_recorder(store.layout().root(), *info.id(), services)?;
+        recorder
+            .record(events::validation_completed(
+                *info.id(),
+                &report,
+                args.strict,
+            ))
+            .await;
     }
 
     let document = ValidateDocument::new(&report, args.strict)?;

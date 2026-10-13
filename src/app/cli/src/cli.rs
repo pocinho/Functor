@@ -56,6 +56,36 @@ pub enum Command {
     Query(QueryCommand),
     /// Check the repository for problems.
     Validate(ValidateArgs),
+    /// Stream repository events.
+    Watch(WatchArgs),
+}
+
+/// Arguments of `functor watch`.
+#[derive(Debug, Args)]
+pub struct WatchArgs {
+    /// Include all events currently in the log (default: only new events).
+    #[arg(long, conflicts_with = "after")]
+    pub from_start: bool,
+
+    /// Only events with a sequence number greater than SEQ.
+    #[arg(long, value_name = "SEQ")]
+    pub after: Option<u64>,
+
+    /// Only events of this type or type prefix, such as `artifact.`; repeat for several.
+    #[arg(long = "type", value_name = "PREFIX")]
+    pub types: Vec<String>,
+
+    /// Only events about this artifact (an id, canonical reference or slug).
+    #[arg(long, value_name = "ARTIFACT")]
+    pub subject: Option<String>,
+
+    /// Exit after N events.
+    #[arg(long, value_name = "N", value_parser = clap::value_parser!(u64).range(1..))]
+    pub count: Option<u64>,
+
+    /// Exit after this many seconds with no new events.
+    #[arg(long, value_name = "SECONDS")]
+    pub timeout: Option<u64>,
 }
 
 /// Arguments of `functor validate`.
@@ -682,6 +712,55 @@ mod tests {
             RelationshipDirection::Both
         );
         assert!(direction(&["--direction", "sideways"]).is_err());
+    }
+
+    #[test]
+    fn watch_accepts_its_documented_options() {
+        let cli = parse([
+            "functor",
+            "watch",
+            "--after",
+            "7",
+            "--type",
+            "artifact.",
+            "--type",
+            "validation.completed",
+            "--subject",
+            "rfc-0001",
+            "--count",
+            "3",
+            "--timeout",
+            "10",
+            "-o",
+            "json",
+        ])
+        .unwrap();
+        assert_eq!(cli.output, OutputMode::Json);
+        let Command::Watch(args) = cli.command else {
+            panic!("expected watch");
+        };
+        assert_eq!(args.after, Some(7));
+        assert!(!args.from_start);
+        assert_eq!(args.types, ["artifact.", "validation.completed"]);
+        assert_eq!(args.subject.as_deref(), Some("rfc-0001"));
+        assert_eq!(args.count, Some(3));
+        assert_eq!(args.timeout, Some(10));
+
+        let cli = parse(["functor", "watch", "--from-start"]).unwrap();
+        let Command::Watch(args) = cli.command else {
+            panic!("expected watch");
+        };
+        assert!(args.from_start && args.after.is_none() && args.count.is_none());
+    }
+
+    #[test]
+    fn watch_rejects_conflicting_and_invalid_options() {
+        assert!(parse(["functor", "watch", "--from-start", "--after", "1"]).is_err());
+        assert!(parse(["functor", "watch", "--count", "0"]).is_err());
+        assert!(parse(["functor", "watch", "--count", "x"]).is_err());
+        assert!(parse(["functor", "watch", "--after", "-1"]).is_err());
+        assert!(parse(["functor", "watch", "--timeout", "-5"]).is_err());
+        assert!(parse(["functor", "watch", "extra"]).is_err());
     }
 
     #[test]

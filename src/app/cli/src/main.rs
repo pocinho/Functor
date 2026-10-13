@@ -50,6 +50,10 @@ async fn run(cli: Cli) -> Result<u8, FunctorError> {
         Command::Validate(args) => {
             return commands::validate::run(args, &globals, &services).await;
         }
+        Command::Watch(args) => {
+            let context = context::open(&globals, &services).await?;
+            commands::watch::run(args, &context, &globals).await
+        }
     }
     .map(|()| exit::SUCCESS)
 }
@@ -60,7 +64,11 @@ fn main() -> ExitCode {
     let (mode, verbose) = (cli.output, cli.verbose);
 
     // A current-thread runtime is enough: the core is async, but this CLI does one thing at a time.
-    let runtime = match tokio::runtime::Builder::new_current_thread().build() {
+    // Timers (for `watch`) and signal handling (Ctrl-C) need the drivers enabled.
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
         Ok(runtime) => runtime,
         Err(error) => {
             let error =

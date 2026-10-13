@@ -43,6 +43,7 @@ Notes:
 - Blocking filesystem work runs through `tokio::task::spawn_blocking` (`functor_repository::run_blocking`), so `tokio` needs only the `rt` feature, not `fs`.
 - Async traits: `async-trait` on the core traits so they are dyn-compatible ([ADR-0010](adr/ADR-0010-async-trait-and-dyn.md), which supersedes ADR-0002). This is the approved exception to the rule that lower layers need an ADR for new dependencies.
 - `jsonschema` validates CLI JSON against `docs/schemas/*.json` in tests.
+- `notify` (8.x) is licensed **CC0-1.0**, a public-domain dedication, so `deny.toml` lists `CC0-1.0` explicitly. `watch` still works if notifications are unavailable: the watcher polls every 500 ms without them and every 5 s as a safety net with them ([event-model-mvp.md](event-model-mvp.md)). `tokio` gains `time` and `sync` in `functor-events` and `time` and `signal` in `functor-cli`; `select!` (and so `macros`) is not used outside tests.
 
 ## Adding a Dependency
 

@@ -91,12 +91,40 @@ pub fn run_in(dir: &Path, args: &[&str], time: &str, seed: u64) -> Out {
     )
 }
 
+/// Starts the binary in `dir` without waiting for it, stdout and stderr piped.
+pub fn spawn_in(dir: &Path, args: &[&str], time: &str, seed: u64) -> std::process::Child {
+    std::process::Command::new(env!("CARGO_BIN_EXE_functor"))
+        .current_dir(dir)
+        .env("FUNCTOR_TEST_FIXED_TIME", time)
+        .env("FUNCTOR_TEST_ID_SEED", seed.to_string())
+        .env_remove("FUNCTOR_REPO")
+        .env_remove("FUNCTOR_LOCK_TIMEOUT")
+        .env("NO_COLOR", "1")
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("binary starts")
+}
+
+/// Waits for a spawned command and collects what it printed.
+pub fn finish(child: std::process::Child) -> Out {
+    collect(child.wait_with_output().expect("binary finishes"))
+}
+
 impl Sandbox {
     /// Creates an empty directory and initializes a repository in it (repository id seed 1).
     pub fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         run_in(dir.path(), &["init", "--name", "Sandbox"], T0, 1).ok();
         Self { dir }
+    }
+
+    /// Starts a long-running command (such as `watch`) with piped output; the caller decides when
+    /// to wait for it.
+    pub fn spawn(&self, args: &[&str], seed: u64) -> std::process::Child {
+        spawn_in(self.path(), args, T0, seed)
     }
 
     pub fn path(&self) -> &Path {

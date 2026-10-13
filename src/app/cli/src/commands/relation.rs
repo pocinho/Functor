@@ -54,7 +54,9 @@ pub async fn add(
     let new =
         NewRelationship::new(relationship_type, *source.id(), *target.id()).with_metadata(metadata);
     let relationship = relationships.create(new).await?;
-    recorder.record(events::relationship_created(&relationship));
+    recorder
+        .record(events::relationship_created(&relationship))
+        .await;
     Ok((relationship, SlugIndex::new(&[source, target])))
 }
 
@@ -120,11 +122,11 @@ fn output_error(error: std::io::Error) -> FunctorError {
 pub async fn run(command: RelationCommand, context: &Context, globals: &Globals) -> Result<()> {
     let artifacts: &dyn ArtifactRepository = &context.store;
     let relationships: &dyn RelationshipRepository = &context.store;
-    let recorder = Recorder;
+    let recorder = &context.recorder;
 
     match command {
         RelationCommand::Add(args) => {
-            let (relationship, slugs) = add(artifacts, relationships, args, &recorder).await?;
+            let (relationship, slugs) = add(artifacts, relationships, args, recorder).await?;
             let document = RelationshipDocument::new(RelationshipDto::new(&relationship, &slugs)?);
             print_confirmation(&added_text(&relationship, &slugs)?, &document, globals)
                 .map_err(output_error)

@@ -159,7 +159,14 @@ Stream repository events ([event-model-mvp.md](event-model-mvp.md)).
 
 Text output, one line per event: `<seq>  <at>  <type>  <summary>`, where the summary is the slug for artifact events, `<source slug> <type> <target slug>` for `relationship.created` and the outcome for `validation.completed`. Slugs are resolved when the line is printed; an artifact that no longer resolves prints its id.
 
-Without `--count` and `--timeout` it runs until interrupted (exit 0). `--from-start` and `--after` are mutually exclusive.
+Without `--count` and `--timeout` it runs until interrupted (exit 0). `--from-start` and `--after` are mutually exclusive. `--count` must be at least 1 and counts only events that pass the filters. `--timeout` is an **idle** timeout: it restarts every time an event arrives, so `watch --timeout 3` keeps running while events keep coming at least every 3 seconds.
+
+Behavior and errors:
+
+- Results (event lines) go to stdout and are flushed after each line; warnings go to stderr as `warning: <text>` (events that were pruned before the start position, an unreadable line that was skipped, events of an unsupported envelope version). In `json` mode each line is the envelope exactly as stored in the log.
+- An unknown `--subject` is exit 3. An unreadable log is exit 7. Outside a repository is exit 5. A closed output pipe ends the command quietly with exit 0, as does Ctrl-C.
+- `watch` opens the repository (so a damaged `repository.toml` is exit 5, as for other commands) but never takes the write lock and never writes.
+- `-q` does not silence `watch`.
 
 ## Exit Codes
 
@@ -227,7 +234,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 ## Implementation Notes (M4)
 
 - **Not yet implemented:** `--no-color` (nothing is colored yet) and `tracing` logging; `-v` currently prints the error cause chain (`caused by:` lines, text mode only), `-q` silences confirmations in `text` mode only.
-- **Events:** `artifact create`/`update` already build their events and hand them to a no-op recorder; the real publisher arrives in M8.
+- **Events:** `artifact create`/`update` build their events and append them through the recorder (see Implementation Notes (M8)).
 - **`artifact show`:** text mode prints labeled fields; with `--content` it strips one trailing newline and escapes control characters except newline and tab. JSON `content.text` is present for inline content and for `show --content` (referenced file text), otherwise absent.
 - **`artifact list`:** sorted by slug, then id; `--long` adds id and updated time.
 - **`--content-path`:** resolved against the current directory (not the repository root), canonicalized, and must be an existing file inside the repository. `--content-format` without content is exit 2.
@@ -237,7 +244,7 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 
 - **Endpoint slugs are always present.** The store refuses a repository whose relationship points at a missing artifact (exit 5, `inconsistent`, with a hint to run `functor validate`), so `relation add|list|show` never see a dangling endpoint and the `slug` of a JSON endpoint is always a string. Reading and reporting such repositories is the job of `validate` (M7).
 - **Duplicate message.** The store reports a duplicate with artifact ids rather than slugs (`depends_on already relates art_… to art_…`), because it knows no slugs.
-- **Events:** `relation add` builds `relationship.created` and hands it to the same no-op recorder as the artifact commands until M8.
+- **Events:** `relation add` builds `relationship.created` and appends it like the artifact commands.
 - **Not yet checked at add time:** cycles across several relationships. They are reported by `validate` (V0011, M7).
 
 ## Implementation Notes (M6)
@@ -249,9 +256,16 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 ## Implementation Notes (M7)
 
 - **`validate` opens the repository differently.** `context::open_unchecked` walks up to the nearest `.functor/repository.toml` (`functor_repository::discover_root`) and builds the store with `FileStore::at_root`, without parsing `repository.toml`. Other commands keep the checking `discover`.
-- **`validation.completed`.** `validate` builds the event (outcome, error, warning and info counts, `strict`) and hands it to the no-op recorder, as the other commands do, unless the repository identity is unreadable. M8 replaces the recorder.
+- **`validation.completed`.** `validate` appends the event (outcome, error, warning and info counts, `strict`) like the other commands do, unless the repository identity is unreadable.
 - **Not found with suggestions.** The engine reports an unknown scoped artifact as a plain `NotFound`; the command adds slug suggestions from a lenient load.
 - **Plurals.** Counts are pluralized (`1 relationship`, `2 relationships`); the earlier draft showed `1 relationships`.
+
+## Implementation Notes (M8)
+
+- **Recorder.** Commands hand the event they built to `events::Recorder`, which appends it through `functor_events::FileEventLog` after the state change committed. A failed append prints `warning: event not recorded: <reason>` to stderr (also in `json` mode, where stdout still holds exactly one document) and the command keeps its exit code; a rotation or pruning problem prints its own `warning:` line. `validate` still exits 6 for a failed outcome even when its event cannot be recorded.
+- **Event ids and the id source.** An event takes its id from the same injected generator as entities, after the entity id, so the deterministic test ids stay stable.
+- **Runtime.** The command line builds its single-threaded runtime with timers and signal handling enabled, which `watch` needs; `tokio::select!` is not used (a small `race` helper in `commands/watch.rs` ends the command on Ctrl-C), so `tokio` needs no `macros` feature outside tests.
+- **Slug cache.** `watch` resolves slugs through one cached listing, refreshed when an id is missing and cleared by `artifact.updated`, so renames appear in later lines without a listing per event.
 
 ## Logging
 

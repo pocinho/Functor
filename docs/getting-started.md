@@ -70,10 +70,10 @@ functor watch --from-start
 ```
 
 ```text
-1  2026-10-12T18:00:00Z  artifact.created       rfc-0000
-2  2026-10-12T18:00:05Z  artifact.created       rfc-0001
-3  2026-10-12T18:05:00Z  relationship.created   rfc-0001 depends_on rfc-0000
-4  2026-10-12T18:06:00Z  validation.completed   passed
+1  2026-10-12T18:00:00Z  artifact.created  rfc-0000
+2  2026-10-12T18:00:05Z  artifact.created  rfc-0001
+3  2026-10-12T18:05:00Z  relationship.created  rfc-0001 depends_on rfc-0000
+4  2026-10-12T18:06:00Z  validation.completed  passed
 ```
 
 ## 7. Use JSON from scripts

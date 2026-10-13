@@ -76,9 +76,9 @@ Status: implemented.
 
 CLI: `artifact create|show|list|update`, argument resolver ([identity-and-addressing.md](identity-and-addressing.md)), text and JSON rendering, error rendering and exit codes ([cli-spec.md](cli-spec.md)). Introduce the golden-file and JSON-schema test harness.
 
-Done when: artifacts can be stored and retrieved through the CLI and through the library API; golden tests cover success and every error path of these commands. (Event emission is added in M8 once `functor-events` exists; handlers already call a `publish` seam backed by a no-op publisher until then.)
+Done when: artifacts can be stored and retrieved through the CLI and through the library API; golden tests cover success and every error path of these commands. (Event emission was added in M8, once `functor-events` existed; the handlers already called a recorder seam.)
 
-Status: implemented. `artifact create|show|list|update`, the resolver (id, slug, canonical, with suggestions), `-v`/`-q`, text and JSON rendering, four JSON Schemas in `docs/schemas/`, and a golden/schema/cross-process e2e harness (47 artifact tests, 28 CLI unit tests; see [testing-strategy.md](testing-strategy.md)). Golden tests need `--all-features`; CI and `scripts/ci.ps1` also run default features to prove release builds ignore the test-only variables. Deferred: `--no-color` and `tracing` logs (see [cli-spec.md](cli-spec.md#implementation-notes-m4)). Events are a no-op seam until M8.
+Status: implemented. `artifact create|show|list|update`, the resolver (id, slug, canonical, with suggestions), `-v`/`-q`, text and JSON rendering, four JSON Schemas in `docs/schemas/`, and a golden/schema/cross-process e2e harness (47 artifact tests, 28 CLI unit tests; see [testing-strategy.md](testing-strategy.md)). Golden tests need `--all-features`; CI and `scripts/ci.ps1` also run default features to prove release builds ignore the test-only variables. Deferred: `--no-color` and `tracing` logs (see [cli-spec.md](cli-spec.md#implementation-notes-m4)). Event emission arrived in M8.
 
 ## M5: Relationship Management
 
@@ -86,7 +86,7 @@ CLI: `relation add|list|show`. Endpoint existence, duplicate and self-reference 
 
 Done when: artifacts form a navigable graph on disk; `functor relation add rfc-0001 depends_on rfc-0000` works with slugs, ids and the kebab alias.
 
-Status: implemented. `relation add|list|show`, the relationship resolver (`rel_` id or canonical reference), the `relationship.created` event (no-op seam until M8), schemas `relationship-document.json` and `relationship-list.json`, and 32 e2e tests (golden transcripts, schemas, filters, every error path, cross-process races) plus unit tests for the resolver, event builder and argument grammar. Cycles across relationships are not rejected at add time; `validate` reports them (M7). See [cli-spec.md](cli-spec.md#implementation-notes-m5).
+Status: implemented. `relation add|list|show`, the relationship resolver (`rel_` id or canonical reference), the `relationship.created` event (appended since M8), schemas `relationship-document.json` and `relationship-list.json`, and 32 e2e tests (golden transcripts, schemas, filters, every error path, cross-process races) plus unit tests for the resolver, event builder and argument grammar. Cycles across relationships are not rejected at add time; `validate` reports them (M7). See [cli-spec.md](cli-spec.md#implementation-notes-m5).
 
 ## M6: Query (`functor-query`)
 
@@ -106,9 +106,11 @@ Status: implemented. `functor-validation` has the 19-rule catalog (kept equal to
 
 ## M8: Events (`functor-events`)
 
-RFC-0017 subset ([event-model-mvp.md](event-model-mvp.md), ADR-0003). Event log, publisher, subscription, `functor watch`; replace the no-op publisher in the mutating commands and `validate`.
+RFC-0017 subset ([event-model-mvp.md](event-model-mvp.md), ADR-0003). Event log, publisher, subscription, `functor watch`; replaces the no-op recorder of the mutating commands and `validate`.
 
 Done when: each mutating command emits exactly one event, sequence numbers are gap-free under concurrent writers and across rotation (10 MiB, 10 archives, [ADR-0008](adr/ADR-0008-event-log-rotation.md)), `watch` passes its tests (existing, new, truncated, rotation, filters) and a failed append only warns.
+
+Status: implemented. `functor-events` has the wire format, `FileEventLog` (publisher and event source: gap-free numbering under the write lock, torn-line repair, rotation and pruning) and `Follower` (notifications with a polling fallback, archives, rotation, truncation and restarts); 63 tests (7 wire, 3 cursor, 28 log, 25 follower). The CLI appends the events of `artifact create|update`, `relation add` and `validate` through a recorder that only warns on failure, and has `functor watch` with all its options; 19 events e2e tests and 26 watch e2e tests (a real 10 MiB rotation, multi-process numbering, failed appends, live following across processes, damaged and pruned logs, a closed pipe, never writing). Dependency additions: `notify` (CC0-1.0, now allowed in `deny.toml`) and `tokio` features `time`, `sync` (events) and `time`, `signal` (CLI). Not covered by an automated test: Ctrl-C ending `watch`. Notes in [event-model-mvp.md](event-model-mvp.md#implementation-notes-m8) and [cli-spec.md](cli-spec.md#implementation-notes-m8).
 
 ## M9: Hardening and MVP Exit
 
@@ -124,6 +126,22 @@ Done when: each mutating command emits exactly one event, sequence numbers are g
   - **`functor-events` depends on `functor-repository`** (M2): **keep** (ADR-0009 foundation service), re-checked by `scripts/check-deps.ps1` when M8 lands.
   - **Hand-written TOML codecs instead of serde-derived ones** (M3): **keep**; required for in-place, comment-preserving edits ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). Revisit only if a codec needs a new field type.
   - **`FunctorError::Conflict` displays only its detail** (M2): **keep**, and make the duplicate-relationship message use slugs (M5 shows ids) by building it in the CLI from the resolved endpoints.
+  - **Cycles are not rejected by `relation add`** (M5): **keep**; the store checks existence, self-reference and duplicates only, and `validate` reports cycles (`V0011`).
+  - **`query artifacts` prints exactly what `artifact list` prints** (M6): **keep**, and delete the contradictory "simpler column set" idea from any remaining doc.
+  - **Traversals read two snapshots** (M6): the CLI resolves the start for suggestions, then the engine loads again. **Keep**; revisit only if the performance check in this milestone shows it matters.
+  - **`--meta` in queries is a string match, text matching uses Unicode lowercasing** (M6): **keep both**; numeric and boolean query values and full case folding are post-MVP.
+  - **Empty traversals print `no dependencies found` / `no dependents found`** (M6): **keep**, following the "no `<things>` found" rule.
+  - **Rule `V0019` was added to the catalog** (M7): **keep**; it is what makes the `Unknown` outcome explainable. The catalog is now `V0001` to `V0019`.
+  - **`validate` finds the repository without parsing `repository.toml`** (M7): **keep**, so a damaged repository file is a finding (exit 6) instead of a refusal (exit 5).
+  - **Scoped `validate` semantics and `-q`** (M7): **keep** the scope rules in [validation-rules.md](validation-rules.md#scoped-validation), and keep `-q` from silencing the report (extends the `-q` decision above).
+  - **A duplicate id also raises `V0017`** (M7): **keep**; a second file with the same id cannot also carry the id as its name.
+  - **Plural counts in `validate` text** (M7): **keep** (`1 relationship`).
+  - **`notify` for `watch` instead of polling only** (M8): **keep**, as [event-model-mvp.md](event-model-mvp.md) specifies; it adds a CC0-1.0 dependency (allowed in `deny.toml`) and a handful of transitive crates for lower latency, and polling remains the fallback. Revisit only if the performance check or a platform shows notifications to be a liability.
+  - **Idle `--timeout` for `watch`** (M8): **keep** (it restarts with every event), so `--count` and `--timeout` can be combined in tests and scripts; document it in [getting-started.md](getting-started.md) if `watch` appears there with a timeout.
+  - **Follower resets on a restarted log** (M8): **keep**; when numbering restarts at or below what was delivered, the new file is delivered from its start rather than dropped as already seen.
+  - **Event rotation limits stay fixed constants** (M8): **keep** (ADR-0008); `Limits` exists only so tests can shrink them.
+  - **Ctrl-C ending `watch` has no automated test** (M8): **decide** whether to add a Windows-only test that sends `CTRL_BREAK`/`CTRL_C` to a child process group, or keep the manual check recorded in [testing-strategy.md](testing-strategy.md).
+  - **The runtime is built with `enable_all`** (M8): **keep**; it is what timers and the Ctrl-C handler need, and the process is short-lived.
 
 Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 

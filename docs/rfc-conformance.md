@@ -34,7 +34,7 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 | C-0001-1 | Every artifact has identity, metadata, content and relationships | Implemented | [domain-model.md](domain-model.md) | `model:artifact_has_required_parts` |
 | C-0001-2 | Identity is immutable | Implemented | `ArtifactPatch` has no id field; update never changes `id` | `conf:update_preserves_id` |
 | C-0001-3 | Relationships are first-class entities | Implemented | Own type, own id, own file | `conf:relationship_has_identity` |
-| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `cli:validate::validation_never_changes_the_repository`, `val:engine::validation_does_not_modify_the_repository` |
+| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `cli:validate::validation_never_changes_the_repository_state`, `val:engine::validation_does_not_modify_the_repository` |
 | C-0001-5 | Execution is a reproducible operation producing artifacts | Deferred | | |
 | C-0001-6 | Projections do not own the model | Implemented | CLI is a thin projection ([cli-spec.md](cli-spec.md)) | `acc:library_only_workflow` |
 
@@ -141,14 +141,14 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0017-1 | Every event contains identifier, type, timestamp, origin, subject, metadata | Implemented | Envelope in [event-model-mvp.md](event-model-mvp.md) | `events:envelope_fields` |
-| C-0017-2 | Hierarchical event type names | Implemented | `artifact.created` and so on | `events:type_names` |
-| C-0017-3 | Event types: artifact, relationship, validation (and others) | Subset | Four types only | `cli:each_mutation_emits_one_event` |
-| C-0017-4 | Events are informational, not authoritative | Implemented | State never depends on the log | `events:append_failure_is_warning` |
+| C-0017-1 | Every event contains identifier, type, timestamp, origin, subject, metadata | Implemented | Envelope in [event-model-mvp.md](event-model-mvp.md) | `events:wire::encoding_uses_the_documented_key_order_and_shape`, `events:wire::events_round_trip`, `cli:events::the_event_log_after_a_typical_session_is_stable` |
+| C-0017-2 | Hierarchical event type names | Implemented | `artifact.created` and so on | `events:wire::encoding_uses_the_documented_key_order_and_shape`, `cli:watch::type_filters_match_names_and_prefixes` |
+| C-0017-3 | Event types: artifact, relationship, validation (and others) | Subset | Four types only | `cli:events::artifact_create_emits_artifact_created`, `cli:events::artifact_update_emits_artifact_updated_listing_the_changes`, `cli:events::relation_add_emits_relationship_created`, `cli:events::validate_always_emits_validation_completed_even_when_it_fails`, `cli:events::read_only_and_failed_commands_emit_nothing` |
+| C-0017-4 | Events are informational, not authoritative | Implemented | State never depends on the log | `cli:events::a_failed_append_warns_and_the_command_still_succeeds`, `cli:events::a_failed_append_warns_for_every_mutating_command_in_both_modes` |
 | C-0017-5 | Do not mandate transport, serialization or synchronous processing | Implemented | Local JSON Lines is an implementation choice | |
-| C-0017-6 | Auditability | Subset | Append-only log, rotated at 10 MiB with 10 archives retained ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); history older than the retained window is lost; no signatures | `events:seq_gap_free`, `events:rotation_retains_ten` |
+| C-0017-6 | Auditability | Subset | Append-only log, rotated at 10 MiB with 10 archives retained ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); history older than the retained window is lost; no signatures | `events:log::sequence_numbers_are_gap_free_across_the_current_log_and_every_archive`, `events:log::exactly_the_ten_newest_archives_are_retained_and_the_oldest_is_pruned`, `cli:events::concurrent_commands_never_duplicate_or_skip_a_sequence_number`, `cli:events::the_log_rotates_at_10_mib_and_numbering_continues` |
 | C-0017-7 | Distributed ordering is not assumed | Implemented | `seq` is per repository only | |
-| C-0017-8 | Subscriptions, replay, extension events | Deferred | `watch` is a simple tail | |
+| C-0017-8 | Subscriptions, replay, extension events | Deferred | `watch` is a simple tail | `events:follow::*`, `cli:watch` |
 
 ### Deferred RFCs
 

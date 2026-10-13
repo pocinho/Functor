@@ -59,7 +59,9 @@ One minimal fixture repository **per rule code** (`V0001` to `V0019`) that trigg
 
 ### functor-events
 
-Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap-free under concurrent writers (multi-process) and across rotation; rotation at 10 MiB with exactly 10 archives retained and the oldest pruned ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); truncated tail handling; watcher behavior (existing events, new events, log created later, `--after`, truncation, rotation while watching, filters), using `count` and `timeout` instead of sleeps.
+Envelope round trip and unknown-key tolerance; `seq` strictly increasing and gap-free under concurrent writers (multi-process) and across rotation; rotation at 10 MiB with exactly 10 archives retained and the oldest pruned ([ADR-0008](adr/ADR-0008-event-log-rotation.md)); truncated tail handling; watcher behavior (existing events, new events, log created later, `--after`, truncation, rotation while watching, filters), using `count` and `timeout` instead of sleeps where possible.
+
+The crate tests use small rotation limits (`Limits`) so rotation needs a few lines, not 10 MiB; the CLI tests seed a real 10 MiB log once. Watcher tests run both with filesystem notifications and with polling only (`FollowOptions`). Two behaviors are not covered by automated tests: Ctrl-C ending `watch` (the race with the signal future is unit-tested, the signal itself is checked by hand) and the notification backends of other platforms.
 
 ## Conformance Suite
 

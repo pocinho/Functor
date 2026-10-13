@@ -3,17 +3,20 @@
 //! See `docs/crate-dependencies.md`. This is the only place that reads the environment or builds
 //! services; command handlers receive traits.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use functor_core::{
     Clock, FunctorError, IdGenerator, RepositoryHandle, Result, SystemClock, UlidGenerator,
 };
+use functor_events::{EventLogOptions, FileEventLog};
+use functor_model::RepositoryId;
 use functor_repository::{DEFAULT_LOCK_TIMEOUT, FileRepositoryManager, discover_root};
 use functor_store::{FileStore, StoreOptions};
 
 use crate::cli::OutputMode;
+use crate::events::Recorder;
 
 /// Options that apply to every command.
 #[derive(Debug, Clone)]
@@ -65,6 +68,8 @@ pub struct Context {
     pub handle: RepositoryHandle,
     /// The entity store.
     pub store: FileStore,
+    /// Appends the events of mutating commands.
+    pub recorder: Recorder,
 }
 
 fn lock_timeout() -> Result<Duration> {
@@ -81,6 +86,21 @@ fn lock_timeout() -> Result<Duration> {
                 )
             }),
     }
+}
+
+/// The event log of the repository rooted at `root`, producing events with origin `origin`.
+///
+/// # Errors
+/// `InvalidInput` for a bad `FUNCTOR_LOCK_TIMEOUT`.
+pub fn event_recorder(root: &Path, origin: RepositoryId, services: &Services) -> Result<Recorder> {
+    let options = EventLogOptions::default().with_lock_timeout(lock_timeout()?);
+    Ok(Recorder::new(FileEventLog::new(
+        root,
+        origin,
+        Arc::clone(&services.clock),
+        Arc::clone(&services.ids),
+        options,
+    )))
 }
 
 /// Finds the repository root (walking up from `--repo` or the current directory) and opens its
@@ -119,5 +139,10 @@ pub async fn open(globals: &Globals, services: &Services) -> Result<Context> {
         Arc::clone(&services.ids),
         options,
     );
-    Ok(Context { handle, store })
+    let recorder = event_recorder(&handle.root, *handle.info.id(), services)?;
+    Ok(Context {
+        handle,
+        store,
+        recorder,
+    })
 }

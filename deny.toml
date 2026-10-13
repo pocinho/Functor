@@ -14,6 +14,8 @@ allow = [
     "ISC",
     "Unicode-3.0",
     "Zlib",
+    # Public-domain dedication; `notify` (filesystem notifications for `watch`) uses it.
+    "CC0-1.0",
 ]
 
 [bans]

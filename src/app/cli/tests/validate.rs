@@ -433,6 +433,7 @@ fn validate_outside_a_repository_exits_with_code_5() {
 // guarantees
 // ---------------------------------------------------------------------------------------------
 
+/// Every file of the repository except the event log, which `validate` appends to by design.
 fn repository_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn walk(dir: &Path, root: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
         for entry in fs::read_dir(dir).unwrap() {
@@ -445,7 +446,9 @@ fn repository_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
                     .unwrap()
                     .to_string_lossy()
                     .replace('\\', "/");
-                files.insert(name, fs::read(&path).unwrap());
+                if !name.starts_with("events/") {
+                    files.insert(name, fs::read(&path).unwrap());
+                }
             }
         }
     }
@@ -455,7 +458,7 @@ fn repository_files(root: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 #[test]
-fn validation_never_changes_the_repository() {
+fn validation_never_changes_the_repository_state() {
     let sandbox = healthy();
     sandbox.write("artifacts/junk.toml", "= = =");
     sandbox.write("artifacts/notes.txt", "x");

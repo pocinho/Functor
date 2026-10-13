@@ -28,6 +28,14 @@ required-features = ["test-support"]
 name = "validate"
 required-features = ["test-support"]
 
+[[test]]
+name = "events"
+required-features = ["test-support"]
+
+[[test]]
+name = "watch"
+required-features = ["test-support"]
+
 [features]
 # Test-only environment variables (FUNCTOR_TEST_FIXED_TIME, FUNCTOR_TEST_ID_SEED). Never enabled
 # in release builds.
@@ -45,7 +53,7 @@ functor-query.workspace = true
 functor-validation.workspace = true
 functor-events.workspace = true
 clap.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["time", "signal"] }
 serde.workspace = true
 serde_json.workspace = true
 

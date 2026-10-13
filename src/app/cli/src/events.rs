@@ -1,22 +1,41 @@
-//! Event emission seam.
+//! Event emission.
 //!
-//! Events arrive in M8 (`functor-events`, ADR-0003). Until then mutating commands already build
-//! the event they will publish and hand it to [`Recorder`], which discards it. Replacing the
-//! recorder is the only change M8 needs in the command handlers.
+//! Mutating commands build the event after their state change has committed and hand it to
+//! [`Recorder`], which appends it to the event log (ADR-0003, `docs/event-model-mvp.md`). A
+//! failed append never fails the command: it prints `warning: event not recorded: <reason>` to
+//! stderr and the command carries on with exit code 0.
 
+use functor_events::FileEventLog;
 use functor_model::{
     Artifact, ArtifactField, EventData, EventKind, EventSubject, NewEvent, Relationship,
     RepositoryId, ValidationReport,
 };
 
-/// Receives the events produced by commands.
-#[derive(Debug, Default)]
-pub struct Recorder;
+/// Appends the events produced by commands.
+#[derive(Debug, Clone)]
+pub struct Recorder {
+    log: FileEventLog,
+}
 
 impl Recorder {
-    /// Records an event. Currently a no-op.
-    #[allow(clippy::unused_self)]
-    pub fn record(&self, _event: NewEvent) {}
+    /// A recorder that appends to `log`.
+    #[must_use]
+    pub fn new(log: FileEventLog) -> Self {
+        Self { log }
+    }
+
+    /// Appends an event. A failure, or a rotation or pruning problem, is reported as a warning
+    /// on stderr and does not affect the command.
+    pub async fn record(&self, event: NewEvent) {
+        match self.log.publish_detailed(event).await {
+            Ok(published) => {
+                for warning in published.warnings {
+                    eprintln!("warning: {warning}");
+                }
+            }
+            Err(error) => eprintln!("warning: event not recorded: {error}"),
+        }
+    }
 }
 
 /// The `artifact.created` event for a new artifact.

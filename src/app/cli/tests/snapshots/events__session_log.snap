@@ -1,0 +1,9 @@
+---
+source: src/app/cli/tests/events.rs
+expression: "sandbox.read(\"events/current.log\")"
+---
+{"v":1,"id":"evt_00000000000000000000000035","seq":1,"at":"2026-10-12T18:00:00Z","type":"artifact.created","origin":"functor:repository:repo_00000000000000000000000001","subject":"functor:artifact:art_00000000000000000000000034","data":{"revision":1,"slug":"rfc-0000","type":"document"},"metadata":{}}
+{"v":1,"id":"evt_00000000000000000000000036","seq":2,"at":"2026-10-12T18:00:00Z","type":"artifact.created","origin":"functor:repository:repo_00000000000000000000000001","subject":"functor:artifact:art_00000000000000000000000035","data":{"revision":1,"slug":"rfc-0001","type":"document"},"metadata":{}}
+{"v":1,"id":"evt_00000000000000000000000069","seq":3,"at":"2026-10-12T18:00:00Z","type":"relationship.created","origin":"functor:repository:repo_00000000000000000000000001","subject":"functor:relationship:rel_00000000000000000000000068","data":{"relationship_type":"depends_on","source":"art_00000000000000000000000035","target":"art_00000000000000000000000034"},"metadata":{}}
+{"v":1,"id":"evt_0000000000000000000000009C","seq":4,"at":"2026-10-12T18:00:00Z","type":"artifact.updated","origin":"functor:repository:repo_00000000000000000000000001","subject":"functor:artifact:art_00000000000000000000000034","data":{"changed":["title"],"revision":2,"slug":"rfc-0000"},"metadata":{}}
+{"v":1,"id":"evt_000000000000000000000000CG","seq":5,"at":"2026-10-12T18:00:00Z","type":"validation.completed","origin":"functor:repository:repo_00000000000000000000000001","subject":"functor:repository:repo_00000000000000000000000001","data":{"errors":0,"infos":0,"outcome":"passed","strict":false,"warnings":0},"metadata":{}}
