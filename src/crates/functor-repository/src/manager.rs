@@ -68,26 +68,36 @@ fn is_repository_root(dir: &Path) -> bool {
     Layout::new(dir).repository_file().is_file()
 }
 
-/// Finds the repository containing `start` by walking up the directory tree. The nearest
-/// repository wins, so nested repositories shadow their parents.
+/// Finds the root of the repository containing `start` by walking up the directory tree, without
+/// reading `repository.toml`. The nearest repository wins.
+///
+/// `validate` uses this so that a malformed or unsupported `repository.toml` is reported as a
+/// finding instead of stopping the command before it starts.
 ///
 /// # Errors
-/// `NotARepository` when no ancestor is a repository, otherwise as [`open_repository`].
-pub fn discover_repository(start: &Path) -> Result<RepositoryHandle> {
+/// `NotARepository` when no ancestor contains `.functor/repository.toml`.
+pub fn discover_root(start: &Path) -> Result<PathBuf> {
     let start_abs = absolute(start)?;
     let first = if start_abs.is_file() {
         start_abs.parent().map(Path::to_path_buf)
     } else {
         Some(start_abs.clone())
     };
-    let found = first
+    first
         .iter()
         .flat_map(|dir| dir.ancestors())
-        .find(|dir| is_repository_root(dir));
-    match found {
-        Some(root) => open_repository(root),
-        None => Err(FunctorError::NotARepository { path: start_abs }),
-    }
+        .find(|dir| is_repository_root(dir))
+        .map(Path::to_path_buf)
+        .ok_or(FunctorError::NotARepository { path: start_abs })
+}
+
+/// Finds the repository containing `start` by walking up the directory tree. The nearest
+/// repository wins, so nested repositories shadow their parents.
+///
+/// # Errors
+/// `NotARepository` when no ancestor is a repository, otherwise as [`open_repository`].
+pub fn discover_repository(start: &Path) -> Result<RepositoryHandle> {
+    open_repository(&discover_root(start)?)
 }
 
 /// The repository manager for the local filesystem.
@@ -467,6 +477,36 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let error = discover_repository(temp.path()).unwrap_err();
         assert!(matches!(error, FunctorError::NotARepository { .. }));
+    }
+
+    #[test]
+    fn discover_root_finds_the_repository_even_when_repository_toml_is_broken() {
+        let temp = tempfile::tempdir().unwrap();
+        manager(&Env::new())
+            .init_blocking(temp.path(), &InitOptions::new())
+            .unwrap();
+        fs::write(
+            temp.path().join(".functor/repository.toml"),
+            "format_version = 9\n",
+        )
+        .unwrap();
+        let nested = temp.path().join("artifacts");
+
+        assert_eq!(
+            discover_root(&nested).unwrap(),
+            std::path::absolute(temp.path()).unwrap()
+        );
+        // The checking discovery still refuses it.
+        assert!(matches!(
+            discover_repository(&nested).unwrap_err(),
+            FunctorError::UnsupportedFormat { .. }
+        ));
+
+        let outside = tempfile::tempdir().unwrap();
+        assert!(matches!(
+            discover_root(outside.path()).unwrap_err(),
+            FunctorError::NotARepository { .. }
+        ));
     }
 
     #[test]

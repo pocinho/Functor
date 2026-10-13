@@ -34,7 +34,7 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 | C-0001-1 | Every artifact has identity, metadata, content and relationships | Implemented | [domain-model.md](domain-model.md) | `model:artifact_has_required_parts` |
 | C-0001-2 | Identity is immutable | Implemented | `ArtifactPatch` has no id field; update never changes `id` | `conf:update_preserves_id` |
 | C-0001-3 | Relationships are first-class entities | Implemented | Own type, own id, own file | `conf:relationship_has_identity` |
-| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `val:report_not_persisted` |
+| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `cli:validate::validation_never_changes_the_repository`, `val:engine::validation_does_not_modify_the_repository` |
 | C-0001-5 | Execution is a reproducible operation producing artifacts | Deferred | | |
 | C-0001-6 | Projections do not own the model | Implemented | CLI is a thin projection ([cli-spec.md](cli-spec.md)) | `acc:library_only_workflow` |
 
@@ -68,7 +68,7 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 | C-0004-2 | Core types: references, depends_on, derived_from, extends, supports, contradicts | Subset | First four built-in; others as custom types ([ADR-0007](adr/ADR-0007-relationship-types.md)) | `model:builtin_vs_custom` |
 | C-0004-3 | Relationships should have stable identifiers | Implemented | `rel_<ULID>` | `conf:relationship_has_identity` |
 | C-0004-4 | Metadata must not alter semantic meaning | Implemented | Opaque metadata map | `store:relationship_metadata_roundtrip` |
-| C-0004-5 | Validate existence of referenced artifacts and detect cycles | Implemented | `V0006`, `V0007`, `V0009`, `V0011` ([validation-rules.md](validation-rules.md)) | `val:V0006`, `val:V0007`, `val:V0009`, `val:V0011` |
+| C-0004-5 | Validate existence of referenced artifacts and detect cycles | Implemented | `V0006`, `V0007`, `V0009`, `V0011` ([validation-rules.md](validation-rules.md)) | `val:rules::v0006_dangling_source`, `val:rules::v0007_dangling_target`, `val:rules::v0009_self_reference`, `val:rules::v0011_*` |
 | C-0004-6 | API: create, remove, list, find_related, traverse | Subset | No remove | `conf:relationships`, `query:traverse::*`, `cli:query`, `cli:relation` |
 | C-0004-7 | Reverse relationships via indexing or query | Implemented | Inbound traversal ([query-model-mvp.md](query-model-mvp.md)) | `query:properties::inbound_of_the_outbound_neighbours_includes_the_start`, `cli:query::dependents_follow_edges_backwards` |
 
@@ -79,7 +79,7 @@ Test column notation: `model:` unit and property tests in `functor-model`; `repo
 | C-0005-1 | Identity immutable through content, metadata and relationship changes | Implemented | | `conf:update_preserves_id` |
 | C-0005-2 | Identifiers do not encode paths, keys or URLs | Implemented | `art_<ULID>` | `model:id_grammar` |
 | C-0005-3 | Identifiers are opaque to consumers | Implemented | No timestamp accessor; slug is a separate alias ([ADR-0001](adr/ADR-0001-two-part-identity.md)) | `model:id_has_no_accessors`, review rule |
-| C-0005-4 | Globally unique identifiers | Subset | ULID: probabilistically unique; uniqueness within a repository is additionally checked (`V0003`) | `val:V0003` |
+| C-0005-4 | Globally unique identifiers | Subset | ULID: probabilistically unique; uniqueness within a repository is additionally checked (`V0003`) | `val:rules::v0003_duplicate_artifact_id`, `val:engine::v0003_duplicate_artifact_id` |
 | C-0005-5 | Canonical reference `functor:<entity-type>:<id>` (SHOULD) | Implemented | Accepted on input, emitted as `ref` in JSON ([identity-and-addressing.md](identity-and-addressing.md)) | `cli:accepts_canonical_ref` |
 | C-0005-6 | Retrieval by identifier: get, resolve, exists | Implemented | `get`, `resolve`, `lookup` | `conf:resolve` |
 | C-0005-7 | Cross-repository and federated identifiers | Deferred | | |
@@ -102,8 +102,8 @@ See the coverage table in [query-model-mvp.md](query-model-mvp.md).
 
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
-| C-0007-1 | Validation outcomes explicit: Passed, Failed, Warning, Unknown | Implemented | `Outcome` | `val:outcome_table` |
-| C-0007-2 | Validation of artifacts and relationships | Implemented | Rule catalog | `val:V0001` to `val:V0018` |
+| C-0007-1 | Validation outcomes explicit: Passed, Failed, Warning, Unknown | Implemented | `Outcome` | `model:outcome_derivation_table`, `val:evaluate::the_outcome_follows_the_worst_finding`, `val:evaluate::an_unreadable_path_makes_the_outcome_unknown_unless_there_is_an_error`, `cli:exit::validation_outcomes_map_to_the_documented_exit_codes` |
+| C-0007-2 | Validation of artifacts and relationships | Implemented | Rule catalog `V0001` to `V0019` | `val:rules::v0001_*` to `val:rules::v0019_*`, `val:engine::v0001_*` to `val:engine::v0018_*` (real files), `cli:validate` |
 | C-0007-3 | Validation outputs representable as artifacts | Deviation | See C-0001-4 | |
 | C-0007-4 | Execution as evidence; reproducible executions | Deferred | | |
 | C-0007-5 | Traceability between inputs, executions, outputs, validations | Deferred | `validation.completed` event is the only record | |

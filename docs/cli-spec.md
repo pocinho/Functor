@@ -137,6 +137,13 @@ Output and errors:
 
 Validate the repository ([validation-rules.md](validation-rules.md)). Options: `--strict` (warnings also fail). Exit 0 for `passed` and `warning`; exit 6 for `failed`, `unknown` and (with `--strict`) `warning`. Emits `validation.completed`.
 
+- **A report is a result, not an error.** It is printed to stdout (text or JSON) even when the exit code is 6; stderr stays empty. Errors (`NotARepository`, `NotFound` for the scoped artifact, `InvalidInput`, storage) are printed to stderr as for every command.
+- **Damaged repositories are validated, not refused.** `validate` finds the repository root by `.functor/repository.toml` without parsing it, so an unsupported `format_version` (`V0013`) or a malformed `repository.toml` (`V0001`) is a finding, while every other command still fails with exit 5.
+- **Text** has one line per finding, `<severity> <code> <subject>: <message>` (subject: `repository`, `artifact <id>`, `relationship <id>` or `file <path>`), an indented `related:` line when the finding has related subjects, then `validated <n> artifacts, <m> relationships` and `outcome: <outcome> (<e> errors, <w> warnings[, <i> infos])`; a clean run prints `outcome: passed` without the parenthesis. With `[ARTIFACT]` the second line ends with `(findings about <ARTIFACT>)`.
+- **JSON** is the `validate` document below, without a timestamp, so one repository always produces the same bytes (also across clocks and id sources).
+- **`[ARTIFACT]`** takes an id, canonical reference or slug and restricts the reported findings as described in [validation-rules.md](validation-rules.md#scoped-validation). An artifact that does not exist, or did not load cleanly, is exit 3.
+- `-q` does not silence the report.
+
 ### `functor watch`
 
 Stream repository events ([event-model-mvp.md](event-model-mvp.md)).
@@ -173,7 +180,7 @@ DEPTH  SLUG      TYPE      TITLE
 1      rfc-0000  document  rfc-0000
 
 $ functor validate
-validated 2 artifacts, 1 relationships
+validated 2 artifacts, 1 relationship
 outcome: passed
 ```
 
@@ -182,7 +189,7 @@ With findings:
 ```text
 $ functor validate
 error V0007 relationship rel_01J9Z3KQ0A1B2C3D4E5F6G7H8J: target art_01J9Z3K0P4Q5R6S7T8V9W0X1Y2 does not exist
-validated 2 artifacts, 1 relationships
+validated 2 artifacts, 1 relationship
 outcome: failed (1 error, 0 warnings)
 ```
 
@@ -212,10 +219,10 @@ Finding       {"code","severity","subject":{"kind","id"|"path"},"message","relat
 | `relation list` | `{"schema_version":1,"relationships":[Relationship]}` |
 | `query dependencies`, `query dependents` | `{"schema_version":1,"start":ArtifactRef,"direction":"outbound"\|"inbound","relationship_types":[...],"max_depth":n\|null,"nodes":[{"depth","artifact":Artifact,"via":Relationship}],"edges":[Relationship]}` |
 | `query relationships` | `{"schema_version":1,"artifact":ArtifactRef,"relationships":[Relationship]}` |
-| `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}` |
+| `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}`; a subject is `{"kind":"repository"}`, `{"kind":"artifact"\|"relationship","id"}` or `{"kind":"file","path"}` |
 | `watch` | one event envelope per line, exactly as stored in the log |
 
-Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json`, `relationship-document.json`, `relationship-list.json`, `query-traversal.json`, `query-relationships.json` (shared definitions are kept identical by tests); the rest arrive with their commands.
+Schema changes: adding fields is compatible; removing or renaming fields or changing meaning bumps `schema_version`. A JSON Schema file per document lives in `docs/schemas/` and is used by the tests. Present so far: `init.json`, `error.json`, `artifact-document.json`, `artifact-list.json`, `relationship-document.json`, `relationship-list.json`, `query-traversal.json`, `query-relationships.json`, `validate.json` (shared definitions are kept identical by tests); the rest arrive with their commands.
 
 ## Implementation Notes (M4)
 
@@ -238,6 +245,13 @@ Schema changes: adding fields is compatible; removing or renaming fields or chan
 - **Engine.** The `query` commands call `functor-query` through `SnapshotQueryEngine`; see [query-model-mvp.md](query-model-mvp.md#implementation-notes-m6) for the semantics decisions (edge listing, text and metadata matching, two snapshot reads).
 - **`--meta` in queries is a string match.** It finds string metadata and members of string lists; integer and boolean metadata written by hand do not match `--meta key=3`.
 - **Schemas.** `query-traversal.json` serves `dependencies` and `dependents`; `query-relationships.json` serves `relationships`; `query artifacts` uses `artifact-list.json`.
+
+## Implementation Notes (M7)
+
+- **`validate` opens the repository differently.** `context::open_unchecked` walks up to the nearest `.functor/repository.toml` (`functor_repository::discover_root`) and builds the store with `FileStore::at_root`, without parsing `repository.toml`. Other commands keep the checking `discover`.
+- **`validation.completed`.** `validate` builds the event (outcome, error, warning and info counts, `strict`) and hands it to the no-op recorder, as the other commands do, unless the repository identity is unreadable. M8 replaces the recorder.
+- **Not found with suggestions.** The engine reports an unknown scoped artifact as a plain `NotFound`; the command adds slug suggestions from a lenient load.
+- **Plurals.** Counts are pluralized (`1 relationship`, `2 relationships`); the earlier draft showed `1 relationships`.
 
 ## Logging
 

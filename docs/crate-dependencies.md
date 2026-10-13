@@ -64,7 +64,7 @@ FileRepositoryManager (functor-repository) -> RepositoryManager
 FileStore                                  -> RepositoryReader, ArtifactRepository, RelationshipRepository
 FileEventLog                               -> EventPublisher, EventSource
 SnapshotQueryEngine<'_, FileStore>        -> QueryEngine
-RuleValidationEngine<FileStore>
+RuleValidationEngine<'_, FileStore>        -> ValidationEngine
 SystemClock, UlidGenerator
 ```
 

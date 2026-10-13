@@ -35,7 +35,7 @@ Init is **not idempotent** by design: running it twice is an error, which preven
 
 Every command except `init` finds the repository by walking from the start directory (`--repo` or the current directory) up to the filesystem root, looking for `.functor/repository.toml`. The first match wins; nested repositories therefore shadow their parents. No match: exit 5.
 
-Opening checks `format_version` before reading anything else ([storage-design.md](storage-design.md)).
+Opening checks `format_version` before reading anything else ([storage-design.md](storage-design.md)). The one exception is `functor validate`, which uses the same walk but does not open the repository: an unsupported or malformed `repository.toml` is reported as a finding (`V0013`, `V0001`) rather than refused with exit 5.
 
 ## Normal Operation
 

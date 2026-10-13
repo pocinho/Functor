@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use functor_model::{
-    Artifact, Relationship, RepoPath, RepositoryInfo, RepositorySnapshot, SnapshotError,
+    Artifact, Relationship, RepoPath, RepositoryInfo, RepositorySnapshot, SnapshotError, Subject,
 };
 
 use crate::error::{FunctorError, Result};
@@ -136,17 +136,38 @@ pub struct LoadIssue {
     pub path: RepoPath,
     /// A human-readable explanation, including other involved files for duplicates.
     pub detail: String,
+    /// The entity the file defines, when the file could be read far enough to know it. Scoped
+    /// validation uses it to decide which problems concern an artifact.
+    pub entity: Option<Subject>,
+    /// Other subjects involved, for example the file that defined a duplicate id first.
+    pub related: Vec<Subject>,
 }
 
 impl LoadIssue {
-    /// Creates an issue.
+    /// Creates an issue about a file.
     #[must_use]
     pub fn new(kind: LoadIssueKind, path: RepoPath, detail: impl Into<String>) -> Self {
         Self {
             kind,
             path,
             detail: detail.into(),
+            entity: None,
+            related: Vec::new(),
         }
+    }
+
+    /// Names the entity the file defines.
+    #[must_use]
+    pub fn with_entity(mut self, entity: Subject) -> Self {
+        self.entity = Some(entity);
+        self
+    }
+
+    /// Adds related subjects.
+    #[must_use]
+    pub fn with_related(mut self, related: impl IntoIterator<Item = Subject>) -> Self {
+        self.related = related.into_iter().collect();
+        self
     }
 }
 
@@ -266,6 +287,23 @@ mod tests {
     fn clean_load_becomes_a_snapshot() {
         let snapshot = load(Vec::new()).into_snapshot().unwrap();
         assert_eq!(snapshot.artifacts().len(), 1);
+    }
+
+    #[test]
+    fn issues_start_without_an_entity_and_gain_context_through_builders() {
+        let plain = issue(LoadIssueKind::MalformedFile);
+        assert_eq!(plain.entity, None);
+        assert_eq!(plain.related, []);
+
+        let other = Subject::File(RepoPath::new("artifacts/first.toml").unwrap());
+        let rich = issue(LoadIssueKind::DuplicateSlug)
+            .with_entity(Subject::Artifact(ArtifactId::from_bits(2)))
+            .with_related([other.clone()]);
+        assert_eq!(
+            rich.entity,
+            Some(Subject::Artifact(ArtifactId::from_bits(2)))
+        );
+        assert_eq!(rich.related, [other]);
     }
 
     #[test]

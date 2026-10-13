@@ -21,7 +21,7 @@ use functor_core::{
 };
 use functor_model::{
     Artifact, ArtifactId, ArtifactPatch, ArtifactType, Content, ContentFormat, NewArtifact,
-    NewRelationship, Relationship, RelationshipType, Slug, Title,
+    NewRelationship, Relationship, RelationshipType, RepoPath, Slug, Subject, Title,
 };
 use functor_repository::{FileRepositoryManager, Layout, WriteLock};
 use functor_store::{
@@ -467,6 +467,42 @@ async fn duplicate_slugs_keep_the_first_file_and_report_the_second() {
         repo.issues().await,
         [(LoadIssueKind::DuplicateSlug, format!("artifacts/{id}.toml"))]
     );
+}
+
+#[tokio::test]
+async fn issues_name_their_entity_and_the_file_that_defined_a_duplicate_first() {
+    let repo = repo().await;
+    // A slug clash: the first file (alpha's own) is named as related.
+    let clash = ArtifactId::from_bits(9999);
+    repo.write(
+        &format!("artifacts/{clash}.toml"),
+        artifact_text_with(9999, "alpha", ""),
+    );
+    // A renamed file keeps its entity.
+    fs::rename(
+        repo.path(&repo.artifact_path(&repo.beta)),
+        repo.path("artifacts/renamed.toml"),
+    )
+    .unwrap();
+
+    let issues = RepositoryReader::load(&repo.store).await.unwrap().issues;
+    let slug_clash = issues
+        .iter()
+        .find(|i| i.kind == LoadIssueKind::DuplicateSlug)
+        .unwrap();
+    assert_eq!(slug_clash.entity, Some(Subject::Artifact(clash)));
+    assert_eq!(
+        slug_clash.related,
+        [Subject::File(
+            RepoPath::new(&repo.artifact_path(&repo.alpha)).unwrap()
+        )]
+    );
+    let renamed = issues
+        .iter()
+        .find(|i| i.kind == LoadIssueKind::FilenameMismatch)
+        .unwrap();
+    assert_eq!(renamed.entity, Some(Subject::Artifact(*repo.beta.id())));
+    assert_eq!(renamed.related, []);
 }
 
 #[tokio::test]

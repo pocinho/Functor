@@ -12,7 +12,8 @@ pub mod toml_support;
 pub use fsutil::{DEFAULT_LOCK_TIMEOUT, WriteLock, atomic_write, run_blocking};
 pub use layout::{FUNCTOR_DIR, GITKEEP, Layout, TEMP_MARKER};
 pub use manager::{
-    FileRepositoryManager, discover_repository, open_repository, read_repository_file,
+    FileRepositoryManager, discover_repository, discover_root, open_repository,
+    read_repository_file,
 };
 pub use repository_file::{
     KNOWN_KEYS as REPOSITORY_FILE_KEYS, ParsedRepositoryFile, RepositoryFileError,

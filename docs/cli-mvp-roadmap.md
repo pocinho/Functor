@@ -98,9 +98,11 @@ Status: implemented. `functor-query` has `search`, `traverse`, `relationships_of
 
 ## M7: Validation (`functor-validation`)
 
-RFC-0007 validation subset. The rule catalog `V0001` to `V0018`, report, exit-code policy, `validate [artifact] [--strict]` ([validation-rules.md](validation-rules.md)).
+RFC-0007 validation subset. The rule catalog `V0001` to `V0019`, report, exit-code policy, `validate [artifact] [--strict]` ([validation-rules.md](validation-rules.md)).
 
 Done when: each rule has its own fixture repository and the clean fixture passes; output is byte-identical across runs.
+
+Status: implemented. `functor-validation` has the 19-rule catalog (kept equal to [validation-rules.md](validation-rules.md) by a test), pure rules, iterative Tarjan cycle detection, scoping and `RuleValidationEngine` (59 unit tests including a cycle property test, 27 real-file engine tests with one broken repository per rule code); the CLI has `validate [ARTIFACT] [--strict]`, the exit-code policy, schema `validate.json` and 28 e2e tests (golden transcripts, every outcome, scoping, damaged repositories, byte-identical output across clocks). One rule was added to the planned catalog: `V0019` (an unreadable path) makes the `Unknown` outcome explainable. Notes in [validation-rules.md](validation-rules.md#implementation-notes-m7) and [cli-spec.md](cli-spec.md#implementation-notes-m7).
 
 ## M8: Events (`functor-events`)
 

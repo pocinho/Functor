@@ -9,7 +9,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use functor_core::{FunctorError, LoadIssue, LoadIssueKind, Result, SnapshotLoad};
-use functor_model::{Artifact, ArtifactId, Content, RelationshipId, RepositoryInfo, Slug};
+use functor_model::{Artifact, ArtifactId, Content, RelationshipId, RepositoryInfo, Slug, Subject};
 use functor_repository::{
     GITKEEP, Layout, RepositoryFileError, TEMP_MARKER, parse_repository_file,
 };
@@ -34,6 +34,37 @@ impl Loader<'_> {
     fn issue(&mut self, kind: LoadIssueKind, path: &Path, detail: impl Into<String>) {
         let relative = self.layout.relative(path);
         self.issues.push(LoadIssue::new(kind, relative, detail));
+    }
+
+    // An issue about a file whose entity is known.
+    fn entity_issue(
+        &mut self,
+        kind: LoadIssueKind,
+        path: &Path,
+        detail: impl Into<String>,
+        entity: Subject,
+    ) {
+        let relative = self.layout.relative(path);
+        self.issues
+            .push(LoadIssue::new(kind, relative, detail).with_entity(entity));
+    }
+
+    // An issue about a file that repeats an id or slug first defined in `first`.
+    fn duplicate_issue(
+        &mut self,
+        kind: LoadIssueKind,
+        path: &Path,
+        first: &Path,
+        detail: impl Into<String>,
+        entity: Subject,
+    ) {
+        let relative = self.layout.relative(path);
+        let other = Subject::File(self.layout.relative(first));
+        self.issues.push(
+            LoadIssue::new(kind, relative, detail)
+                .with_entity(entity)
+                .with_related([other]),
+        );
     }
 
     // Reads a file with the size cap, classifying failures as issues.
@@ -163,18 +194,21 @@ impl Loader<'_> {
         let Content::Path { path, .. } = artifact.content() else {
             return;
         };
+        let entity = Subject::Artifact(*artifact.id());
         let full = self.layout.content_file(path);
         match fs::metadata(&full) {
-            Err(error) if error.kind() == ErrorKind::NotFound => self.issue(
+            Err(error) if error.kind() == ErrorKind::NotFound => self.entity_issue(
                 LoadIssueKind::MissingContentFile,
                 file,
                 format!("content file `{path}` does not exist"),
+                entity,
             ),
             Err(error) => self.issue(LoadIssueKind::Unreadable, &full, error.to_string()),
-            Ok(metadata) if !metadata.is_file() => self.issue(
+            Ok(metadata) if !metadata.is_file() => self.entity_issue(
                 LoadIssueKind::MissingContentFile,
                 file,
                 format!("content path `{path}` is not a file"),
+                entity,
             ),
             Ok(_) => {
                 // A link inside the repository must not lead outside it.
@@ -186,10 +220,11 @@ impl Loader<'_> {
                     _ => false,
                 };
                 if !inside {
-                    self.issue(
+                    self.entity_issue(
                         LoadIssueKind::UnsafeContentPath,
                         file,
                         format!("content path `{path}` resolves outside the repository"),
+                        entity,
                     );
                 }
             }
@@ -198,8 +233,8 @@ impl Loader<'_> {
 
     fn artifacts(&mut self) -> Vec<Artifact> {
         let mut loaded = Vec::new();
-        let mut ids: BTreeMap<ArtifactId, String> = BTreeMap::new();
-        let mut slugs: BTreeMap<Slug, String> = BTreeMap::new();
+        let mut ids: BTreeMap<ArtifactId, PathBuf> = BTreeMap::new();
+        let mut slugs: BTreeMap<Slug, PathBuf> = BTreeMap::new();
 
         for candidate in self.list(&self.layout.artifacts_dir()) {
             let Some(text) = self.read_text(&candidate.path) else {
@@ -212,40 +247,59 @@ impl Loader<'_> {
                     continue;
                 }
             };
+            let artifact = parsed.artifact;
+            let entity = Subject::Artifact(*artifact.id());
             if !parsed.unknown_fields.is_empty() {
-                self.issue(
+                self.entity_issue(
                     LoadIssueKind::UnknownField,
                     &candidate.path,
                     format!("unknown field(s): {}", parsed.unknown_fields.join(", ")),
+                    entity.clone(),
                 );
             }
-            let artifact = parsed.artifact;
             if candidate.name != format!("{}.toml", artifact.id()) {
-                self.issue(
+                self.entity_issue(
                     LoadIssueKind::FilenameMismatch,
                     &candidate.path,
                     format!("file name does not match its id {}", artifact.id()),
+                    entity.clone(),
                 );
             }
             if let Some(first) = ids.get(artifact.id()) {
-                self.issue(
+                let detail = format!(
+                    "id {} is already defined in {}",
+                    artifact.id(),
+                    file_name(first)
+                );
+                let first = first.clone();
+                self.duplicate_issue(
                     LoadIssueKind::DuplicateArtifactId,
                     &candidate.path,
-                    format!("id {} is already defined in {first}", artifact.id()),
+                    &first,
+                    detail,
+                    entity,
                 );
                 continue;
             }
             if let Some(first) = slugs.get(artifact.slug()) {
-                self.issue(
+                let detail = format!(
+                    "slug `{}` is already used in {}",
+                    artifact.slug(),
+                    file_name(first)
+                );
+                let first = first.clone();
+                self.duplicate_issue(
                     LoadIssueKind::DuplicateSlug,
                     &candidate.path,
-                    format!("slug `{}` is already used in {first}", artifact.slug()),
+                    &first,
+                    detail,
+                    entity,
                 );
                 continue;
             }
             self.check_content(&candidate.path, &artifact);
-            ids.insert(*artifact.id(), candidate.name.clone());
-            slugs.insert(artifact.slug().clone(), candidate.name);
+            ids.insert(*artifact.id(), candidate.path.clone());
+            slugs.insert(artifact.slug().clone(), candidate.path);
             loaded.push(artifact);
         }
         loaded
@@ -253,7 +307,7 @@ impl Loader<'_> {
 
     fn relationships(&mut self) -> Vec<functor_model::Relationship> {
         let mut loaded = Vec::new();
-        let mut ids: BTreeMap<RelationshipId, String> = BTreeMap::new();
+        let mut ids: BTreeMap<RelationshipId, PathBuf> = BTreeMap::new();
 
         for candidate in self.list(&self.layout.relationships_dir()) {
             let Some(text) = self.read_text(&candidate.path) else {
@@ -266,34 +320,51 @@ impl Loader<'_> {
                     continue;
                 }
             };
+            let relationship = parsed.relationship;
+            let entity = Subject::Relationship(*relationship.id());
             if !parsed.unknown_fields.is_empty() {
-                self.issue(
+                self.entity_issue(
                     LoadIssueKind::UnknownField,
                     &candidate.path,
                     format!("unknown field(s): {}", parsed.unknown_fields.join(", ")),
+                    entity.clone(),
                 );
             }
-            let relationship = parsed.relationship;
             if candidate.name != format!("{}.toml", relationship.id()) {
-                self.issue(
+                self.entity_issue(
                     LoadIssueKind::FilenameMismatch,
                     &candidate.path,
                     format!("file name does not match its id {}", relationship.id()),
+                    entity.clone(),
                 );
             }
             if let Some(first) = ids.get(relationship.id()) {
-                self.issue(
+                let detail = format!(
+                    "id {} is already defined in {}",
+                    relationship.id(),
+                    file_name(first)
+                );
+                let first = first.clone();
+                self.duplicate_issue(
                     LoadIssueKind::DuplicateRelationshipId,
                     &candidate.path,
-                    format!("id {} is already defined in {first}", relationship.id()),
+                    &first,
+                    detail,
+                    entity,
                 );
                 continue;
             }
-            ids.insert(*relationship.id(), candidate.name);
+            ids.insert(*relationship.id(), candidate.path);
             loaded.push(relationship);
         }
         loaded
     }
+}
+
+fn file_name(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Loads the repository rooted at `layout`, collecting every problem instead of stopping.

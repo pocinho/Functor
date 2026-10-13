@@ -1,0 +1,10 @@
+---
+source: src/app/cli/tests/validate.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+info V0018 file artifacts/art_00000000000000000000000034.toml: unknown field(s): future
+validated 2 artifacts, 1 relationship
+outcome: passed (0 errors, 0 warnings, 1 info)
+--- stderr ---

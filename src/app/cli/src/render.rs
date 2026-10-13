@@ -6,8 +6,8 @@ use std::collections::BTreeMap;
 
 use functor_core::FunctorError;
 use functor_model::{
-    Artifact, ArtifactField, ArtifactId, Content, Direction, MetadataValue, Relationship,
-    RelationshipType, TraversalResult,
+    Artifact, ArtifactField, ArtifactId, Content, Direction, Finding, MetadataValue, Outcome,
+    Relationship, RelationshipType, Subject, TraversalResult, ValidationReport,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -499,6 +499,173 @@ pub fn traversal_text(
         types.join(", "),
         table(&["DEPTH", "SLUG", "TYPE", "TITLE"], &rows)
     )
+}
+
+// ---- validation ----
+
+/// A finding subject in JSON: `{"kind":"artifact","id":...}`, `{"kind":"file","path":...}` or
+/// `{"kind":"repository"}`.
+#[derive(Debug, Serialize)]
+pub struct SubjectDto {
+    kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    path: Option<String>,
+}
+
+impl SubjectDto {
+    fn new(subject: &Subject) -> Result<Self, FunctorError> {
+        let (kind, id, path) = match subject {
+            Subject::Repository => ("repository", None, None),
+            Subject::Artifact(id) => ("artifact", Some(id.to_string()), None),
+            Subject::Relationship(id) => ("relationship", Some(id.to_string()), None),
+            Subject::File(path) => ("file", None, Some(path.to_string())),
+            // `Subject` is non-exhaustive; a kind this output does not know is a bug.
+            _ => {
+                return Err(FunctorError::Internal(
+                    "unsupported finding subject".to_owned(),
+                ));
+            }
+        };
+        Ok(Self { kind, id, path })
+    }
+}
+
+/// One validation finding in JSON.
+#[derive(Debug, Serialize)]
+pub struct FindingDto {
+    code: &'static str,
+    severity: &'static str,
+    subject: SubjectDto,
+    message: String,
+    related: Vec<SubjectDto>,
+}
+
+impl FindingDto {
+    fn new(finding: &Finding) -> Result<Self, FunctorError> {
+        Ok(Self {
+            code: finding.code.as_str(),
+            severity: finding.severity.as_str(),
+            subject: SubjectDto::new(&finding.subject)?,
+            message: finding.message.clone(),
+            related: finding
+                .related
+                .iter()
+                .map(SubjectDto::new)
+                .collect::<Result<_, _>>()?,
+        })
+    }
+}
+
+/// The counts of a validation report in JSON.
+#[derive(Debug, Serialize)]
+pub struct CountsDto {
+    artifacts: usize,
+    relationships: usize,
+    errors: usize,
+    warnings: usize,
+    infos: usize,
+}
+
+/// The document printed by `validate`. It carries no timestamp, so the same repository always
+/// produces the same bytes.
+#[derive(Debug, Serialize)]
+pub struct ValidateDocument {
+    schema_version: u32,
+    outcome: &'static str,
+    strict: bool,
+    counts: CountsDto,
+    findings: Vec<FindingDto>,
+}
+
+impl ValidateDocument {
+    /// Builds the document from a report.
+    ///
+    /// # Errors
+    /// `Internal` for a finding subject this output does not know.
+    pub fn new(report: &ValidationReport, strict: bool) -> Result<Self, FunctorError> {
+        let counts = report.counts();
+        Ok(Self {
+            schema_version: SCHEMA_VERSION,
+            outcome: report.outcome().as_str(),
+            strict,
+            counts: CountsDto {
+                artifacts: counts.artifacts,
+                relationships: counts.relationships,
+                errors: counts.errors,
+                warnings: counts.warnings,
+                infos: counts.infos,
+            },
+            findings: report
+                .findings()
+                .iter()
+                .map(FindingDto::new)
+                .collect::<Result<_, _>>()?,
+        })
+    }
+}
+
+fn subject_text(subject: &Subject) -> String {
+    match subject {
+        Subject::Repository => "repository".to_owned(),
+        Subject::Artifact(id) => format!("artifact {id}"),
+        Subject::Relationship(id) => format!("relationship {id}"),
+        Subject::File(path) => format!("file {}", sanitize(path.as_str())),
+        _ => "unknown".to_owned(),
+    }
+}
+
+fn plural(count: usize, singular: &str) -> String {
+    if count == 1 {
+        format!("{count} {singular}")
+    } else {
+        format!("{count} {singular}s")
+    }
+}
+
+/// The text printed by `validate`: one line per finding (with a `related:` line when there are
+/// related subjects), then `validated ...` and `outcome: ...`.
+#[must_use]
+pub fn validate_text(report: &ValidationReport, scope: Option<&str>) -> String {
+    let mut lines = Vec::new();
+    for finding in report.findings() {
+        lines.push(format!(
+            "{} {} {}: {}",
+            finding.severity,
+            finding.code,
+            subject_text(&finding.subject),
+            sanitize(&finding.message)
+        ));
+        if !finding.related.is_empty() {
+            let related: Vec<String> = finding.related.iter().map(subject_text).collect();
+            lines.push(format!("  related: {}", related.join(", ")));
+        }
+    }
+    let counts = report.counts();
+    let scope = scope.map_or_else(String::new, |artifact| {
+        format!(" (findings about {})", sanitize(artifact))
+    });
+    lines.push(format!(
+        "validated {}, {}{scope}",
+        plural(counts.artifacts, "artifact"),
+        plural(counts.relationships, "relationship"),
+    ));
+    let outcome = report.outcome();
+    let mut parts = vec![
+        plural(counts.errors, "error"),
+        plural(counts.warnings, "warning"),
+    ];
+    if counts.infos > 0 {
+        parts.push(plural(counts.infos, "info"));
+    }
+    let summary = parts.join(", ");
+    if outcome == Outcome::Passed && counts.infos == 0 {
+        lines.push(format!("outcome: {outcome}"));
+    } else {
+        lines.push(format!("outcome: {outcome} ({summary})"));
+    }
+    lines.join("\n")
 }
 
 /// `added <rel id>: <source> <type> <target>`

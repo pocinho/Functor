@@ -1,0 +1,8 @@
+---
+source: src/app/cli/tests/validate.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+{"schema_version":1,"outcome":"passed","strict":false,"counts":{"artifacts":2,"relationships":1,"errors":0,"warnings":0,"infos":0},"findings":[]}
+--- stderr ---

@@ -56,7 +56,7 @@ Lookup, search with filters and relationship traversal with direction and depth 
 functor validate [artifact] [--strict]
 ```
 
-Rule catalog `V0001` to `V0018`: missing and duplicate identifiers, missing relationship endpoints, invalid references, dependency cycles, repository structure violations ([validation-rules.md](validation-rules.md)).
+Rule catalog `V0001` to `V0019`: missing and duplicate identifiers, missing relationship endpoints, invalid references, dependency cycles, repository structure violations, unreadable paths ([validation-rules.md](validation-rules.md)).
 
 ### Events
 
@@ -117,7 +117,7 @@ The MVP is complete when all of the following are true:
 
 1. Every included command works as specified in [cli-spec.md](cli-spec.md), with text and JSON output.
 2. The acceptance workflow above passes on Windows in CI. Results on Linux and macOS are informational.
-3. `functor validate` reports each rule `V0001` to `V0018` correctly on its fixture repository.
+3. `functor validate` reports each rule `V0001` to `V0019` correctly on its fixture repository.
 4. `MemoryStore` and `FileStore` pass the same conformance suite.
 5. The CLI depends on core traits only for behavior (verified by the dependency-edge check in [crate-dependencies.md](crate-dependencies.md)); no domain logic lives in `functor-cli`.
 6. Adding a second projection would not require changes to `functor-model` or `functor-core` (demonstrated by the library-level integration tests, which exercise the whole workflow without the CLI).

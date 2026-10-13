@@ -73,7 +73,7 @@ A single operation modifies **one** entity file, so it is atomic. Operations tha
 | `UnexpectedFile` (non-fatal for a strict load) | `V0016` |
 | `FilenameMismatch` | `V0017` |
 | `UnknownField` (non-fatal for a strict load) | `V0018` |
-| `Unreadable` | reported as an `Unknown` outcome |
+| `Unreadable` | `V0019` (info) and an `Unknown` outcome |
 
 The enum and `SnapshotLoad::into_snapshot` (which turns fatal issues into `Inconsistent`) live in `functor-core`.
 
@@ -141,6 +141,11 @@ Decisions taken while implementing `functor-repository` and `functor-store` that
   - Files over 2 MiB and non-UTF-8 files are `MalformedFile`.
 - **Init.** `init` writes `.functor/repository.toml` last and atomically. It does not create `.functor/lock`; the first writer does. The default name is the directory name, falling back to `repository`. On failure it removes only what it created.
 - **Lock.** `WriteLock::run(closure)` polls `File::try_lock` every 10 ms until the timeout. `FileStore` takes the timeout from `StoreOptions` (the CLI will read `FUNCTOR_LOCK_TIMEOUT` and pass it in; libraries never read the environment).
+
+## Implementation Notes (M7)
+
+- **Issue context.** A `LoadIssue` carries, besides its kind, file and detail, an optional `entity` (the artifact or relationship the file defines, when it could be read that far: unknown fields, a mismatched file name, duplicates, content problems) and `related` subjects (for a duplicate id or slug, the file that defined it first). Validation turns them into `related` of the finding and uses `entity` for scoped runs.
+- **Opening without parsing.** `functor_repository::discover_root` finds the repository root without reading `repository.toml`, and `FileStore::at_root` builds a store from a root alone; `validate` uses both so that a damaged `repository.toml` surfaces as `V0001`/`V0013` instead of stopping the command.
 
 ## Test Obligations
 

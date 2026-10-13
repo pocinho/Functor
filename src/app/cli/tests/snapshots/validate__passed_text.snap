@@ -1,0 +1,9 @@
+---
+source: src/app/cli/tests/validate.rs
+expression: transcript(&out)
+---
+exit: 0
+--- stdout ---
+validated 2 artifacts, 1 relationship
+outcome: passed
+--- stderr ---

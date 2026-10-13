@@ -24,7 +24,9 @@ mod test_support;
 use cli::{Cli, Command};
 use context::{Globals, Services};
 
-async fn run(cli: Cli) -> Result<(), FunctorError> {
+/// Runs the command and returns the process exit code of a successful run: 0 for every command
+/// except `validate`, whose code depends on the outcome.
+async fn run(cli: Cli) -> Result<u8, FunctorError> {
     let globals = Globals {
         repo: cli.repo,
         output: cli.output,
@@ -45,7 +47,11 @@ async fn run(cli: Cli) -> Result<(), FunctorError> {
             let context = context::open(&globals, &services).await?;
             commands::query::run(command, &context, &globals).await
         }
+        Command::Validate(args) => {
+            return commands::validate::run(args, &globals, &services).await;
+        }
     }
+    .map(|()| exit::SUCCESS)
 }
 
 fn main() -> ExitCode {
@@ -63,7 +69,7 @@ fn main() -> ExitCode {
         }
     };
     match runtime.block_on(run(cli)) {
-        Ok(()) => ExitCode::from(exit::SUCCESS),
+        Ok(code) => ExitCode::from(code),
         Err(error) => ExitCode::from(output::report_error(&error, mode, verbose)),
     }
 }

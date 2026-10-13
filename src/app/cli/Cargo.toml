@@ -24,6 +24,10 @@ required-features = ["test-support"]
 name = "query"
 required-features = ["test-support"]
 
+[[test]]
+name = "validate"
+required-features = ["test-support"]
+
 [features]
 # Test-only environment variables (FUNCTOR_TEST_FIXED_TIME, FUNCTOR_TEST_ID_SEED). Never enabled
 # in release builds.

@@ -10,7 +10,7 @@ use std::time::Duration;
 use functor_core::{
     Clock, FunctorError, IdGenerator, RepositoryHandle, Result, SystemClock, UlidGenerator,
 };
-use functor_repository::{DEFAULT_LOCK_TIMEOUT, FileRepositoryManager};
+use functor_repository::{DEFAULT_LOCK_TIMEOUT, FileRepositoryManager, discover_root};
 use functor_store::{FileStore, StoreOptions};
 
 use crate::cli::OutputMode;
@@ -81,6 +81,25 @@ fn lock_timeout() -> Result<Duration> {
                 )
             }),
     }
+}
+
+/// Finds the repository root (walking up from `--repo` or the current directory) and opens its
+/// store **without** reading `repository.toml`, so that `validate` can report a damaged
+/// repository instead of failing before it starts.
+///
+/// # Errors
+/// `NotARepository` when no ancestor contains `.functor/repository.toml`, or `InvalidInput` for
+/// a bad `FUNCTOR_LOCK_TIMEOUT`.
+pub fn open_unchecked(globals: &Globals, services: &Services) -> Result<FileStore> {
+    let start = globals.repo.clone().unwrap_or_else(|| PathBuf::from("."));
+    let root = discover_root(&start)?;
+    let options = StoreOptions::default().with_lock_timeout(lock_timeout()?);
+    Ok(FileStore::at_root(
+        &root,
+        Arc::clone(&services.clock),
+        Arc::clone(&services.ids),
+        options,
+    ))
 }
 
 /// Finds the repository (walking up from `--repo` or the current directory) and opens its store.

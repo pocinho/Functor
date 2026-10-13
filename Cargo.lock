@@ -462,8 +462,15 @@ dependencies = [
 name = "functor-validation"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "functor-core",
  "functor-model",
+ "functor-repository",
+ "functor-store",
+ "functor-testkit",
+ "proptest",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

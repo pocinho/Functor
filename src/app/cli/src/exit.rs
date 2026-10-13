@@ -4,6 +4,7 @@
 //! only added, never reassigned.
 
 use functor_core::ErrorKind;
+use functor_model::Outcome;
 
 /// The command succeeded.
 pub const SUCCESS: u8 = 0;
@@ -17,11 +18,22 @@ pub const NOT_FOUND: u8 = 3;
 pub const CONFLICT: u8 = 4;
 /// Not a repository, an unsupported format, or inconsistent repository data.
 pub const REPOSITORY: u8 = 5;
-/// Validation failed; this is an outcome, not an error kind. Used by `validate` (M7).
-#[allow(dead_code)]
+/// Validation failed; this is an outcome, not an error kind. Used by `validate`.
 pub const VALIDATION_FAILED: u8 = 6;
 /// A storage or locking failure.
 pub const STORAGE: u8 = 7;
+
+/// The exit code of a finished validation run (`docs/validation-rules.md`): `unknown` and `failed`
+/// always fail, `warning` fails only with `--strict`.
+#[must_use]
+pub fn validation_exit_code(outcome: Outcome, strict: bool) -> u8 {
+    match outcome {
+        Outcome::Warning if strict => VALIDATION_FAILED,
+        Outcome::Passed | Outcome::Warning => SUCCESS,
+        // `Outcome` is non-exhaustive; a state this command does not know cannot be called a pass.
+        Outcome::Failed | Outcome::Unknown | _ => VALIDATION_FAILED,
+    }
+}
 
 /// Maps an error kind to its exit code.
 ///
@@ -63,6 +75,27 @@ mod tests {
         assert_eq!(kinds, ErrorKind::ALL);
         for (kind, code) in expected {
             assert_eq!(exit_code(kind), code, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn validation_outcomes_map_to_the_documented_exit_codes() {
+        let table = [
+            (Outcome::Passed, false, 0),
+            (Outcome::Passed, true, 0),
+            (Outcome::Warning, false, 0),
+            (Outcome::Warning, true, 6),
+            (Outcome::Unknown, false, 6),
+            (Outcome::Unknown, true, 6),
+            (Outcome::Failed, false, 6),
+            (Outcome::Failed, true, 6),
+        ];
+        for (outcome, strict, code) in table {
+            assert_eq!(
+                validation_exit_code(outcome, strict),
+                code,
+                "{outcome} strict={strict}"
+            );
         }
     }
 

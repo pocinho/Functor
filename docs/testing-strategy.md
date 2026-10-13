@@ -55,7 +55,7 @@ Table-driven traversal tests (chain, diamond, cycle, disconnected, depth 0, 1, n
 
 ### functor-validation
 
-One minimal fixture repository **per rule code** (`V0001` to `V0018`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
+One minimal fixture repository **per rule code** (`V0001` to `V0019`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
 
 ### functor-events
 

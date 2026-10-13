@@ -95,7 +95,21 @@ impl FileStore {
         ids: Arc<dyn IdGenerator>,
         options: StoreOptions,
     ) -> Self {
-        let layout = Layout::new(&handle.root);
+        Self::at_root(&handle.root, clock, ids, options)
+    }
+
+    /// Opens the store of the repository rooted at `root` without reading `repository.toml`.
+    ///
+    /// Reads then report what is wrong with the repository (see `RepositoryReader::load`)
+    /// instead of failing at open time; `validate` relies on this.
+    #[must_use]
+    pub fn at_root(
+        root: &Path,
+        clock: Arc<dyn Clock>,
+        ids: Arc<dyn IdGenerator>,
+        options: StoreOptions,
+    ) -> Self {
+        let layout = Layout::new(root);
         let lock = WriteLock::new(&layout, options.lock_timeout);
         Self {
             inner: Arc::new(Inner {

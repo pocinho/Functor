@@ -59,7 +59,7 @@ functor validate
 ```
 
 ```text
-validated 2 artifacts, 1 relationships
+validated 2 artifacts, 1 relationship
 outcome: passed
 ```
 

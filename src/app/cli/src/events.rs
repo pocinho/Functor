@@ -6,6 +6,7 @@
 
 use functor_model::{
     Artifact, ArtifactField, EventData, EventKind, EventSubject, NewEvent, Relationship,
+    RepositoryId, ValidationReport,
 };
 
 /// Receives the events produced by commands.
@@ -69,14 +70,86 @@ pub fn relationship_created(relationship: &Relationship) -> NewEvent {
     )
 }
 
+/// The `validation.completed` event for a finished validation run.
+#[must_use]
+pub fn validation_completed(
+    repository: RepositoryId,
+    report: &ValidationReport,
+    strict: bool,
+) -> NewEvent {
+    let count = |n: usize| i64::try_from(n).unwrap_or(i64::MAX);
+    let counts = report.counts();
+    NewEvent::new(
+        EventKind::ValidationCompleted,
+        EventSubject::Repository(repository),
+        EventData::new()
+            .with("outcome", report.outcome().as_str())
+            .with("errors", count(counts.errors))
+            .with("warnings", count(counts.warnings))
+            .with("infos", count(counts.infos))
+            .with("strict", strict),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use functor_model::{
-        ArtifactId, ArtifactPatch, ArtifactType, MetadataValue, NewArtifact, NewRelationship,
-        RelationshipId, RelationshipType, Slug, Timestamp, Title,
+        ArtifactId, ArtifactPatch, ArtifactType, Finding, MetadataValue, NewArtifact,
+        NewRelationship, RelationshipId, RelationshipType, RuleCode, Severity, Slug, Subject,
+        Timestamp, Title,
     };
 
     use super::*;
+
+    #[test]
+    fn validation_completed_events_carry_the_outcome_and_counts() {
+        let report = ValidationReport::new(
+            vec![
+                Finding::new(
+                    RuleCode::new("V0007"),
+                    Severity::Error,
+                    Subject::Repository,
+                    "x",
+                ),
+                Finding::new(
+                    RuleCode::new("V0012"),
+                    Severity::Warning,
+                    Subject::Repository,
+                    "y",
+                ),
+                Finding::new(
+                    RuleCode::new("V0018"),
+                    Severity::Info,
+                    Subject::Repository,
+                    "z",
+                ),
+                Finding::new(
+                    RuleCode::new("V0018"),
+                    Severity::Info,
+                    Subject::Repository,
+                    "w",
+                ),
+            ],
+            3,
+            2,
+            false,
+            Timestamp::parse("2026-10-12T18:00:00Z").unwrap(),
+        );
+        let event = validation_completed(RepositoryId::from_bits(5), &report, true);
+        assert_eq!(event.kind, EventKind::ValidationCompleted);
+        assert_eq!(
+            event.subject,
+            EventSubject::Repository(RepositoryId::from_bits(5))
+        );
+        assert_eq!(
+            event.data.get("outcome"),
+            Some(&MetadataValue::String("failed".into()))
+        );
+        assert_eq!(event.data.get("errors"), Some(&MetadataValue::Integer(1)));
+        assert_eq!(event.data.get("warnings"), Some(&MetadataValue::Integer(1)));
+        assert_eq!(event.data.get("infos"), Some(&MetadataValue::Integer(2)));
+        assert_eq!(event.data.get("strict"), Some(&MetadataValue::Bool(true)));
+    }
 
     #[test]
     fn relationship_created_events_carry_type_and_endpoints() {

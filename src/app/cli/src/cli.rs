@@ -54,6 +54,20 @@ pub enum Command {
     /// Search artifacts and navigate relationships (read-only).
     #[command(subcommand)]
     Query(QueryCommand),
+    /// Check the repository for problems.
+    Validate(ValidateArgs),
+}
+
+/// Arguments of `functor validate`.
+#[derive(Debug, Args)]
+pub struct ValidateArgs {
+    /// Only report findings about this artifact (an id, canonical reference or slug) and the
+    /// relationships touching it. All rules still run over the whole repository.
+    pub artifact: Option<String>,
+
+    /// Also fail (exit 6) when the outcome is `warning`.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 /// Arguments of `functor init`.
@@ -668,6 +682,25 @@ mod tests {
             RelationshipDirection::Both
         );
         assert!(direction(&["--direction", "sideways"]).is_err());
+    }
+
+    #[test]
+    fn validate_takes_an_optional_artifact_and_strict() {
+        let cli = parse(["functor", "validate"]).unwrap();
+        let Command::Validate(args) = cli.command else {
+            panic!("expected validate");
+        };
+        assert_eq!(args.artifact, None);
+        assert!(!args.strict);
+
+        let cli = parse(["functor", "validate", "rfc-0001", "--strict", "-o", "json"]).unwrap();
+        assert_eq!(cli.output, OutputMode::Json);
+        let Command::Validate(args) = cli.command else {
+            panic!("expected validate");
+        };
+        assert_eq!(args.artifact.as_deref(), Some("rfc-0001"));
+        assert!(args.strict);
+        assert!(parse(["functor", "validate", "a", "b"]).is_err());
     }
 
     #[test]

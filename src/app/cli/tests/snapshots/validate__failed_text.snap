@@ -1,0 +1,10 @@
+---
+source: src/app/cli/tests/validate.rs
+expression: transcript(&out)
+---
+exit: 6
+--- stdout ---
+error V0007 relationship rel_00000000000000000000000068: target art_00000000000000000000000034 does not exist
+validated 1 artifact, 1 relationship
+outcome: failed (1 error, 0 warnings)
+--- stderr ---

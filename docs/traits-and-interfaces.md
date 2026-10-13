@@ -172,7 +172,7 @@ pub enum EventPosition { Start, End, After(u64) }   // sequence number
 | `RepositoryReader`, `ArtifactRepository`, `RelationshipRepository` | `FileStore` | `functor-store` |
 | same | `MemoryStore` (tests and examples) | `functor-store` |
 | `QueryEngine` | `SnapshotQueryEngine<'a, R>` (borrows any `R: RepositoryReader + ?Sized`; one fresh snapshot per call) | `functor-query` |
-| `ValidationEngine` | `RuleValidationEngine` (same) | `functor-validation` |
+| `ValidationEngine` | `RuleValidationEngine<'a, R>` (borrows any `R: RepositoryReader + ?Sized`, takes the injected `Clock`; one lenient load per call) | `functor-validation` |
 | `EventPublisher`, `EventSource` | `FileEventLog` | `functor-events` |
 | `Clock`, `IdGenerator` | `SystemClock`, `UlidGenerator` in `functor-core`; `FixedClock`, `SequentialIds` in `functor-testkit` | `functor-core`, `functor-testkit` |
 

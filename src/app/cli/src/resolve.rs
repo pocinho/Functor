@@ -60,7 +60,7 @@ pub async fn relationship(store: &dyn RelationshipRepository, text: &str) -> Res
 }
 
 /// The slugs closest to `wanted` (edit distance of at most 2), nearest first.
-fn suggest<'a>(wanted: &str, slugs: impl Iterator<Item = &'a str>) -> Vec<String> {
+pub(crate) fn suggest<'a>(wanted: &str, slugs: impl Iterator<Item = &'a str>) -> Vec<String> {
     let mut close: Vec<(usize, &str)> = slugs
         .filter_map(|slug| {
             let distance = edit_distance(wanted, slug);
