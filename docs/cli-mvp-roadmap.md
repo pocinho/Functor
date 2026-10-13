@@ -112,6 +112,14 @@ Done when: each mutating command emits exactly one event, sequence numbers are g
 - `examples/getting-started/` fixture matching [getting-started.md](getting-started.md); JSON Schemas in `docs/schemas/`.
 - Performance check against [nonfunctional-requirements.md](nonfunctional-requirements.md).
 - [rfc-conformance.md](rfc-conformance.md) fully populated; README and docs index updated.
+- Close the decisions deferred from earlier milestones (recommended default in bold; each outcome is recorded in the named document or an ADR):
+  - **`--no-color` and `tracing` logs** (M4): **implement both once M8's `watch` and M7's `validate` show whether colored prefixes are wanted**; otherwise remove `--no-color` from [cli-spec.md](cli-spec.md) and keep `-v` as the error-chain switch.
+  - **`artifact show --content` text and JSON `content.text`** (M4): **keep as built** (one trailing newline stripped, control characters escaped, `text` present for inline content and `--content`).
+  - **`--content-path` base** (M4): **keep it relative to the current directory**, consistent with other tools; document it in [getting-started.md](getting-started.md).
+  - **`-q`** (M4): **keep it text-mode only**; JSON is never suppressed.
+  - **`functor-events` depends on `functor-repository`** (M2): **keep** (ADR-0009 foundation service), re-checked by `scripts/check-deps.ps1` when M8 lands.
+  - **Hand-written TOML codecs instead of serde-derived ones** (M3): **keep**; required for in-place, comment-preserving edits ([ADR-0011](adr/ADR-0011-toml-edit-preserving-updates.md)). Revisit only if a codec needs a new field type.
+  - **`FunctorError::Conflict` displays only its detail** (M2): **keep**, and make the duplicate-relationship message use slugs (M5 shows ids) by building it in the CLI from the resolved endpoints.
 
 Done when: all exit criteria in [mvp-scope.md](mvp-scope.md) are met.
 
