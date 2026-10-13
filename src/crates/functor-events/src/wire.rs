@@ -1,4 +1,4 @@
-//! The event wire format: one JSON object per line (`docs/event-model-mvp.md`, "Envelope").
+//! The event wire format: one JSON object per line (`docs/design/event-model-mvp.md`, "Envelope").
 //!
 //! The wire DTO lives here, not in the model (ADR-0005). Keys are written in a fixed order.
 

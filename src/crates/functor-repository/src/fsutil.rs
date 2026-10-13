@@ -1,6 +1,6 @@
 //! Atomic file writes and the repository write lock.
 //!
-//! See `docs/storage-design.md`, "Write Protocol" and "Locking".
+//! See `docs/design/storage-design.md`, "Write Protocol" and "Locking".
 
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Write};
@@ -104,7 +104,7 @@ fn sync_parent_directory(target: &Path) {
 }
 
 /// Runs blocking filesystem work on tokio's blocking pool, so it never stalls the async executor
-/// (ADR-0010 and `docs/api-design-guidelines.md`).
+/// (ADR-0010 and `docs/architecture/api-design-guidelines.md`).
 ///
 /// # Errors
 /// Returns whatever `work` returns, or `Internal` if the blocking task panicked.

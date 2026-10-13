@@ -25,4 +25,4 @@ ADR-0003 put events in the MVP but left `events/current.log` unbounded and rotat
 
 ## RFC Impact
 
-Narrows the deviation in [../rfc-conformance.md](../rfc-conformance.md) (C-0017-6): auditability is bounded to the retained window rather than absent.
+Narrows the deviation in [../rfc-conformance.md](../planning/rfc-conformance.md) (C-0017-6): auditability is bounded to the retained window rather than absent.

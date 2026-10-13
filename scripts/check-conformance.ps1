@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Checks docs/rfc-conformance.md against the code: every row has a valid status, every
+  Checks docs/planning/rfc-conformance.md against the code: every row has a valid status, every
   "Implemented" or "Subset" row names at least one test, and every named test exists.
 .DESCRIPTION
   A test reference is `prefix:path` in backticks, where the prefix selects the crate(s) to look in:
@@ -13,7 +13,7 @@
 #>
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$doc = Join-Path $root 'docs/rfc-conformance.md'
+$doc = Join-Path $root 'docs/planning/rfc-conformance.md'
 
 $scopes = @{
     'model'  = @('src/crates/functor-model')
@@ -81,12 +81,12 @@ foreach ($line in Get-Content $doc) {
 if ($rows -eq 0) { throw "no conformance rows found in $doc" }
 
 # Test references in the evidence tables of the other documents must exist too.
-foreach ($match in [regex]::Matches(((@('nonfunctional-requirements.md', 'mvp-scope.md') | ForEach-Object { [System.IO.File]::ReadAllText((Join-Path $root "docs/$_")) }) -join "`n"), '`((?:model|repo|store|conf|query|val|events|cli|acc|script):[^`\s]+)`')) {
+foreach ($match in [regex]::Matches(((@('quality/nonfunctional-requirements.md', 'planning/mvp-scope.md') | ForEach-Object { [System.IO.File]::ReadAllText((Join-Path $root "docs/$_")) }) -join "`n"), '`((?:model|repo|store|conf|query|val|events|cli|acc|script):[^`\s]+)`')) {
     if (-not (Test-Reference $match.Groups[1].Value)) { $problems += "evidence tables : '$($match.Groups[1].Value)' does not exist" }
 }
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Error $_ -ErrorAction Continue }
-    Write-Error "$($problems.Count) problem(s) in docs/rfc-conformance.md"
+    Write-Error "$($problems.Count) problem(s) in docs/planning/rfc-conformance.md"
     exit 1
 }
-Write-Output "docs/rfc-conformance.md: $rows rows, every status valid and every named test exists"
+Write-Output "docs/planning/rfc-conformance.md: $rows rows, every status valid and every named test exists"

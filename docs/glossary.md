@@ -5,7 +5,7 @@ Canonical terms for the Functor CLI MVP. When docs and code disagree with this g
 | Term | Meaning | Notes |
 |------|---------|-------|
 | **Artifact** | The primary durable unit (RFC-0003). Has an id, type, revision, metadata and content. | Not "document" or "file". |
-| **Artifact id** | Opaque, immutable identifier `art_<ULID>` (RFC-0005). | See [identity-and-addressing.md](identity-and-addressing.md). |
+| **Artifact id** | Opaque, immutable identifier `art_<ULID>` (RFC-0005). | See [identity-and-addressing.md](design/identity-and-addressing.md). |
 | **Slug** | Unique human-friendly alias of an artifact within a repository. Renamable. Not identity. | Example: `rfc-0000`. |
 | **Artifact type** | Classifies an artifact (RFC-0003 "Type"). Serialized as the `type` field; the Rust field is `artifact_type` because `type` is a keyword. | Earlier docs called it `kind`. |
 | **Revision** | Integer starting at 1 that increments on each update. The MVP form of RFC-0003 "Version". | Full versioning (RFC-0016) is deferred. |

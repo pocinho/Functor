@@ -1,6 +1,6 @@
 //! The `.functor/repository.toml` file: parsing and canonical rendering.
 //!
-//! See `docs/repository-layout.md`.
+//! See `docs/design/repository-layout.md`.
 
 use functor_core::LoadIssueKind;
 use functor_model::{FormatVersion, RepositoryId, RepositoryInfo, RepositoryName};

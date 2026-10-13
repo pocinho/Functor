@@ -21,14 +21,14 @@ Events are **informational, not authoritative**. Repository state is always reco
 
 Event ordering rule: commit the state change first, then append the event.
 
-Everything else in RFC-0017 (subscriptions with a filtering language, replay, streams across repositories, delivery guarantees, `*.deleted` events and so on) stays deferred. See [../event-model-mvp.md](../event-model-mvp.md).
+Everything else in RFC-0017 (subscriptions with a filtering language, replay, streams across repositories, delivery guarantees, `*.deleted` events and so on) stays deferred. See [../event-model-mvp.md](../design/event-model-mvp.md).
 
 ## Consequences
 
 - Event emission is in the critical path of every mutating command and must be tested.
 - `watch` is the only long-running command and needs a clean cancellation story.
-- The MVP workspace gains `functor-events` (see ADR-0004 and [../workspace-layout.md](../workspace-layout.md)).
+- The MVP workspace gains `functor-events` (see ADR-0004 and [../workspace-layout.md](../architecture/workspace-layout.md)).
 
 ## RFC Impact
 
-Partial implementation of RFC-0017. Deviations (no replay, no archive rotation) are recorded in [../rfc-conformance.md](../rfc-conformance.md).
+Partial implementation of RFC-0017. Deviations (no replay, no archive rotation) are recorded in [../rfc-conformance.md](../planning/rfc-conformance.md).

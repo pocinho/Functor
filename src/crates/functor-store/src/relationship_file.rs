@@ -1,6 +1,6 @@
 //! The TOML representation of a relationship: parsing and canonical rendering.
 //!
-//! See `docs/repository-layout.md`. Relationships are immutable in the MVP, so there is no
+//! See `docs/design/repository-layout.md`. Relationships are immutable in the MVP, so there is no
 //! in-place edit.
 
 use std::fmt::Display;

@@ -1,6 +1,6 @@
 //! Functor test support: test doubles, fixtures and the store conformance suite.
 //!
-//! See `docs/testing-strategy.md`. Used only as a dev-dependency of other crates.
+//! See `docs/quality/testing-strategy.md`. Used only as a dev-dependency of other crates.
 //!
 //! - [`FixedClock`] and [`SequentialIds`] make time and identifiers deterministic.
 //! - [`RepoFixture`] builds small in-memory repositories.

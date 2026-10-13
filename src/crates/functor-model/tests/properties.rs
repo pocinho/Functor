@@ -1,4 +1,4 @@
-//! Property tests for the invariants listed in `docs/domain-model.md`.
+//! Property tests for the invariants listed in `docs/design/domain-model.md`.
 
 use functor_model::{
     ArtifactId, ArtifactRef, ContentPath, EventId, RelationshipId, RelationshipType,

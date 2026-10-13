@@ -1,6 +1,6 @@
 //! Functor semantic model: identifiers, artifacts, relationships and value types.
 //!
-//! See `docs/domain-model.md`. This crate has no I/O, no runtime and no serialization framework.
+//! See `docs/design/domain-model.md`. This crate has no I/O, no runtime and no serialization framework.
 //! Invariants are enforced by validating constructors, so an invalid value cannot be built.
 
 mod artifact;

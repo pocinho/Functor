@@ -1,6 +1,6 @@
 //! Opaque identifiers, slugs and user-facing artifact references.
 //!
-//! See `docs/identity-and-addressing.md` and ADR-0001.
+//! See `docs/design/identity-and-addressing.md` and ADR-0001.
 
 use std::fmt;
 use std::str::FromStr;

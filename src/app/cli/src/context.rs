@@ -1,6 +1,6 @@
 //! The composition root: where concrete implementations are chosen and wired.
 //!
-//! See `docs/crate-dependencies.md`. This is the only place that reads the environment or builds
+//! See `docs/architecture/crate-dependencies.md`. This is the only place that reads the environment or builds
 //! services; command handlers receive traits.
 
 use std::path::{Path, PathBuf};

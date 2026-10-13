@@ -3,7 +3,7 @@
 //! Shared by `functor-repository` (`repository.toml`) and `functor-store` (artifacts and
 //! relationships). New files are rendered in the canonical form; updates edit the existing
 //! document in place so comments, ordering, formatting and unknown keys survive
-//! (ADR-0011, `docs/artifact-format.md`).
+//! (ADR-0011, `docs/design/artifact-format.md`).
 
 use functor_core::LoadIssueKind;
 use functor_model::Timestamp;

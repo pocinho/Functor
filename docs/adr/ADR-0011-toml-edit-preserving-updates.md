@@ -6,15 +6,15 @@ Accepted
 
 ## Context
 
-The first version of [../artifact-format.md](../artifact-format.md) said comments and formatting are lost when an entity file is rewritten. That is hostile to people who hand-edit TOML in a git repository. The project owner decided updates must preserve comments, ordering and formatting.
+The first version of [../artifact-format.md](../design/artifact-format.md) said comments and formatting are lost when an entity file is rewritten. That is hostile to people who hand-edit TOML in a git repository. The project owner decided updates must preserve comments, ordering and formatting.
 
 ## Decision
 
-- **New** artifact, relationship and repository files are written in the canonical form defined in [../artifact-format.md](../artifact-format.md).
+- **New** artifact, relationship and repository files are written in the canonical form defined in [../artifact-format.md](../design/artifact-format.md).
 - **Updates edit the existing document in place** using `toml_edit::DocumentMut`: only the changed values, plus `revision` and `updated`, are modified. Comments, key order, whitespace, unknown keys and unknown tables are preserved by construction.
 - Reading uses `toml_edit` (its serde support or direct document access) to build the storage DTOs. The `toml` crate is dropped from the approved dependencies.
 - An update that changes nothing writes nothing.
-- The atomic write protocol is unchanged: the edited text is written to a temporary file and renamed ([../storage-design.md](../storage-design.md)).
+- The atomic write protocol is unchanged: the edited text is written to a temporary file and renamed ([../storage-design.md](../design/storage-design.md)).
 
 ## Consequences
 

@@ -1,7 +1,7 @@
 //! Event emission.
 //!
 //! Mutating commands build the event after their state change has committed and hand it to
-//! [`Recorder`], which appends it to the event log (ADR-0003, `docs/event-model-mvp.md`). A
+//! [`Recorder`], which appends it to the event log (ADR-0003, `docs/design/event-model-mvp.md`). A
 //! failed append never fails the command: it prints `warning: event not recorded: <reason>` to
 //! stderr and the command carries on with exit code 0.
 

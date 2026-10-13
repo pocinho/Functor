@@ -33,7 +33,7 @@ Every document begins with a status line and, where useful, links to its related
 
 ADRs have their own statuses ([adr/README.md](adr/README.md)).
 
-**Precedence:** an RFC always wins over a document here. Where the MVP intentionally subsets or deviates from an RFC, it is recorded in an ADR and in [rfc-conformance.md](rfc-conformance.md); RFCs are never edited to match the implementation.
+**Precedence:** an RFC always wins over a document here. Where the MVP intentionally subsets or deviates from an RFC, it is recorded in an ADR and in [rfc-conformance.md](planning/rfc-conformance.md); RFCs are never edited to match the implementation.
 
 **Contracts are documents first.** Formats, rule codes, exit codes, JSON schemas and trait signatures are defined here before they are coded. A pull request that changes behavior updates the contract document in the same change.
 
@@ -41,67 +41,79 @@ ADRs have their own statuses ([adr/README.md](adr/README.md)).
 
 # Documentation Structure
 
-## Planning
+```text
+docs/
+  README.md, glossary.md   this index and the canonical terminology
+  planning/                scope, roadmaps, RFC conformance
+  adr/                     architecture decision records
+  architecture/            workspace, crate edges, traits, errors, API rules
+  design/                  the model, formats, storage and the behavior of queries, validation, events
+  cli/                     command surface, walkthrough, JSON Schemas (schemas/)
+  quality/                 testing, non-functional requirements, workflow, benchmarks (benchmarks/)
+```
 
+Each folder holds the documents of one section below; links between documents are relative, so a document can be moved together with the files it links to.
+
+## Planning (`planning/`)
 | Document | Purpose |
 |----------|---------|
-| [mvp-scope.md](mvp-scope.md) | What is in and out of the MVP, exit criteria with their evidence, the frozen contracts |
-| [cli-mvp-roadmap.md](cli-mvp-roadmap.md) | Ordered milestones M0 to M9 with acceptance evidence |
-| [product-roadmap.md](product-roadmap.md) | Long-term phases after the MVP (replaces `implementation-phases.md`) |
+| [mvp-scope.md](planning/mvp-scope.md) | What is in and out of the MVP, exit criteria with their evidence, the frozen contracts |
+| [cli-mvp-roadmap.md](planning/cli-mvp-roadmap.md) | Ordered milestones M0 to M9 with acceptance evidence |
+| [product-roadmap.md](planning/product-roadmap.md) | Long-term phases after the MVP (replaces `implementation-phases.md`) |
 
-## Decisions and Traceability
+## Decisions and Traceability (`adr/`, `planning/rfc-conformance.md`, `glossary.md`)
 
 | Document | Purpose |
 |----------|---------|
 | [adr/](adr/README.md) | Architecture Decision Records (ADR-0001 to ADR-0011) |
-| [rfc-conformance.md](rfc-conformance.md) | RFC requirement to MVP status, implementation and test (every named test is checked by `scripts/check-conformance.ps1`) |
+| [rfc-conformance.md](planning/rfc-conformance.md) | RFC requirement to MVP status, implementation and test (every named test is checked by `scripts/check-conformance.ps1`) |
 | [glossary.md](glossary.md) | Canonical terminology |
 
-## Architecture
+## Architecture (`architecture/`)
 
 | Document | Purpose |
 |----------|---------|
-| [workspace-layout.md](workspace-layout.md) | Rust workspace structure and crate responsibilities |
-| [crate-dependencies.md](crate-dependencies.md) | Allowed and forbidden dependency edges, composition root |
-| [dependency-policy.md](dependency-policy.md) | Approved third-party crates and rules for adding more |
-| [traits-and-interfaces.md](traits-and-interfaces.md) | Core service traits |
-| [api-design-guidelines.md](api-design-guidelines.md) | API conventions |
-| [error-handling.md](error-handling.md) | Error taxonomy, exit codes, messages |
+| [workspace-layout.md](architecture/workspace-layout.md) | Rust workspace structure and crate responsibilities |
+| [crate-dependencies.md](architecture/crate-dependencies.md) | Allowed and forbidden dependency edges, composition root |
+| [dependency-policy.md](architecture/dependency-policy.md) | Approved third-party crates and rules for adding more |
+| [traits-and-interfaces.md](architecture/traits-and-interfaces.md) | Core service traits |
+| [api-design-guidelines.md](architecture/api-design-guidelines.md) | API conventions |
+| [error-handling.md](architecture/error-handling.md) | Error taxonomy, exit codes, messages |
 
-## Domain and Data
-
-| Document | Purpose |
-|----------|---------|
-| [domain-model.md](domain-model.md) | Rust types and invariants of the semantic model |
-| [identity-and-addressing.md](identity-and-addressing.md) | Ids, slugs, canonical references, CLI resolution |
-| [artifact-format.md](artifact-format.md) | Artifact TOML format |
-| [repository-layout.md](repository-layout.md) | On-disk repository structure, relationship and repository files |
-| [storage-design.md](storage-design.md) | Atomic writes, locking, determinism, format versioning |
-
-## Behavior
+## Domain and Data (`design/`)
 
 | Document | Purpose |
 |----------|---------|
-| [query-model-mvp.md](query-model-mvp.md) | Query operations and semantics |
-| [validation-rules.md](validation-rules.md) | Rule catalog, outcomes, exit-code policy |
-| [event-model-mvp.md](event-model-mvp.md) | Events, log format, `watch` |
-| [repository-lifecycle.md](repository-lifecycle.md) | Init, discovery, concurrency, evolution |
+| [domain-model.md](design/domain-model.md) | Rust types and invariants of the semantic model |
+| [identity-and-addressing.md](design/identity-and-addressing.md) | Ids, slugs, canonical references, CLI resolution |
+| [artifact-format.md](design/artifact-format.md) | Artifact TOML format |
+| [repository-layout.md](design/repository-layout.md) | On-disk repository structure, relationship and repository files |
+| [storage-design.md](design/storage-design.md) | Atomic writes, locking, determinism, format versioning |
 
-## CLI
-
-| Document | Purpose |
-|----------|---------|
-| [cli-spec.md](cli-spec.md) | Commands, options, output, JSON schemas, exit codes |
-| [command-design.md](command-design.md) | Pointer to `cli-spec.md` (superseded) |
-| [getting-started.md](getting-started.md) | MVP walkthrough with expected output; the acceptance script. Its result is the reference repository [`examples/getting-started/`](../examples/getting-started/) |
-
-## Quality and Process
+## Behavior (`design/`)
 
 | Document | Purpose |
 |----------|---------|
-| [testing-strategy.md](testing-strategy.md) | Test levels, conformance suite, goldens, acceptance test |
-| [nonfunctional-requirements.md](nonfunctional-requirements.md) | Determinism, portability, performance budgets (measured by `scripts/bench.ps1`, baseline in `benchmarks/`), local safety and its evidence |
-| [development-workflow.md](development-workflow.md) | Toolchain, lints, CI, Definition of Done |
+| [query-model-mvp.md](design/query-model-mvp.md) | Query operations and semantics |
+| [validation-rules.md](design/validation-rules.md) | Rule catalog, outcomes, exit-code policy |
+| [event-model-mvp.md](design/event-model-mvp.md) | Events, log format, `watch` |
+| [repository-lifecycle.md](design/repository-lifecycle.md) | Init, discovery, concurrency, evolution |
+
+## CLI (`cli/`)
+
+| Document | Purpose |
+|----------|---------|
+| [cli-spec.md](cli/cli-spec.md) | Commands, options, output, JSON schemas, exit codes |
+| [schemas/](cli/schemas/) | The JSON Schemas of every command output |
+| [getting-started.md](cli/getting-started.md) | MVP walkthrough with expected output; the acceptance script. Its result is the reference repository [`examples/getting-started/`](../examples/getting-started/) |
+
+## Quality and Process (`quality/`)
+
+| Document | Purpose |
+|----------|---------|
+| [testing-strategy.md](quality/testing-strategy.md) | Test levels, conformance suite, goldens, acceptance test |
+| [nonfunctional-requirements.md](quality/nonfunctional-requirements.md) | Determinism, portability, performance budgets (measured by `scripts/bench.ps1`, baseline in `quality/benchmarks/`), local safety and its evidence |
+| [development-workflow.md](quality/development-workflow.md) | Toolchain, lints, CI, Definition of Done |
 
 ---
 
@@ -114,18 +126,18 @@ RFCs define what Functor is. Documentation defines how Functor is implemented. S
 # Recommended Reading Order
 
 1. [RFC-0000 Vision](../rfcs/RFC-0000-Functor-Vision.md)
-2. [mvp-scope.md](mvp-scope.md)
+2. [mvp-scope.md](planning/mvp-scope.md)
 3. [glossary.md](glossary.md)
 4. [adr/](adr/README.md)
-5. [domain-model.md](domain-model.md) and [identity-and-addressing.md](identity-and-addressing.md)
-6. [workspace-layout.md](workspace-layout.md), [crate-dependencies.md](crate-dependencies.md)
-7. [traits-and-interfaces.md](traits-and-interfaces.md), [error-handling.md](error-handling.md), [api-design-guidelines.md](api-design-guidelines.md)
-8. [artifact-format.md](artifact-format.md), [repository-layout.md](repository-layout.md), [storage-design.md](storage-design.md)
-9. [query-model-mvp.md](query-model-mvp.md), [validation-rules.md](validation-rules.md), [event-model-mvp.md](event-model-mvp.md)
-10. [cli-spec.md](cli-spec.md), [getting-started.md](getting-started.md)
-11. [cli-mvp-roadmap.md](cli-mvp-roadmap.md)
-12. [testing-strategy.md](testing-strategy.md), [development-workflow.md](development-workflow.md), [nonfunctional-requirements.md](nonfunctional-requirements.md)
-13. [rfc-conformance.md](rfc-conformance.md)
+5. [domain-model.md](design/domain-model.md) and [identity-and-addressing.md](design/identity-and-addressing.md)
+6. [workspace-layout.md](architecture/workspace-layout.md), [crate-dependencies.md](architecture/crate-dependencies.md)
+7. [traits-and-interfaces.md](architecture/traits-and-interfaces.md), [error-handling.md](architecture/error-handling.md), [api-design-guidelines.md](architecture/api-design-guidelines.md)
+8. [artifact-format.md](design/artifact-format.md), [repository-layout.md](design/repository-layout.md), [storage-design.md](design/storage-design.md)
+9. [query-model-mvp.md](design/query-model-mvp.md), [validation-rules.md](design/validation-rules.md), [event-model-mvp.md](design/event-model-mvp.md)
+10. [cli-spec.md](cli/cli-spec.md), [getting-started.md](cli/getting-started.md)
+11. [cli-mvp-roadmap.md](planning/cli-mvp-roadmap.md)
+12. [testing-strategy.md](quality/testing-strategy.md), [development-workflow.md](quality/development-workflow.md), [nonfunctional-requirements.md](quality/nonfunctional-requirements.md)
+13. [rfc-conformance.md](planning/rfc-conformance.md)
 
 ---
 
@@ -153,7 +165,7 @@ Excluded from the MVP:
 - Governance workflows
 - Execution
 
-The full list is in [mvp-scope.md](mvp-scope.md).
+The full list is in [mvp-scope.md](planning/mvp-scope.md).
 
 ---
 
@@ -181,4 +193,4 @@ Build the smallest useful implementation first.
 
 # Long-Term Goal
 
-The CLI MVP is not the final product. It is the first validation of the Functor platform. Future projections may include desktop applications, notebooks, web applications, MCP integrations, agent participation, and distributed repositories ([product-roadmap.md](product-roadmap.md)).
+The CLI MVP is not the final product. It is the first validation of the Functor platform. Future projections may include desktop applications, notebooks, web applications, MCP integrations, agent participation, and distributed repositories ([product-roadmap.md](planning/product-roadmap.md)).

@@ -1,6 +1,6 @@
 //! The `functor` command line interface.
 //!
-//! The CLI is a projection over the core API and the composition root; see `docs/cli-spec.md`.
+//! The CLI is a projection over the core API and the composition root; see `docs/cli/cli-spec.md`.
 
 // The CLI is the only crate allowed to print.
 #![allow(clippy::print_stdout, clippy::print_stderr)]

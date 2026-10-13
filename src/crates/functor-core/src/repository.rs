@@ -81,7 +81,7 @@ pub trait RepositoryManager: Send + Sync {
 
 /// What kind of problem a loader found in repository data.
 ///
-/// Each kind maps to a validation rule (see `docs/storage-design.md`).
+/// Each kind maps to a validation rule (see `docs/design/storage-design.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LoadIssueKind {

@@ -1,6 +1,6 @@
 //! Rendering of results and errors for the terminal and for scripts.
 //!
-//! `text` output is for humans; `json` output is the stable contract (`docs/cli-spec.md`).
+//! `text` output is for humans; `json` output is the stable contract (`docs/cli/cli-spec.md`).
 //! Results go to stdout, diagnostics and errors to stderr.
 
 use std::io::{self, Write};

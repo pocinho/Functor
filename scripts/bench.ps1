@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Measures the performance budgets of docs/nonfunctional-requirements.md with a release build.
+  Measures the performance budgets of docs/quality/nonfunctional-requirements.md with a release build.
 .DESCRIPTION
   Generates a synthetic repository (artifacts, a DAG of depends_on relationships) directly in the
   canonical file format, then times each budgeted command, taking the median of several runs, and
@@ -8,8 +8,8 @@
   its stored baseline (default 3), or when `-Enforce` is given and a budget is exceeded.
 .EXAMPLE
   pwsh scripts/bench.ps1 -Artifacts 10000
-  pwsh scripts/bench.ps1 -Artifacts 10000 -Baseline docs/benchmarks/baseline.json
-  pwsh scripts/bench.ps1 -Artifacts 10000 -Baseline docs/benchmarks/baseline.json -UpdateBaseline
+  pwsh scripts/bench.ps1 -Artifacts 10000 -Baseline docs/quality/benchmarks/baseline.json
+  pwsh scripts/bench.ps1 -Artifacts 10000 -Baseline docs/quality/benchmarks/baseline.json -UpdateBaseline
 #>
 param(
     [int]$Artifacts = 10000,

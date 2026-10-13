@@ -1,6 +1,6 @@
 //! Query value types (RFC-0006). Execution lives in `functor-query`.
 //!
-//! See `docs/query-model-mvp.md`.
+//! See `docs/design/query-model-mvp.md`.
 
 use crate::artifact::{Artifact, ArtifactType, MetadataKey, MetadataValue, Tag};
 use crate::id::ArtifactRef;

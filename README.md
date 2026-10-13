@@ -226,32 +226,21 @@ Together these documents define the semantic and architectural foundation of Fun
 
 The documentation directory bridges the gap between architecture and implementation.
 
-Start with [docs/README.md](docs/README.md) for the full index and reading order. Examples include:
+Start with [docs/README.md](docs/README.md) for the full index and reading order. The documents are grouped by folder:
 
 ```text
-mvp-scope.md
-cli-mvp-roadmap.md
-cli-spec.md
-
-domain-model.md
-identity-and-addressing.md
-artifact-format.md
-repository-layout.md
-storage-design.md
-
-query-model-mvp.md
-validation-rules.md
-event-model-mvp.md
-
-workspace-layout.md
-crate-dependencies.md
-traits-and-interfaces.md
-api-design-guidelines.md
-error-handling.md
-
-testing-strategy.md
-rfc-conformance.md
-adr/
+docs/
+  README.md, glossary.md
+  planning/       mvp-scope, cli-mvp-roadmap, product-roadmap, rfc-conformance
+  adr/            architecture decision records
+  architecture/   workspace-layout, crate-dependencies, dependency-policy,
+                  traits-and-interfaces, api-design-guidelines, error-handling
+  design/         domain-model, identity-and-addressing, artifact-format,
+                  repository-layout, storage-design, query-model-mvp,
+                  validation-rules, event-model-mvp, repository-lifecycle
+  cli/            cli-spec, getting-started, schemas/
+  quality/        testing-strategy, nonfunctional-requirements,
+                  development-workflow, benchmarks/
 ```
 
 These documents are intended to support implementation.
@@ -260,7 +249,7 @@ These documents are intended to support implementation.
 
 # Current Focus
 
-The first objective, a CLI MVP, is implemented (Windows is the supported platform; see [docs/nonfunctional-requirements.md](docs/nonfunctional-requirements.md)).
+The first objective, a CLI MVP, is implemented (Windows is the supported platform; see [docs/quality/nonfunctional-requirements.md](docs/quality/nonfunctional-requirements.md)).
 
 The MVP exists to validate:
 
@@ -286,7 +275,7 @@ functor query dependencies rfc-0001
 functor validate
 ```
 
-The full walkthrough, with the output of every step, is [docs/getting-started.md](docs/getting-started.md); the repository it produces is [examples/getting-started/](examples/getting-started/). Contributors run `pwsh scripts/ci.ps1` to execute the blocking checks locally ([docs/development-workflow.md](docs/development-workflow.md)).
+The full walkthrough, with the output of every step, is [docs/cli/getting-started.md](docs/cli/getting-started.md); the repository it produces is [examples/getting-started/](examples/getting-started/). Contributors run `pwsh scripts/ci.ps1` to execute the blocking checks locally ([docs/quality/development-workflow.md](docs/quality/development-workflow.md)).
 
 ---
 
@@ -371,7 +360,7 @@ The platform seeks to improve collaboration rather than replace participants.
 
 Functor is currently in the foundation-building stage.
 
-The semantic model, RFCs and implementation guidance are established, and the CLI MVP validates them end to end: its exit criteria and the contracts it freezes are in [docs/mvp-scope.md](docs/mvp-scope.md), and how it conforms to each RFC is in [docs/rfc-conformance.md](docs/rfc-conformance.md). The crates are not published (`publish = false`).
+The semantic model, RFCs and implementation guidance are established, and the CLI MVP validates them end to end: its exit criteria and the contracts it freezes are in [docs/planning/mvp-scope.md](docs/planning/mvp-scope.md), and how it conforms to each RFC is in [docs/planning/rfc-conformance.md](docs/planning/rfc-conformance.md). The crates are not published (`publish = false`).
 
 Future work may include:
 

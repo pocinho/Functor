@@ -1,9 +1,9 @@
-//! The acceptance test: the MVP success path of `docs/getting-started.md` on a clean directory
+//! The acceptance test: the MVP success path of `docs/cli/getting-started.md` on a clean directory
 //! with fixed time and ids, checked step by step against golden transcripts, run twice to prove
 //! it is reproducible, and compared with the committed `examples/getting-started/` repository.
 //!
 //! To regenerate the example after a deliberate change, run with `FUNCTOR_UPDATE_EXAMPLE=1` and
-//! review the diff (`docs/testing-strategy.md`).
+//! review the diff (`docs/quality/testing-strategy.md`).
 
 // Test support code: panicking on unexpected errors is the point.
 #![allow(clippy::unwrap_used, clippy::expect_used)]

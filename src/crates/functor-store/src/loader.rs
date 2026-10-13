@@ -1,6 +1,6 @@
 //! The lenient loader: reads every entity file it can and reports every problem it finds.
 //!
-//! See `docs/storage-design.md`, "Read Protocol". The result feeds `validate` (all issues) and
+//! See `docs/design/storage-design.md`, "Read Protocol". The result feeds `validate` (all issues) and
 //! strict snapshots (`SnapshotLoad::into_snapshot`).
 
 use std::collections::BTreeMap;

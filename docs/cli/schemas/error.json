@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor error",
+  "description": "Error document written to stderr in `--output json` mode (docs/cli/cli-spec.md, docs/architecture/error-handling.md).",
+  "type": "object",
+  "required": ["error", "exit_code"],
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "not_found",
+            "conflict",
+            "invalid_input",
+            "not_a_repository",
+            "unsupported_format",
+            "inconsistent",
+            "locked",
+            "storage",
+            "internal"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "entity": { "enum": ["artifact", "relationship", "repository", "event"] },
+        "reference": { "type": "string" },
+        "suggestions": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "exit_code": { "type": "integer", "minimum": 1, "maximum": 7 }
+  }
+}

@@ -1,6 +1,6 @@
 //! Relationships between artifacts (RFC-0004).
 //!
-//! See `docs/domain-model.md` and ADR-0007.
+//! See `docs/design/domain-model.md` and ADR-0007.
 
 use std::fmt;
 use std::str::FromStr;

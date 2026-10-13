@@ -1,6 +1,6 @@
 //! The MVP success path (and its negative variant) run through the libraries only, without the
 //! CLI. It proves that every capability of the walkthrough is reachable through the service
-//! traits (exit criterion 6 of `docs/mvp-scope.md`), and that the libraries and the CLI read
+//! traits (exit criterion 6 of `docs/planning/mvp-scope.md`), and that the libraries and the CLI read
 //! and write the same repositories.
 
 // Test support code: panicking on unexpected errors is the point.

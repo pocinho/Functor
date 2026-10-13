@@ -1,7 +1,7 @@
 //! The rule catalog: stable codes, severities and one-line descriptions.
 //!
 //! Codes are a public contract and are never reused. This table and the one in
-//! `docs/validation-rules.md` must agree; a test enforces it.
+//! `docs/design/validation-rules.md` must agree; a test enforces it.
 
 use functor_model::{RuleCode, Severity};
 
@@ -77,12 +77,12 @@ mod tests {
         assert_eq!(rule_info(RuleCode::new("V9999")), None);
     }
 
-    /// The catalog table of `docs/validation-rules.md` lists the same codes and severities.
+    /// The catalog table of `docs/design/validation-rules.md` lists the same codes and severities.
     #[test]
     fn the_catalog_matches_the_documentation() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../docs/validation-rules.md"
+            "/../../../docs/design/validation-rules.md"
         );
         let text = std::fs::read_to_string(path).unwrap();
         let documented: Vec<(String, String)> = text

@@ -1,4 +1,4 @@
-# cargo-deny configuration. See docs/dependency-policy.md.
+# cargo-deny configuration. See docs/architecture/dependency-policy.md.
 
 [advisories]
 version = 2

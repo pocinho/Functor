@@ -1,6 +1,6 @@
 //! The file-backed store.
 //!
-//! See `docs/storage-design.md`. Every mutation follows the write protocol: take the repository
+//! See `docs/design/storage-design.md`. Every mutation follows the write protocol: take the repository
 //! write lock, re-read what the operation depends on, check the rules, then write one entity
 //! file atomically.
 

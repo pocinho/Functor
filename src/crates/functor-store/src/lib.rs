@@ -1,6 +1,6 @@
 //! Functor entity persistence: file-backed and in-memory stores.
 //!
-//! See `docs/storage-design.md`.
+//! See `docs/design/storage-design.md`.
 //!
 //! - [`FileStore`] keeps artifacts and relationships as TOML files in a repository directory,
 //!   with atomic writes under the repository write lock and in-place edits that preserve what

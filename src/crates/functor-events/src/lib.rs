@@ -1,6 +1,6 @@
 //! Functor events: event log, rotation, publishing and watching.
 //!
-//! See `docs/event-model-mvp.md`. [`FileEventLog`] appends events under the repository write lock
+//! See `docs/design/event-model-mvp.md`. [`FileEventLog`] appends events under the repository write lock
 //! (gap-free sequence numbers, size-based rotation) and implements the core `EventPublisher` and
 //! `EventSource` traits; [`Follower`] is the live view `functor watch` uses, which also reports
 //! warnings the plain `EventSubscription` trait cannot carry. [`encode_event`] and

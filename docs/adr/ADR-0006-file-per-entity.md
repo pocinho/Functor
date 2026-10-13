@@ -19,7 +19,7 @@ Accepted
 
 - Directory listing is by id and sorts chronologically (ULID), which gives a natural creation order.
 - Humans browsing the directory see ids, not names; `functor artifact list` is the discovery tool.
-- Many small files; acceptable for the MVP target size (see [../nonfunctional-requirements.md](../nonfunctional-requirements.md)).
+- Many small files; acceptable for the MVP target size (see [../nonfunctional-requirements.md](../quality/nonfunctional-requirements.md)).
 - Git diffs and merges are per entity.
 
 ## RFC Impact

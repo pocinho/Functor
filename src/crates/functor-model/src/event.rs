@@ -1,6 +1,6 @@
 //! Event value types (RFC-0017 subset). Persistence lives in `functor-events`.
 //!
-//! See `docs/event-model-mvp.md`.
+//! See `docs/design/event-model-mvp.md`.
 
 use std::collections::BTreeMap;
 use std::fmt;

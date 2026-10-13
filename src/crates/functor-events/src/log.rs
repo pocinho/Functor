@@ -1,5 +1,5 @@
 //! The event log on disk: appending under the repository write lock, sequence numbering and
-//! size-based rotation (`docs/event-model-mvp.md`, ADR-0008).
+//! size-based rotation (`docs/design/event-model-mvp.md`, ADR-0008).
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};

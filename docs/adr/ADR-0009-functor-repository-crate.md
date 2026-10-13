@@ -11,13 +11,13 @@ Accepted
 ## Decision
 
 - New crate `functor-repository`, depending on `functor-core` and `functor-model`. It owns:
-  - the repository layout constants and path helpers ([../repository-layout.md](../repository-layout.md));
+  - the repository layout constants and path helpers ([../repository-layout.md](../design/repository-layout.md));
   - the `repository.toml` file and its DTO, and the `format_version` check;
   - `init`, `open` and `discover`, implementing `RepositoryManager`;
   - the repository write lock on `.functor/lock`.
 - `functor-store` depends on `functor-repository` for layout paths, the `format_version`-checked open and the write lock. It owns only artifact and relationship persistence (`FileStore`) and `MemoryStore`.
 - `functor-repository` is a **foundation service**: the only service other services may depend on. `functor-store` and `functor-events` depend on it (events needs the log path and the write lock to assign sequence numbers). All other service-to-service dependencies stay forbidden.
-- The rule is enforced by the dependency-edge check ([../crate-dependencies.md](../crate-dependencies.md)).
+- The rule is enforced by the dependency-edge check ([../crate-dependencies.md](../architecture/crate-dependencies.md)).
 
 ## Consequences
 

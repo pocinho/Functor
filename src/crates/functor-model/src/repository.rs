@@ -1,6 +1,6 @@
 //! Repository metadata and the immutable in-memory snapshot used by queries and validation.
 //!
-//! See `docs/domain-model.md` and RFC-0015.
+//! See `docs/design/domain-model.md` and RFC-0015.
 
 use std::collections::BTreeMap;
 use std::fmt;

@@ -1,6 +1,6 @@
 //! Functor repository lifecycle: layout, repository metadata, init/open/discover and the write lock.
 //!
-//! See `docs/repository-layout.md`, `docs/repository-lifecycle.md` and ADR-0009. This is the one
+//! See `docs/design/repository-layout.md`, `docs/design/repository-lifecycle.md` and ADR-0009. This is the one
 //! foundation service: `functor-store` and `functor-events` build on its layout and write lock.
 
 mod fsutil;

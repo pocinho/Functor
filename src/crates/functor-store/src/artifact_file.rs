@@ -1,6 +1,6 @@
 //! The TOML representation of an artifact: parsing, canonical rendering and in-place edits.
 //!
-//! See `docs/artifact-format.md` and ADR-0011. New files use the canonical form; updates edit the
+//! See `docs/design/artifact-format.md` and ADR-0011. New files use the canonical form; updates edit the
 //! existing document so comments, key order, whitespace and unknown keys are preserved.
 
 use std::fmt::Display;

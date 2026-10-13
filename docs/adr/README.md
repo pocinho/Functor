@@ -4,7 +4,7 @@
 
 ADRs record implementation decisions for the Functor CLI MVP, especially where the decision resolves an ambiguity or a conflict in the RFC series or the docs.
 
-RFCs define what Functor is. ADRs record how this implementation chose to satisfy, subset or deviate from them. An ADR never edits an RFC. If an ADR deviates from an RFC, the deviation is also listed in [../rfc-conformance.md](../rfc-conformance.md).
+RFCs define what Functor is. ADRs record how this implementation chose to satisfy, subset or deviate from them. An ADR never edits an RFC. If an ADR deviates from an RFC, the deviation is also listed in [../rfc-conformance.md](../planning/rfc-conformance.md).
 
 ## Process
 

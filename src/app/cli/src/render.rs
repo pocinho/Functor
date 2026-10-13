@@ -1,6 +1,6 @@
 //! The shapes of artifact output: JSON documents (the stable contract) and text rendering.
 //!
-//! See `docs/cli-spec.md`, "JSON Schemas". Field order below is the documented key order.
+//! See `docs/cli/cli-spec.md`, "JSON Schemas". Field order below is the documented key order.
 
 use std::collections::BTreeMap;
 

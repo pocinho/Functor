@@ -1,5 +1,5 @@
 //! Following the event log: delivery by sequence number across rotation and truncation
-//! (`docs/event-model-mvp.md`, "Watching").
+//! (`docs/design/event-model-mvp.md`, "Watching").
 
 use std::collections::{BTreeSet, VecDeque};
 use std::fs::{self, File};

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor query relationships",
+  "description": "Output of `functor query relationships --output json` (docs/cli/cli-spec.md). Relationships are ordered by relationship id. The Endpoint and Relationship definitions are identical to those in relationship-list.json; a test keeps them in sync.",
+  "type": "object",
+  "required": ["schema_version", "artifact", "relationships"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "artifact": { "$ref": "#/$defs/Endpoint" },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/Relationship" } }
+  },
+  "$defs": {
+    "Endpoint": {
+      "type": "object",
+      "required": ["id", "slug"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 64 }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "required": ["id", "ref", "type", "source", "target", "created", "metadata"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^rel_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "ref": { "type": "string", "pattern": "^functor:relationship:rel_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "source": { "$ref": "#/$defs/Endpoint" },
+        "target": { "$ref": "#/$defs/Endpoint" },
+        "created": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+        "metadata": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9_-]{0,39}$" },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "integer" },
+              { "type": "boolean" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

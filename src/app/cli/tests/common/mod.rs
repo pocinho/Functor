@@ -154,7 +154,7 @@ impl Sandbox {
 }
 
 fn schemas_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/schemas")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/cli/schemas")
 }
 
 pub fn load_schema(name: &str) -> Value {
@@ -165,7 +165,7 @@ pub fn load_schema(name: &str) -> Value {
     .unwrap()
 }
 
-/// Asserts that `instance` conforms to the schema `docs/schemas/<name>.json`.
+/// Asserts that `instance` conforms to the schema `docs/cli/schemas/<name>.json`.
 pub fn assert_schema(name: &str, instance: &Value) {
     let schema = load_schema(name);
     let validator = jsonschema::validator_for(&schema).expect("the schema is valid");

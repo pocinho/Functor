@@ -1,6 +1,6 @@
 //! Where things live inside a repository.
 //!
-//! See `docs/repository-layout.md`.
+//! See `docs/design/repository-layout.md`.
 
 use std::path::{Path, PathBuf};
 
@@ -16,7 +16,7 @@ pub const TEMP_MARKER: &str = ".tmp-";
 /// The paths of a repository rooted at a directory.
 ///
 /// All entity file names derive from validated ids, never from user text (see
-/// `docs/storage-design.md`, "Path Safety").
+/// `docs/design/storage-design.md`, "Path Safety").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Layout {
     root: PathBuf,

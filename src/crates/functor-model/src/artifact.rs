@@ -1,6 +1,6 @@
 //! Artifacts and their value types (RFC-0003).
 //!
-//! See `docs/domain-model.md` and `docs/artifact-format.md`.
+//! See `docs/design/domain-model.md` and `docs/design/artifact-format.md`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -244,7 +244,7 @@ impl MetadataValue {
     /// Whether this value satisfies a metadata filter `needle`.
     ///
     /// Equal values match. A string list also matches a string `needle` it contains
-    /// (see `docs/query-model-mvp.md`).
+    /// (see `docs/design/query-model-mvp.md`).
     #[must_use]
     pub fn matches(&self, needle: &Self) -> bool {
         match (self, needle) {

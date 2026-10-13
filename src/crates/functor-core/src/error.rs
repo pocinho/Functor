@@ -1,6 +1,6 @@
 //! The error taxonomy of the Functor API.
 //!
-//! See `docs/error-handling.md`. Validation findings are **not** errors: a validation run that
+//! See `docs/architecture/error-handling.md`. Validation findings are **not** errors: a validation run that
 //! finds problems succeeds and reports them.
 
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 //! Command line definition.
 //!
-//! See `docs/cli-spec.md`. This module only describes arguments; it contains no behavior.
+//! See `docs/cli/cli-spec.md`. This module only describes arguments; it contains no behavior.
 
 use std::path::PathBuf;
 

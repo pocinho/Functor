@@ -1,6 +1,6 @@
 //! Process exit codes and the single mapping from errors to them.
 //!
-//! The codes are part of the stable CLI contract; see `docs/error-handling.md`. New codes are
+//! The codes are part of the stable CLI contract; see `docs/architecture/error-handling.md`. New codes are
 //! only added, never reassigned.
 
 use functor_core::ErrorKind;
@@ -23,7 +23,7 @@ pub const VALIDATION_FAILED: u8 = 6;
 /// A storage or locking failure.
 pub const STORAGE: u8 = 7;
 
-/// The exit code of a finished validation run (`docs/validation-rules.md`): `unknown` and `failed`
+/// The exit code of a finished validation run (`docs/design/validation-rules.md`): `unknown` and `failed`
 /// always fail, `warning` fails only with `--strict`.
 #[must_use]
 pub fn validation_exit_code(outcome: Outcome, strict: bool) -> u8 {

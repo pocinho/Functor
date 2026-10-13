@@ -1,6 +1,6 @@
 //! Turning what a user typed into an artifact.
 //!
-//! See `docs/identity-and-addressing.md`, "Resolution on the Command Line".
+//! See `docs/design/identity-and-addressing.md`, "Resolution on the Command Line".
 
 use functor_core::{ArtifactRepository, FunctorError, RelationshipRepository, Result};
 use functor_model::{Artifact, ArtifactRef, EntityKind, Relationship, RelationshipId};

@@ -1,6 +1,6 @@
 //! Creating, opening and discovering repositories on the local filesystem.
 //!
-//! See `docs/repository-lifecycle.md`.
+//! See `docs/design/repository-lifecycle.md`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -126,7 +126,7 @@ impl FileRepositoryManager {
 
     /// Creates a repository at `at` (blocking).
     ///
-    /// The steps are those of `docs/repository-lifecycle.md`; `repository.toml` is written last
+    /// The steps are those of `docs/design/repository-lifecycle.md`; `repository.toml` is written last
     /// and atomically, so a partially created directory is never recognized as a repository.
     ///
     /// # Errors

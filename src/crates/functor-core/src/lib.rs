@@ -1,6 +1,6 @@
 //! Functor core API: service traits, errors, clock and id generation.
 //!
-//! See `docs/traits-and-interfaces.md` and `docs/error-handling.md`.
+//! See `docs/architecture/traits-and-interfaces.md` and `docs/architecture/error-handling.md`.
 //!
 //! This crate defines **contracts only**: service traits (dyn-compatible through `async-trait`,
 //! ADR-0010), the error taxonomy, and the injected [`Clock`] and [`IdGenerator`]. It names no

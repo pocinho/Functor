@@ -3,7 +3,7 @@
 //! Every implementation of the repository state traits (`RepositoryReader`, `ArtifactRepository`
 //! and `RelationshipRepository`) must pass [`run_store_conformance`]. This is what makes the
 //! storage independence of RFC-0008 enforceable: `MemoryStore` and `FileStore` run the same
-//! scenarios. See `docs/testing-strategy.md`.
+//! scenarios. See `docs/quality/testing-strategy.md`.
 //!
 //! The suite is runtime-agnostic: it returns futures, and the calling test drives them (for
 //! example with `#[tokio::test]`).

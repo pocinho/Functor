@@ -15,7 +15,7 @@ Every artifact has two identifiers:
 - **Id**: opaque, generated, immutable. Format `art_<ULID>` (relationships use `rel_`, repositories `repo_`, events `evt_`). This is the identity in the RFC-0005 sense. Relationships, events and canonical references always use ids.
 - **Slug**: a unique, human-friendly alias within a repository (for example `rfc-0000`). It is a lookup aid, not identity. It may be renamed. The CLI accepts either an id or a slug wherever an artifact is expected.
 
-Details are in [../identity-and-addressing.md](../identity-and-addressing.md).
+Details are in [../identity-and-addressing.md](../design/identity-and-addressing.md).
 
 ## Consequences
 

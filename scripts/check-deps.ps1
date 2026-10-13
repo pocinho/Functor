@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-  Checks the workspace dependency edges against docs/crate-dependencies.md.
+  Checks the workspace dependency edges against docs/architecture/crate-dependencies.md.
 .DESCRIPTION
   Fails when a workspace crate has a normal or build dependency on another workspace crate
   that is not allowed, when functor-testkit is a normal dependency, or when a layer uses an
-  external crate it must not use. Update this table and docs/crate-dependencies.md together.
+  external crate it must not use. Update this table and docs/architecture/crate-dependencies.md together.
 #>
 $ErrorActionPreference = 'Stop'
 
@@ -42,7 +42,7 @@ $members = $meta.packages | ForEach-Object { $_.name }
 
 foreach ($name in $members) {
     if (-not $allowed.ContainsKey($name)) {
-        $errors += "$name is not in the allowed-edge table; add it here and in docs/crate-dependencies.md"
+        $errors += "$name is not in the allowed-edge table; add it here and in docs/architecture/crate-dependencies.md"
     }
 }
 

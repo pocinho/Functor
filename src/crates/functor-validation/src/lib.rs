@@ -1,6 +1,6 @@
 //! Functor validation: rule catalog and validation engine.
 //!
-//! See `docs/validation-rules.md`. The rules are pure functions over a lenient
+//! See `docs/design/validation-rules.md`. The rules are pure functions over a lenient
 //! [`SnapshotLoad`](functor_core::SnapshotLoad); [`evaluate`] runs them and assembles the report,
 //! and [`RuleValidationEngine`] adapts that to the asynchronous
 //! [`ValidationEngine`](functor_core::ValidationEngine) trait.

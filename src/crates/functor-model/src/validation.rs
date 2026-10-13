@@ -1,6 +1,6 @@
 //! Validation value types (RFC-0007). Rules and the engine live in `functor-validation`.
 //!
-//! See `docs/validation-rules.md`.
+//! See `docs/design/validation-rules.md`.
 
 use std::fmt;
 
