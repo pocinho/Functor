@@ -65,6 +65,30 @@ impl Layout {
         self.root.join("relationships")
     }
 
+    /// `.functor/runs/`: per-run lease files and staging (not repository state).
+    #[must_use]
+    pub fn runs_dir(&self) -> PathBuf {
+        self.functor_dir().join("runs")
+    }
+
+    /// `.functor/runs/<run-id>.lock`: held by the process that owns an incomplete run.
+    #[must_use]
+    pub fn run_lease_file(&self, run: &ArtifactId) -> PathBuf {
+        self.runs_dir().join(format!("{run}.lock"))
+    }
+
+    /// `.functor/runs/request-<request-id>.lock`: serializes recording one request.
+    #[must_use]
+    pub fn request_lock_file(&self, request: &str) -> PathBuf {
+        self.runs_dir().join(format!("request-{request}.lock"))
+    }
+
+    /// `content/evidence/<area>/`: content-addressed evidence files (ADR-0013).
+    #[must_use]
+    pub fn evidence_dir(&self, area: &str) -> PathBuf {
+        self.root.join("content").join("evidence").join(area)
+    }
+
     /// `events/`
     #[must_use]
     pub fn events_dir(&self) -> PathBuf {
@@ -131,6 +155,19 @@ mod tests {
         assert_eq!(rel(layout.lock_file()), ".functor/lock");
         assert_eq!(rel(layout.events_log()), "events/current.log");
         assert_eq!(rel(layout.events_archive_dir()), "events/archive");
+        assert_eq!(rel(layout.runs_dir()), ".functor/runs");
+        assert_eq!(
+            rel(layout.run_lease_file(&artifact)),
+            format!(".functor/runs/{artifact}.lock")
+        );
+        assert_eq!(
+            rel(layout.request_lock_file("req-1")),
+            ".functor/runs/request-req-1.lock"
+        );
+        assert_eq!(
+            rel(layout.evidence_dir("captures")),
+            "content/evidence/captures"
+        );
         assert_eq!(
             rel(layout.artifact_file(&artifact)),
             format!("artifacts/{artifact}.toml")

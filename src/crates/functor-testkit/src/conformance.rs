@@ -20,9 +20,10 @@ use functor_core::{
     Result, SnapshotLoad,
 };
 use functor_model::{
-    Artifact, ArtifactField, ArtifactId, ArtifactPatch, ArtifactRef, ArtifactType, NewArtifact,
-    NewRelationship, Patched, Relationship, RelationshipId, RelationshipType, RepositoryInfo,
-    RepositorySnapshot, Revision, Slug, Timestamp, Title,
+    Artifact, ArtifactField, ArtifactId, ArtifactPatch, ArtifactRef, ArtifactType, EVIDENCE_KEY,
+    EvidenceKind, Metadata, MetadataKey, MetadataValue, NewArtifact, NewRelationship, Patched,
+    Relationship, RelationshipId, RelationshipType, RepositoryInfo, RepositorySnapshot, Revision,
+    Slug, Timestamp, Title,
 };
 
 use crate::doubles::{FixedClock, SequentialIds};
@@ -231,6 +232,7 @@ where
     scenario!(rename_to_a_taken_slug_conflicts);
     scenario!(expected_revision_is_enforced);
     scenario!(update_of_unknown_artifact_is_not_found);
+    scenario!(evidence_artifacts_are_immutable);
     scenario!(relationships_require_existing_endpoints);
     scenario!(relationship_rules);
     scenario!(relationship_get_and_list_order);
@@ -437,6 +439,59 @@ pub async fn update_of_unknown_artifact_is_not_found<S: StoreUnderTest>(
         ErrorKind::NotFound,
         "update of an unknown artifact",
     );
+}
+
+/// Evidence artifacts (type and `evidence` marker agree) are immutable; an ordinary artifact that
+/// only borrows an evidence type name is not (ADR-0013).
+pub async fn evidence_artifacts_are_immutable<S: StoreUnderTest>(store: &Ctx<'_, S>, _env: &Env) {
+    let mut marker = Metadata::new();
+    marker.insert(
+        MetadataKey::new(EVIDENCE_KEY).unwrap(),
+        MetadataValue::from(EvidenceKind::Run.schema()),
+    );
+    let evidence = store
+        .create_artifact(
+            NewArtifact::new(
+                slug("run-1"),
+                EvidenceKind::Run.to_artifact_type(),
+                Title::new("a run").unwrap(),
+            )
+            .with_metadata(marker),
+        )
+        .await
+        .unwrap();
+    expect_err(
+        store
+            .update_artifact(evidence.id(), retitle("edited"), None)
+            .await,
+        ErrorKind::Conflict,
+        "update of evidence",
+    );
+    expect_err(
+        store
+            .update_artifact(evidence.id(), ArtifactPatch::new(), Some(Revision::FIRST))
+            .await,
+        ErrorKind::Conflict,
+        "even a no-op update of evidence is refused",
+    );
+    assert_eq!(
+        store.get_artifact(evidence.id()).await.unwrap().as_ref(),
+        Some(&evidence),
+        "the evidence is unchanged"
+    );
+
+    let borrowed = store
+        .create_artifact(NewArtifact::new(
+            slug("run-2"),
+            EvidenceKind::Run.to_artifact_type(),
+            Title::new("just named run").unwrap(),
+        ))
+        .await
+        .unwrap();
+    store
+        .update_artifact(borrowed.id(), retitle("still editable"), None)
+        .await
+        .unwrap();
 }
 
 /// A relationship needs both endpoints to exist.

@@ -30,8 +30,16 @@ my-repository/
 │   ├── .gitkeep
 │   └── current.log               # created at the first event
 └── content/                      # optional, created on demand; referenced artifact content
-    └── rfc-0000.md
+    ├── rfc-0000.md
+    └── evidence/                 # Phase 1: content-addressed evidence files, created on demand
+        ├── captures/<sha256-hex>
+        ├── streams/<sha256-hex>
+        ├── outputs/<sha256-hex>
+        ├── results/<sha256-hex>
+        └── reports/<sha256-hex>
 ```
+
+`.functor/runs/` (also on demand, not repository state) holds one lease file per incomplete run and one short-lived lock per request id being recorded ([ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md), [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)). Like `.functor/lock` it should be git-ignored.
 
 `functor init` creates `.functor/`, `.functor/repository.toml`, `artifacts/`, `relationships/` and `events/`, plus `.gitkeep` files in the three empty directories so an empty repository survives a git commit. `content/` is created the first time it is needed. `.gitkeep` files are ignored by the loader.
 
@@ -95,7 +103,7 @@ Relationships are immutable in the MVP. New relationship files use the same cano
 
 ## `validations/` (reserved)
 
-RFC-0007 allows validation results to be persisted. The MVP does **not** persist reports; `functor validate` prints its report and appends a `validation.completed` event carrying the summary. The directory name `validations/` is reserved for later use.
+RFC-0007 allows validation results to be persisted. `functor validate` still prints its report and appends a `validation.completed` event carrying the summary. Phase 1 persists a report only through the opt-in recorder, as a `validation_report` artifact with its document in `content/evidence/reports/` ([ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)); the directory name `validations/` stays reserved and unused.
 
 ## Reserved and Future Names
 

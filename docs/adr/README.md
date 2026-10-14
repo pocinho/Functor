@@ -46,3 +46,4 @@ Proposed | Accepted | Superseded by ADR-NNNN
 | [ADR-0013](ADR-0013-run-lifecycle-and-evidence-persistence.md) | Run lifecycle, input capture and evidence persistence | Accepted |
 | [ADR-0014](ADR-0014-evidence-relationships.md) | Evidence relationship vocabulary (amends ADR-0007) | Accepted |
 | [ADR-0015](ADR-0015-validation-report-persistence-and-events.md) | Persisted validation reports and execution events | Accepted |
+| [ADR-0016](ADR-0016-evidence-files-and-repair.md) | Evidence file layout, request lock and repair | Proposed |

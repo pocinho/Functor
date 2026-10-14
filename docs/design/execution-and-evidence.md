@@ -156,6 +156,18 @@ Choices made while writing the model, core traits and testkit; none changes an a
 - **Provider pre-flight.** `ExecutionPlan::check` is the shared refusal logic (provider name, limits against the grant, granted environment names, input bindings and sizes). The path, program-resolution and environment-value rules of ADR-0012 are enforced by the `local-process` provider in P1.3, which must also run `run_provider_conformance`.
 - **Lease.** `RunLease` is `Debug` so it can appear in test assertions; dropping it releases the run.
 
+## Implementation Notes (P1.2)
+
+Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic over the entity store and a blob/lock backend (`FileEvidence` over `FileStore`, `InMemoryEvidence` over `MemoryStore`). Decisions that refine the ADRs are in [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md) (Proposed). In short:
+
+- **Files are content-addressed.** Reports are `content/evidence/reports/<sha256 hex>`, not `<artifact-id>.json` as this contract first said, because the store assigns the artifact id. Streams, outputs and results are files too; the run intent stays inline JSON.
+- **Stored report document.** It is the `functor validate --output json` document (schema version 1); the validation time and subject (id, revision, content digest) are artifact metadata. Findings round trip exactly, including the incomplete flag, which is recovered from the stored outcome.
+- **Idempotent intent.** One request id is serialized by a short lock file; a repeat returns the existing run with `created = false` and repairs its edges.
+- **Edges.** `capture --derived_from--> source`, `run --depends_on--> capture`, `run_result --derived_from--> run`, `output --derived_from--> run_result` and `report --validates--> subject` are created in publication order and recreated by `recover` from the records. A failure after the commit point is returned as an error while the run reads as complete.
+- **Immutability.** The shared store rules refuse to update an artifact whose type and `evidence` metadata agree (`Conflict`), so both stores and the CLI inherit it; the store conformance suite pins it.
+- **Not yet done.** Staging directories for provider work (`.functor/runs/<run-id>/`) are created by the orchestrator in P1.4. Validation rules `V0020` to `V0023`, the events and the CLI are P1.4 and P1.5. The persisted rule-set identity of ADR-0015 is not recorded: the recorder does not know which engine produced a report.
+- **Dependencies.** `sha2` and `serde_json` were added to `functor-store` only (licenses, bans and sources checked with `cargo deny check licenses bans sources`).
+
 ## Review Decisions
 
 Reviewed with the maintainer during P1.0 and accepted together with ADR-0012 to ADR-0015.

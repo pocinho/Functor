@@ -17,9 +17,9 @@ use functor_core::{
     Result, SnapshotLoad,
 };
 use functor_model::{
-    Artifact, ArtifactId, ArtifactPatch, ArtifactRef, EntityKind, FormatVersion, NewArtifact,
-    NewRelationship, Patched, Relationship, RelationshipId, RepositoryInfo, RepositoryName,
-    Revision,
+    Artifact, ArtifactId, ArtifactPatch, ArtifactRef, EntityKind, EvidenceKind, FormatVersion,
+    NewArtifact, NewRelationship, Patched, Relationship, RelationshipId, RepositoryInfo,
+    RepositoryName, Revision,
 };
 
 use crate::conformance::{Env, Fresh, run_store_conformance};
@@ -33,6 +33,7 @@ enum Bug {
     AllowDuplicateRelationships,
     ListInReverse,
     BumpRevisionOnNoOp,
+    AllowEvidenceUpdates,
 }
 
 #[derive(Default)]
@@ -142,6 +143,12 @@ impl ArtifactRepository for ReferenceStore {
             .get(id)
             .cloned()
             .ok_or_else(|| FunctorError::not_found(EntityKind::Artifact, id.to_string()))?;
+        if EvidenceKind::of(&current).is_some() && !self.has(Bug::AllowEvidenceUpdates) {
+            return Err(FunctorError::conflict(
+                EntityKind::Artifact,
+                "evidence is immutable",
+            ));
+        }
         if let Some(expected) = expected
             && expected != current.revision()
             && !self.has(Bug::IgnoreExpectedRevision)
@@ -248,6 +255,7 @@ fn the_suite_rejects_every_deliberately_broken_store() {
         Bug::AllowDuplicateRelationships,
         Bug::ListInReverse,
         Bug::BumpRevisionOnNoOp,
+        Bug::AllowEvidenceUpdates,
     ] {
         let outcome = catch_unwind(AssertUnwindSafe(|| suite(Some(bug))));
         assert!(outcome.is_err(), "the suite did not detect {bug:?}");

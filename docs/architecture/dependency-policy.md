@@ -24,7 +24,8 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 | Error types | `thiserror` | model, core and other libraries |
 | TOML read, create and in-place edit | `toml_edit` (document API, no serde) | repository, store |
 | Serialization framework | `serde` (derive) | events, cli (JSON output) |
-| JSON | `serde_json` | events, cli |
+| JSON | `serde_json` | events, cli, store (evidence documents, [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)) |
+| SHA-256 | `sha2` (RustCrypto; MIT or Apache-2.0; pure Rust with CPU-feature detection through `cpufeatures`) | store |
 | Async trait support | `async-trait` | core and the crates implementing core traits |
 | Async runtime | `tokio` (features: `rt`; later `time`, `signal`, `io-util`, `sync` where needed; `macros` in dev-dependencies for `#[tokio::test]`) | repository, store, events, cli |
 | File locking | the standard library (`File::try_lock`, stable since Rust 1.89); no crate | repository |

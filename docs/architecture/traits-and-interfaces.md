@@ -213,7 +213,7 @@ pub trait ReportRecorder: Send + Sync {
 | `EventPublisher`, `EventSource` | `FileEventLog` | `functor-events` |
 | `Clock`, `IdGenerator` | `SystemClock`, `UlidGenerator` in `functor-core`; `FixedClock`, `SequentialIds` in `functor-testkit` | `functor-core`, `functor-testkit` |
 | `ExecutionProvider` | `FakeProvider` (testkit); `local-process` arrives in P1.3 | `functor-testkit`, `functor-runtime` (planned) |
-| `EvidenceRecorder`, `ReportRecorder` | `MemoryEvidence` (testkit fake); store-backed implementations arrive in P1.2 | `functor-testkit`, `functor-store` (planned) |
+| `EvidenceRecorder`, `ReportRecorder` | `FileEvidence`, `InMemoryEvidence` (both `EvidenceStore`, P1.2); `MemoryEvidence` is the simpler testkit fake | `functor-store`, `functor-testkit` |
 
 `MemoryStore` and `FileStore` must pass the same conformance test suite (see [testing-strategy.md](../quality/testing-strategy.md)); that suite is what makes the storage-independence promise of RFC-0008 enforceable. `RepositoryManager` is tested in `functor-repository`.
 

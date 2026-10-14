@@ -180,6 +180,86 @@ impl WriteLock {
     }
 }
 
+/// A held exclusive lock on one file, for ownership that outlives a single call: unlike
+/// [`WriteLock::run`], it is held until dropped. It is released when dropped or when the process
+/// dies, so a crashed owner never leaves a lock behind. Used for per-run leases (ADR-0013).
+#[derive(Debug)]
+pub struct HeldLock {
+    file: File,
+    path: PathBuf,
+}
+
+impl HeldLock {
+    /// Tries to take the lock without waiting; `None` means someone else holds it. Creates the
+    /// file and its parent directory on demand.
+    ///
+    /// # Errors
+    /// Returns `Storage` when the file cannot be created, opened or locked.
+    pub fn try_acquire(path: &Path) -> Result<Option<Self>> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|error| FunctorError::storage("create directory", parent, error))?;
+        }
+        let file = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(|error| FunctorError::storage("open lock", path, error))?;
+        match file.try_lock() {
+            Ok(()) => Ok(Some(Self {
+                file,
+                path: path.to_owned(),
+            })),
+            Err(TryLockError::WouldBlock) => Ok(None),
+            Err(TryLockError::Error(error)) => Err(FunctorError::storage("lock", path, error)),
+        }
+    }
+
+    /// Takes the lock, polling until `timeout`.
+    ///
+    /// # Errors
+    /// Returns `Locked` when it is not acquired in time, otherwise as [`HeldLock::try_acquire`].
+    pub fn acquire(path: &Path, timeout: Duration) -> Result<Self> {
+        let deadline = Instant::now() + timeout;
+        loop {
+            if let Some(held) = Self::try_acquire(path)? {
+                return Ok(held);
+            }
+            if Instant::now() >= deadline {
+                return Err(FunctorError::Locked {
+                    path: path.to_owned(),
+                });
+            }
+            thread::sleep(LOCK_POLL);
+        }
+    }
+
+    /// Whether another handle currently holds the lock on `path`. A missing file is not held.
+    ///
+    /// # Errors
+    /// Returns `Storage` when the file exists but cannot be opened or locked.
+    pub fn is_held(path: &Path) -> Result<bool> {
+        if !path.exists() {
+            return Ok(false);
+        }
+        Ok(Self::try_acquire(path)?.is_none())
+    }
+
+    /// The lock file path.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for HeldLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc;
@@ -314,5 +394,40 @@ mod tests {
         let lock = WriteLock::new(&Layout::new(dir.path()), Duration::from_millis(10));
         let error = lock.run(|| Ok(())).unwrap_err();
         assert_eq!(error.kind(), functor_core::ErrorKind::Storage);
+    }
+
+    #[test]
+    fn a_held_lock_is_exclusive_until_dropped() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("runs").join("x.lock");
+        assert!(
+            !HeldLock::is_held(&path).unwrap(),
+            "a missing file is not held"
+        );
+
+        let first = HeldLock::try_acquire(&path).unwrap().expect("free");
+        assert_eq!(first.path(), path);
+        assert!(HeldLock::try_acquire(&path).unwrap().is_none());
+        assert!(HeldLock::is_held(&path).unwrap());
+        let error = HeldLock::acquire(&path, Duration::from_millis(50)).unwrap_err();
+        assert_eq!(error.kind(), functor_core::ErrorKind::Locked);
+
+        drop(first);
+        assert!(!HeldLock::is_held(&path).unwrap());
+        assert!(HeldLock::acquire(&path, Duration::from_millis(50)).is_ok());
+    }
+
+    #[test]
+    fn acquire_waits_for_a_release() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("x.lock");
+        let held = HeldLock::try_acquire(&path).unwrap().unwrap();
+        let waiter = {
+            let path = path.clone();
+            thread::spawn(move || HeldLock::acquire(&path, Duration::from_secs(5)).map(|_| ()))
+        };
+        thread::sleep(Duration::from_millis(100));
+        drop(held);
+        waiter.join().unwrap().unwrap();
     }
 }

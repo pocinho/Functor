@@ -6,8 +6,8 @@
 
 use functor_core::{FunctorError, Result};
 use functor_model::{
-    Artifact, ArtifactId, ArtifactPatch, EntityKind, NewArtifact, NewRelationship, Patched,
-    Relationship, RelationshipId, RepositorySnapshot, Revision, Timestamp,
+    Artifact, ArtifactId, ArtifactPatch, EntityKind, EvidenceKind, NewArtifact, NewRelationship,
+    Patched, Relationship, RelationshipId, RepositorySnapshot, Revision, Timestamp,
 };
 
 /// Checks slug uniqueness and builds the new artifact (revision 1, `created = updated = now`).
@@ -35,6 +35,15 @@ pub(crate) fn plan_update_artifact(
         .artifact(id)
         .ok_or_else(|| FunctorError::not_found(EntityKind::Artifact, id.to_string()))?;
 
+    if let Some(kind) = EvidenceKind::of(current) {
+        return Err(FunctorError::conflict(
+            EntityKind::Artifact,
+            format!(
+                "`{}` is {kind} evidence, which is immutable (ADR-0013)",
+                current.slug()
+            ),
+        ));
+    }
     if let Some(expected) = expected
         && expected != current.revision()
     {

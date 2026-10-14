@@ -23,8 +23,8 @@ mod reference_store;
 
 pub use conformance::{
     Ctx, Env, Fresh, StoreUnderTest, create_get_resolve_and_list, determinism,
-    duplicate_slug_is_a_conflict, expected_revision_is_enforced, info_is_stable,
-    load_of_a_clean_repository_has_no_issues, no_op_update_changes_nothing,
+    duplicate_slug_is_a_conflict, evidence_artifacts_are_immutable, expected_revision_is_enforced,
+    info_is_stable, load_of_a_clean_repository_has_no_issues, no_op_update_changes_nothing,
     relationship_get_and_list_order, relationship_rules, relationships_require_existing_endpoints,
     rename_to_a_taken_slug_conflicts, run_store_conformance,
     slug_rename_releases_the_old_slug_and_keeps_relationships, snapshot_reflects_state,

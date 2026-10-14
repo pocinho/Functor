@@ -93,6 +93,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.2: Durable Execution and Validation Evidence
 
+**Status:** implemented for the library path (see the [P1.2 implementation notes](../design/execution-and-evidence.md#implementation-notes-p12) and [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md), Proposed). Evidence for the done-when criteria: evidence survives reopening and moving a repository (`evidence_survives_a_restart_and_a_moved_repository`); no failed mandatory write reports success, tested at every write boundary (`a_failure_at_every_write_never_reports_a_false_success_and_always_recovers`); existing file formats are unchanged (`format_version` 1, no entity file layout change); reopening exposes interrupted work without erasing or rerunning it (`reopening_exposes_interrupted_work_without_erasing_or_rerunning_it`). Not yet covered: a test that reopens evidence from a separate OS process (a lease and a reopened repository are tested in-process) and the CLI projection (P1.5).
+
 **Components:** persistence through core traits, implementations in `functor-store` and lifecycle/layout helpers in `functor-repository`; evidence schema/codec owned by the representation layer.
 
 **Deliverables:**
