@@ -7,8 +7,11 @@ use std::fs;
 use std::path::Path;
 
 use common::{Out, Sandbox, T0, assert_schema, assert_schema_rejects, run_in};
-use functor_core::{ArtifactRepository, EvidenceRecorder, ReportRecorder};
-use functor_model::ArtifactRef;
+use functor_core::{
+    ArtifactRepository, EvidenceRecorder, QueryEngine, ReportRecorder, RepositoryReader,
+};
+use functor_model::{ArtifactRef, Content, Direction, RelationshipType, RunOutcome, Traversal};
+use functor_query::SnapshotQueryEngine;
 use functor_repository::FileRepositoryManager;
 use functor_store::{FileEvidence, FileStore};
 use functor_testkit::Env;
@@ -226,6 +229,260 @@ async fn execution_show_and_list_cross_read_with_the_library_after_restart() {
         sandbox.read("events/current.log"),
         before,
         "inspection never emits events"
+    );
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn phase_one_cli_acceptance_traces_claims_and_replays_captured_inputs() {
+    let sandbox = echo();
+    sandbox
+        .run(
+            &[
+                "artifact",
+                "create",
+                "claim",
+                "--type",
+                "claim",
+                "--content-text",
+                "output echoes hello",
+            ],
+            250,
+        )
+        .ok();
+    let first = start(&sandbox, &["--request-id", "acceptance-1"], 300)
+        .ok()
+        .json();
+    assert_schema("run-start", &first);
+    let run = first["run"]["id"].as_str().unwrap();
+    let output = first["run"]["result"]["outputs"][0].as_str().unwrap();
+    let capture = first["run"]["inputs"]["data"].as_str().unwrap();
+    let workflow_capture = first["run"]["workflow_capture"].as_str().unwrap();
+    let validated = sandbox
+        .run(&["validate", output, "--save-report", "-o", "json"], 1000)
+        .ok()
+        .json();
+    assert_schema("validate", &validated);
+    assert_eq!(validated["outcome"], "passed");
+    let saved = validated["saved_report"]["id"].as_str().unwrap();
+    for (kind, seed) in [("supports", 1100), ("contradicts", 1200)] {
+        sandbox
+            .run(&["relation", "add", output, kind, "claim"], seed)
+            .ok();
+    }
+    let contested = sandbox.run(&["validate", "-o", "json"], 1300).ok().json();
+    assert_eq!(contested["outcome"], "warning");
+    assert!(
+        contested["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["code"] == "V0023")
+    );
+    let upstream = sandbox
+        .run(
+            &[
+                "query",
+                "dependencies",
+                saved,
+                "--type",
+                "validates",
+                "--type",
+                "derived_from",
+                "--type",
+                "depends_on",
+                "--depth",
+                "all",
+                "-o",
+                "json",
+            ],
+            1400,
+        )
+        .ok()
+        .json();
+    assert_schema("query-traversal", &upstream);
+    let reached = |doc: &serde_json::Value, id: &str| {
+        doc["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["artifact"]["id"] == id)
+    };
+    for id in [output, run, capture, workflow_capture] {
+        assert!(reached(&upstream, id), "missing upstream {id}");
+    }
+    for slug in ["input", "workflow"] {
+        assert!(
+            upstream["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|n| n["artifact"]["slug"] == slug)
+        );
+    }
+    let downstream = sandbox
+        .run(
+            &[
+                "query",
+                "dependents",
+                "input",
+                "--type",
+                "validates",
+                "--type",
+                "derived_from",
+                "--type",
+                "depends_on",
+                "--depth",
+                "all",
+                "-o",
+                "json",
+            ],
+            1400,
+        )
+        .ok()
+        .json();
+    for id in [run, output, saved] {
+        assert!(reached(&downstream, id), "missing downstream {id}");
+    }
+    sandbox
+        .run(
+            &["artifact", "update", "input", "--content-text", "changed"],
+            1500,
+        )
+        .ok();
+    let replay = sandbox
+        .run(
+            &[
+                "run",
+                "start",
+                workflow_capture,
+                "--input",
+                &format!("data={capture}"),
+                "--grant-exec",
+                "--request-id",
+                "acceptance-2",
+                "-o",
+                "json",
+            ],
+            2000,
+        )
+        .ok()
+        .json();
+    assert_eq!(replay["run"]["state"], "succeeded");
+    assert_ne!(replay["run"]["id"], first["run"]["id"]);
+    let replay_output = replay["run"]["result"]["outputs"][0].as_str().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let reopened = evidence(sandbox.path());
+        let record = reopened.run(&ArtifactRef::parse(run).unwrap()).await.unwrap().unwrap();
+        assert_eq!(record.result().unwrap().1.outcome(), RunOutcome::Succeeded);
+        assert_eq!(reopened.read_capture(&record.intent().inputs["data"]).await.unwrap(), b"hello");
+        for id in [output, replay_output] {
+            let artifact = ArtifactRepository::get(reopened.store(), &id.parse().unwrap()).await.unwrap().unwrap();
+            let Content::Path { path, .. } = artifact.content() else { panic!("file content") };
+            assert_eq!(fs::read(sandbox.path().join(path.as_str())).unwrap(), b"out:hello");
+        }
+        let (report, subject) = reopened.load_report(&saved.parse().unwrap()).await.unwrap().unwrap();
+        assert_eq!(report.outcome().as_str(), validated["outcome"].as_str().unwrap());
+        assert!(matches!(subject, functor_core::ReportSubject::Artifact { id, digest: Some(_), .. } if id.to_string() == output));
+        let snapshot = RepositoryReader::snapshot(reopened.store()).await.unwrap();
+        let claim = snapshot.resolve(&ArtifactRef::parse("claim").unwrap()).unwrap();
+        for kind in [RelationshipType::Supports, RelationshipType::Contradicts] {
+            assert!(snapshot.incoming(claim.id()).any(|r| r.source().to_string() == output && r.relationship_type() == &kind));
+        }
+        let query = SnapshotQueryEngine::new(reopened.store());
+        let found = query.traverse(&Traversal::new(ArtifactRef::parse("input").unwrap()).with_direction(Direction::Inbound)).await.unwrap();
+        assert!(found.nodes.iter().any(|n| n.artifact.id().to_string() == saved));
+    });
+}
+
+#[cfg(windows)]
+#[test]
+fn killing_the_cli_releases_the_lease_kills_descendants_and_recovers_without_rerunning() {
+    use std::time::{Duration, Instant};
+
+    struct Owner(std::process::Child);
+    impl Drop for Owner {
+        fn drop(&mut self) {
+            if self.0.try_wait().unwrap().is_none() {
+                self.0.kill().unwrap();
+                self.0.wait().unwrap();
+            }
+        }
+    }
+
+    let sandbox = world(&["spawn-child", "unused", "60000"], false);
+    let heartbeat = sandbox.path().join("heartbeat");
+    let workflow = sandbox
+        .read("workflow.toml")
+        .replace("\"unused\"", &format!("{:?}", heartbeat.to_str().unwrap()));
+    sandbox.write("workflow.toml", &workflow);
+    let mut owner = Owner(sandbox.spawn(
+        &[
+            "run",
+            "start",
+            "workflow",
+            "--input",
+            "data=input",
+            "--grant-exec",
+            "--request-id",
+            "killed",
+            "-o",
+            "json",
+        ],
+        300,
+    ));
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !heartbeat.exists() {
+        assert!(
+            owner.0.try_wait().unwrap().is_none(),
+            "CLI exited before child started"
+        );
+        assert!(Instant::now() < deadline, "child did not start");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let list = sandbox.run(&["run", "list", "-o", "json"], 900).ok().json();
+    assert_eq!(list["runs"][0]["state"], "running");
+    let run = list["runs"][0]["id"].as_str().unwrap();
+    owner.0.kill().unwrap();
+    owner.0.wait().unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    let stopped = fs::read(&heartbeat).unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(
+        fs::read(&heartbeat).unwrap(),
+        stopped,
+        "descendant survived its owner"
+    );
+    let show = sandbox
+        .run(&["run", "show", run, "-o", "json"], 900)
+        .ok()
+        .json();
+    assert_eq!(show["run"]["state"], "interrupted_unknown");
+    assert!(show["run"]["result"].is_null());
+    let repeated = exits(start(&sandbox, &["--request-id", "killed"], 1000), 8).json();
+    assert_eq!(repeated["run"]["id"], run);
+    assert!(!repeated["created"].as_bool().unwrap());
+    let recovered = sandbox
+        .run(&["run", "recover", "-o", "json"], 1100)
+        .ok()
+        .json();
+    assert_schema("run-recover", &recovered);
+    let show = sandbox
+        .run(&["run", "show", run, "-o", "json"], 1200)
+        .ok()
+        .json();
+    assert_eq!(show["run"]["state"], "interrupted");
+    let log = sandbox.read("events/current.log");
+    assert_eq!(log.matches("\"type\":\"run.started\"").count(), 1);
+    assert_eq!(log.matches("\"type\":\"run.completed\"").count(), 1);
+    assert_eq!(
+        fs::read(heartbeat).unwrap(),
+        stopped,
+        "recovery must never rerun a child"
     );
 }
 

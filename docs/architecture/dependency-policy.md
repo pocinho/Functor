@@ -26,7 +26,7 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 | Serialization framework | `serde` (derive) | events, cli (JSON output) |
 | JSON | `serde_json` | events, cli, store (evidence documents, [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)) |
 | SHA-256 | `sha2` (RustCrypto; MIT or Apache-2.0; pure Rust with CPU-feature detection through `cpufeatures`) | store, runtime, cli (reviewed workflow and report-subject digests) |
-| Process-tree termination | `process-wrap` (std wrappers only; features `std`, `job-object`, `process-group`; see the vetting record below) | runtime |
+| Process-tree termination | `process-wrap` (Tokio wrappers; features `tokio1`, `kill-on-drop`, `job-object`, `process-group`; see the vetting record below) | runtime |
 | Async trait support | `async-trait` | core and the crates implementing core traits |
 | Async runtime | `tokio` (features: `rt`; later `time`, `signal`, `io-util`, `sync` where needed; `macros` in dev-dependencies for `#[tokio::test]`) | repository, store, events, cli |
 | File locking | the standard library (`File::try_lock`, stable since Rust 1.89); no crate | repository |
@@ -58,8 +58,10 @@ Recorded before P1.3 as ADR-0012 requires.
 | License | `Apache-2.0 OR MIT` (`cargo deny check licenses` passes) |
 | Maintenance | `watchexec` project; about 19 million downloads; version 10.0.1, last updated September 2026; not yanked |
 | Advisories | No RustSec entry for the crate (checked by hand against the advisory database); `cargo deny check advisories` could not fetch the database on the development machine, so it must pass in CI |
-| Footprint | `process-wrap` adds `indexmap` and the `windows` crates (Windows only); default features are disabled, only `std`, `job-object` and `process-group` are enabled |
+| Footprint | Default features are disabled. P1.6 uses `tokio1`, `kill-on-drop`, `job-object` and `process-group`: `indexmap`, the `windows` crates (Windows only), existing `tokio` with `process`/`io-util`/`time`, and the `futures` family. `cargo tree -p functor-runtime -e normal --depth 2` records the direct footprint; no new workspace dependency or network adapter |
 | Caveat | The wrapper's `wait` and `try_wait` both read the job's completion port, so using them together can block forever. `functor-runtime` polls and reaps the leader process directly and uses the job only to terminate (found by test; see the P1.3 notes in [execution-and-evidence.md](../design/execution-and-evidence.md)) |
+| P1.6 correction | The std Job Object wrapper passes `kill_on_drop = false`; normal cancellation tests did not prove owner-death cleanup. The Tokio wrapper with `KillOnDrop` enables `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` before resuming the child. The Windows CLI owner-kill test proves descendants stop and the lease is recoverable. No `unsafe` was added to Functor |
+| P1.6 recheck | `cargo deny check` passed advisories, licenses, bans and sources on 2026-10-14, including the new transitive footprint; the earlier advisory-database fetch limitation did not recur |
 
 ## Adding a Dependency
 

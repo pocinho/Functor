@@ -1242,6 +1242,7 @@ mod tests {
     fn limits_stay_within_the_hard_maximums() {
         assert!(ExecutionLimits::new(1, 1).is_ok());
         assert!(ExecutionLimits::new(3600, 8 * 1024 * 1024).is_ok());
+        assert!(ExecutionLimits::new(3599, 8 * 1024 * 1024 - 1).is_ok());
         assert!(ExecutionLimits::new(0, 1).is_err());
         assert!(ExecutionLimits::new(3601, 1).is_err());
         assert!(ExecutionLimits::new(1, 0).is_err());
@@ -1333,6 +1334,15 @@ mod tests {
             .map(|n| (format!("V{n}"), "x".to_owned()))
             .collect();
         assert!(Workflow::new(at_limit.clone()).is_ok());
+        let mut below = at_limit.clone();
+        below.args.truncate(bounds::MAX_ARGS - 1);
+        for arg in &mut below.args {
+            arg.truncate(bounds::MAX_ARG_BYTES - 1);
+        }
+        below.inputs.truncate(bounds::MAX_INPUTS - 1);
+        below.outputs.truncate(bounds::MAX_OUTPUTS - 1);
+        let _ = below.env_set.pop_last();
+        assert!(Workflow::new(below).is_ok());
         at_limit
             .env_set
             .insert("ONE_MORE".to_owned(), "x".to_owned());

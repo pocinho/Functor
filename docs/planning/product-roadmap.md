@@ -17,7 +17,7 @@ This roadmap specifies required outcomes and implementation work packages, not d
 | Phase | State | Required outcome | Principal RFCs |
 |-------|-------|------------------|----------------|
 | 0: CLI MVP | Complete, with recorded exit evidence | Local artifact graph, queries, validation and observable changes through core APIs | 0000-0008 subsets, 0011, 0015, 0017 |
-| 1: Execution and Provenance | Planned; next implementation phase | Executions and persisted validations as traceable evidence | 0001, 0004, 0007, 0017 |
+| 1: Execution and Provenance | Complete; prototype exit evidence recorded | Executions and persisted validations as traceable evidence | 0001, 0004, 0007, 0017 |
 | 2: Versioning and History | Planned | Immutable versions, historical inspection and safe lifecycle/migration | 0005, 0008, 0015, 0016, 0017 |
 | 3: Capabilities and Extensions | Planned | Discoverable, replaceable providers and custom schemas/rules | 0010, 0014 |
 | 4: Service Layer and Other Projections | Planned | Service API plus desktop/editor, web, notebook and graph explorer | 0002, 0006, 0010, 0011 |
@@ -27,11 +27,13 @@ This roadmap specifies required outcomes and implementation work packages, not d
 
 Phase 0 evidence is recorded in [cli-mvp-roadmap.md](cli-mvp-roadmap.md#m9-hardening-and-mvp-exit) and [mvp-scope.md](mvp-scope.md#exit-evidence), including the library-only workflow, CLI acceptance, store conformance, format contracts and performance baseline. These are historical results, not tests newly run by this roadmap.
 
+Phase 1 evidence is recorded in the [phase-exit record](phase-1-execution-provenance-roadmap.md#phase-exit-evidence-2026-10-14): library/CLI acceptance, negative workflows, Windows owner-death cleanup, development/dependency checks and informational execution/repository benchmarks. It is not a product release.
+
 Existing constraints matter:
 
 - `revision` is a counter, not immutable history.
-- Reports are returned/printed and summarized in events, not persisted as artifacts.
-- `supports` and `contradicts` are custom types under [ADR-0007](../adr/ADR-0007-relationship-types.md).
+- Reports remain returned/printed by default; Phase 1 adds opt-in immutable report artifacts and a `validation.recorded` event ([ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)).
+- `supports`, `contradicts` and `validates` are built-in directional types under [ADR-0014](../adr/ADR-0014-evidence-relationships.md), which amends ADR-0007; evidence assertions do not automatically establish truth.
 - Event rotation and pruning already exist at 10 MiB / 10 archives ([ADR-0008](../adr/ADR-0008-event-log-rotation.md)); configurable retention and replay do not.
 - Event append failure warns; events are not authoritative repository state.
 - CLI schemas, file formats, validation codes and exit codes have [frozen contracts](mvp-scope.md#frozen-contracts).
@@ -104,6 +106,8 @@ A phase is complete only when its required outcomes and negative scenarios pass 
 **Affected surfaces:** model/core/testkit, store and repository persistence contracts, validation/query/events, CLI specification and schemas; a new runtime service.
 
 **Exit evidence:** library and CLI workflows produce the same evidence graph; failed/non-zero runs, timeout, cancellation, interrupted writes and permission denial are explicit; evidence remains inspectable after inputs change and the repository reopens. Existing `validate` behavior remains compatible. Distributed execution, schedulers, automatic agents and general extension packaging are out of scope.
+
+**Completed 2026-10-14:** [P1.6 evidence](phase-1-execution-provenance-roadmap.md#phase-exit-evidence-2026-10-14) records the actual tests, benchmark results and limitations. Phase 2 may begin only after its own RFC/contracts/ADR decision gate; Phase 1 captures must not be rewritten or treated as fabricated immutable version history.
 
 ## Phase 2: Versioning and History
 

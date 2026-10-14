@@ -438,6 +438,19 @@ async fn output_size_limits_hold_at_the_boundary() {
     let item = bounds::MAX_ITEM_BYTES.to_string();
     let over = (bounds::MAX_ITEM_BYTES + 1).to_string();
     let single = |size: &str| repo.fixture(&["big-output", "outputs/result", size]);
+    let below = repo
+        .run(single(&(bounds::MAX_ITEM_BYTES - 1).to_string()))
+        .await;
+    assert_eq!(
+        below.outcome,
+        RunOutcome::Succeeded,
+        "{:?}",
+        below.diagnostics
+    );
+    assert_eq!(
+        below.outputs[0].bytes.len() as u64,
+        bounds::MAX_ITEM_BYTES - 1
+    );
     let at = repo.run(single(&item)).await;
     assert_eq!(at.outcome, RunOutcome::Succeeded, "{:?}", at.diagnostics);
     assert_eq!(at.outputs[0].bytes.len() as u64, bounds::MAX_ITEM_BYTES);
@@ -452,7 +465,7 @@ async fn output_size_limits_hold_at_the_boundary() {
 
     // Total output: four items at the item limit are exactly the total limit; one more byte in a
     // fifth output exceeds it.
-    let four_and_small = |last: u64| {
+    let four_and_small = |count: &str, last: u64| {
         let outputs: Vec<OutputSpec> = (0..5)
             .map(|n| OutputSpec {
                 name: format!("o{n}"),
@@ -463,11 +476,28 @@ async fn output_size_limits_hold_at_the_boundary() {
             .collect();
         repo.custom(
             &repo.tool.clone(),
-            &["big-outputs", "5", &item, &last.to_string()],
+            &["big-outputs", count, &item, &last.to_string()],
             |s| s.outputs = outputs,
         )
     };
-    let fits = repo.run(four_and_small(0)).await;
+    let below = repo
+        .run(four_and_small("4", bounds::MAX_ITEM_BYTES - 1))
+        .await;
+    assert_eq!(
+        below.outcome,
+        RunOutcome::Succeeded,
+        "{:?}",
+        below.diagnostics
+    );
+    assert_eq!(
+        below
+            .outputs
+            .iter()
+            .map(|o| o.bytes.len() as u64)
+            .sum::<u64>(),
+        bounds::MAX_TOTAL_BYTES - 1
+    );
+    let fits = repo.run(four_and_small("5", 0)).await;
     assert_eq!(
         fits.outcome,
         RunOutcome::Succeeded,
@@ -481,7 +511,7 @@ async fn output_size_limits_hold_at_the_boundary() {
             .sum::<u64>(),
         bounds::MAX_TOTAL_BYTES
     );
-    let exceeds = repo.run(four_and_small(1)).await;
+    let exceeds = repo.run(four_and_small("5", 1)).await;
     assert_eq!(exceeds.outcome, RunOutcome::Failed);
     assert!(
         exceeds.diagnostics[0].contains("in total"),

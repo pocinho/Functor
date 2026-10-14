@@ -56,7 +56,7 @@ Table-driven traversal tests (chain, diamond, cycle, disconnected, depth 0, 1, n
 
 ### functor-validation
 
-One minimal fixture repository **per rule code** (`V0001` to `V0019`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
+One minimal fixture repository **per rule code** (`V0001` to `V0023`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
 
 ### functor-events
 
@@ -158,6 +158,16 @@ Further checks in the same file:
 
 `src/app/cli/tests/library.rs` runs the same scenario through the library API only (no CLI), which proves the CLI is a pure projection (exit criterion 6 in [mvp-scope.md](../planning/mvp-scope.md)). It also checks that a repository written by the libraries is read by the CLI and the other way round (the reference repository), that moving a repository directory changes no identity, and that editing repository metadata changes no result.
 
+### Phase 1 acceptance and measurements
+
+`functor-runtime/tests/end_to_end.rs::phase_one_acceptance_preserves_claims_reports_and_replay_after_live_edits` runs the complete execution/evidence workflow through library APIs only: explicit grant, real child, reopen, exact workflow/input captures, output validation/report round trip, deliberate supporting/contradicting assertions with `V0023`, bidirectional provenance traversal, a live edit, and deterministic replay from both captures. A conflict warning does not change the historical run outcome or imply the claim's truth.
+
+`functor-cli/tests/run.rs::phase_one_cli_acceptance_traces_claims_and_replays_captured_inputs` repeats this using separate CLI processes, validates JSON schemas, then cross-reads the graph and report through the library. The same file's Windows-only owner-kill test waits for a real grandchild heartbeat, kills the CLI, verifies the heartbeat stops and the lease is released, checks idempotent resubmission starts nothing, and recovers the prior intent without rerunning.
+
+`scripts/bench-execution.ps1` reports release execution overhead separately from direct-child workload, sampled CLI memory, content-addressed storage/deduplication and limit checks; [phase-1.json](benchmarks/phase-1.json) is the recorded measurement. It is informational for timing, but incorrect outcomes/bytes/limits fail. `scripts/bench.ps1` continues to compare the existing repository budgets against the unchanged Phase 0 baseline. See the [phase-exit record](../planning/phase-1-execution-provenance-roadmap.md#phase-exit-evidence-2026-10-14) for exact commands/results.
+
+**Manual console check:** run a slow workflow on Windows, explicitly confirm it, press Ctrl-C, and check exit 8 plus a durable `cancelled` result. The signal adapter and runtime cancellation/tree cleanup are automated; actual console signal delivery is not. Non-Windows tests remain informational.
+
 ## Failure Injection
 
 Store functions accept a test hook (compiled under `cfg(test)` or a `test-hooks` feature of `functor-store`) to fail at defined points: before rename, after rename, during event append. Tests assert the crash table in [storage-design.md](../design/storage-design.md).
@@ -180,4 +190,4 @@ Runs formatting checks, clippy with warnings denied, unit, integration, conforma
 
 ## Test Data Hygiene
 
-No test touches the real user home or the repository working tree: always use `tempfile::tempdir()`. Tests never depend on the order of `read_dir`; any listing comparison sorts explicitly.
+No test touches the real user home or tracked working-tree data. Use isolated temporary repositories; real-process tests and benchmarks put uniquely named directories under git-ignored `tests/scratch` and remove only their own directories. CI must not recursively delete this shared root or the caller's test logs. A killed test can leave a directory for explicit, targeted cleanup. Tests never depend on the order of `read_dir`; any listing comparison sorts explicitly.

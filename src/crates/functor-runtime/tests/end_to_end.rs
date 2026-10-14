@@ -16,16 +16,22 @@ use std::time::{Duration, Instant};
 
 use functor_core::{
     ArtifactRepository, CancelToken, ErrorKind, EvidenceRecorder, ExecutionGrant, InitOptions,
+    QueryEngine, RelationshipRepository, ReportRecorder, ReportSubject, RepositoryReader,
+    ValidationEngine, ValidationTarget,
 };
 use functor_events::{EventLogOptions, FileEventLog};
 use functor_model::{
-    ArtifactId, ArtifactRef, ArtifactType, Content, ContentFormat, ExecutionLimits, InputBinding,
-    NewArtifact, RequestId, RunOutcome, RunRequest, RunStatus, Slug, Title,
+    ArtifactId, ArtifactPatch, ArtifactRef, ArtifactType, Content, ContentFormat, Direction,
+    ExecutionLimits, InputBinding, NewArtifact, NewRelationship, Outcome, RelationshipType,
+    RequestId, RunOutcome, RunRequest, RunStatus, Slug, Title, Traversal,
 };
+use functor_query::SnapshotQueryEngine;
 use functor_repository::{FileRepositoryManager, Layout};
 use functor_runtime::{LocalProcessProvider, RunOrchestrator, RunReport};
 use functor_store::{FileEvidence, FileStore, StoreOptions};
 use functor_testkit::Env;
+use functor_validation::RuleValidationEngine;
+use sha2::Digest;
 use tempfile::TempDir;
 
 const FIXTURE: &str = env!("CARGO_BIN_EXE_runtime-fixture");
@@ -204,6 +210,182 @@ allow = ["LANG"]
             self.env.ids(),
         )
     }
+}
+
+#[tokio::test]
+async fn phase_one_acceptance_preserves_claims_reports_and_replay_after_live_edits() {
+    let world = World::new();
+    let workflow = world.echo_workflow().await;
+    let input = world.document("input", "document", "text", "hello").await;
+    let claim = world
+        .document("claim", "claim", "text", "output echoes hello")
+        .await;
+    let first = world
+        .run(&request("acceptance-1", workflow, input))
+        .await
+        .unwrap();
+    assert_eq!(
+        first.record.result().unwrap().1.outcome(),
+        RunOutcome::Succeeded
+    );
+    let output = first.record.result().unwrap().1.outputs()[0];
+
+    let reopened = world.reopened();
+    let record = reopened
+        .run(&ArtifactRef::Id(*first.record.run()))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record, first.record);
+    let workflow_artifact = ArtifactRepository::get(reopened.store(), &workflow)
+        .await
+        .unwrap()
+        .unwrap();
+    let Content::Inline { text, .. } = workflow_artifact.content() else {
+        panic!("inline workflow")
+    };
+    for (capture, expected) in [
+        (record.intent().inputs["data"], b"hello".as_slice()),
+        (record.intent().workflow, text.as_bytes()),
+    ] {
+        assert_eq!(reopened.read_capture(&capture).await.unwrap(), expected);
+    }
+    let artifact = ArtifactRepository::get(reopened.store(), &output)
+        .await
+        .unwrap()
+        .unwrap();
+    let engine = RuleValidationEngine::new(reopened.store(), world.env.clock());
+    let report = engine
+        .validate(ValidationTarget::Artifact(ArtifactRef::Id(output)))
+        .await
+        .unwrap();
+    assert_eq!(report.outcome(), Outcome::Passed);
+    let subject = ReportSubject::Artifact {
+        id: output,
+        revision: artifact.revision(),
+        digest: Some(functor_model::ContentDigest::from_bytes(
+            sha2::Sha256::digest(world.bytes(&output).await).into(),
+        )),
+    };
+    let saved = reopened
+        .save_report(&report, subject.clone(), false, "V0001-V0023")
+        .await
+        .unwrap();
+    assert_eq!(
+        world.reopened().load_report(&saved).await.unwrap(),
+        Some((report, subject))
+    );
+
+    // Assertions are deliberate graph statements, not an inference from a successful run.
+    for kind in [RelationshipType::Supports, RelationshipType::Contradicts] {
+        RelationshipRepository::create(reopened.store(), NewRelationship::new(kind, output, claim))
+            .await
+            .unwrap();
+    }
+    let snapshot = RepositoryReader::snapshot(reopened.store()).await.unwrap();
+    assert!(
+        snapshot
+            .outgoing(&output)
+            .any(|r| r.relationship_type() == &RelationshipType::Supports && r.target() == &claim)
+    );
+    assert!(
+        snapshot.outgoing(&output).any(
+            |r| r.relationship_type() == &RelationshipType::Contradicts && r.target() == &claim
+        )
+    );
+    let contested = engine.validate(ValidationTarget::Repository).await.unwrap();
+    assert!(
+        contested
+            .findings()
+            .iter()
+            .any(|f| f.code.as_str() == "V0023")
+    );
+    assert_eq!(contested.outcome(), Outcome::Warning);
+    assert_eq!(
+        reopened.status(record.run()).await.unwrap(),
+        RunStatus::Completed(RunOutcome::Succeeded)
+    );
+
+    let query = SnapshotQueryEngine::new(reopened.store());
+    let provenance = [
+        RelationshipType::Validates,
+        RelationshipType::DerivedFrom,
+        RelationshipType::DependsOn,
+    ];
+    let upstream = query
+        .traverse(&Traversal::new(ArtifactRef::Id(saved)).with_types(provenance.clone()))
+        .await
+        .unwrap();
+    for expected in [
+        output,
+        *record.run(),
+        record.intent().workflow,
+        record.intent().inputs["data"],
+        workflow,
+        input,
+    ] {
+        assert!(
+            upstream.nodes.iter().any(|n| n.artifact.id() == &expected),
+            "missing upstream {expected}"
+        );
+    }
+    let downstream = query
+        .traverse(
+            &Traversal::new(ArtifactRef::Id(input))
+                .with_types(provenance)
+                .with_direction(Direction::Inbound),
+        )
+        .await
+        .unwrap();
+    for expected in [*record.run(), output, saved] {
+        assert!(
+            downstream
+                .nodes
+                .iter()
+                .any(|n| n.artifact.id() == &expected),
+            "missing downstream {expected}"
+        );
+    }
+
+    let live = ArtifactRepository::get(reopened.store(), &input)
+        .await
+        .unwrap()
+        .unwrap();
+    ArtifactRepository::update(
+        reopened.store(),
+        &input,
+        ArtifactPatch::new().with_content(Content::Inline {
+            format: ContentFormat::new("text").unwrap(),
+            text: "changed".to_owned(),
+        }),
+        Some(live.revision()),
+    )
+    .await
+    .unwrap();
+    let capture = record.intent().inputs["data"];
+    assert_eq!(
+        world.reopened().read_capture(&capture).await.unwrap(),
+        b"hello"
+    );
+    let replay = world
+        .run(&request("acceptance-2", record.intent().workflow, capture))
+        .await
+        .unwrap();
+    assert_eq!(
+        replay.record.result().unwrap().1.outcome(),
+        RunOutcome::Succeeded
+    );
+    let replay_output = replay.record.result().unwrap().1.outputs()[0];
+    assert_ne!(replay.record.run(), record.run());
+    assert_eq!(
+        world.bytes(&replay_output).await,
+        world.bytes(&output).await
+    );
+    assert_eq!(world.bytes(&output).await, b"out:hello");
+    assert!(matches!(
+        ArtifactRepository::get(reopened.store(), &input).await.unwrap().unwrap().content(),
+        Content::Inline { text, .. } if text == "changed"
+    ));
 }
 
 #[tokio::test]

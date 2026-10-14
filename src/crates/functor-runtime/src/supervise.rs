@@ -7,19 +7,21 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
-use std::io::{self, Read};
+use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use functor_core::{CancelToken, StreamCapture};
 #[cfg(windows)]
-use process_wrap::std::JobObject;
+use process_wrap::tokio::JobObject;
 #[cfg(unix)]
-use process_wrap::std::ProcessGroup;
-use process_wrap::std::{ChildWrapper, CommandWrap};
+use process_wrap::tokio::ProcessGroup;
+use process_wrap::tokio::{ChildWrapper, CommandWrap, KillOnDrop};
+use tokio::io::{AsyncRead, AsyncReadExt};
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
 
 /// How often the supervisor looks at the child, the clock and the cancel token.
 const POLL: Duration = Duration::from_millis(10);
@@ -58,6 +60,8 @@ pub(crate) enum Failure {
     Spawn(io::Error),
     /// Waiting for the child failed.
     Wait(io::Error),
+    /// A stream could not be captured.
+    Read(io::Error),
 }
 
 /// After the process tree is gone, how long to wait for the output pipes to reach end-of-file.
@@ -67,20 +71,20 @@ pub(crate) enum Failure {
 /// captured and mark the stream truncated instead of waiting for that process.
 const DRAIN_GRACE: Duration = Duration::from_secs(2);
 
-/// A reader thread filling a shared, bounded buffer.
+/// A reader task filling a shared, bounded buffer.
 struct Reader {
     shared: Arc<Mutex<StreamCapture>>,
-    handle: JoinHandle<()>,
+    handle: JoinHandle<io::Result<()>>,
 }
 
-fn capture(mut stream: impl Read + Send + 'static, limit: usize) -> Reader {
+fn capture(mut stream: impl AsyncRead + Unpin + Send + 'static, limit: usize) -> Reader {
     let shared = Arc::new(Mutex::new(StreamCapture::default()));
     let sink = Arc::clone(&shared);
-    let handle = thread::spawn(move || {
+    let handle = tokio::spawn(async move {
         let mut buffer = [0_u8; 8192];
         loop {
-            match stream.read(&mut buffer) {
-                Ok(0) => break,
+            match stream.read(&mut buffer).await {
+                Ok(0) => return Ok(()),
                 Ok(n) => {
                     let mut kept = sink.lock().unwrap_or_else(PoisonError::into_inner);
                     let room = limit.saturating_sub(kept.bytes.len());
@@ -89,7 +93,7 @@ fn capture(mut stream: impl Read + Send + 'static, limit: usize) -> Reader {
                     // Keep reading past the limit: the child must never block on a full pipe.
                 }
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                Err(_) => break,
+                Err(error) => return Err(error),
             }
         }
     });
@@ -98,31 +102,35 @@ fn capture(mut stream: impl Read + Send + 'static, limit: usize) -> Reader {
 
 impl Reader {
     /// What was captured, waiting for end-of-file only until `until`.
-    fn finish(self, until: Instant) -> StreamCapture {
+    async fn finish(self, until: Instant) -> io::Result<StreamCapture> {
         while !self.handle.is_finished() && Instant::now() < until {
-            thread::sleep(POLL);
+            sleep(POLL).await;
         }
         let mut captured = self
             .shared
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone();
-        if !self.handle.is_finished() {
+        if self.handle.is_finished() {
+            self.handle.await.map_err(io::Error::other)??;
+        } else {
             captured.truncated = true;
+            self.handle.abort();
         }
-        captured
+        Ok(captured)
     }
 }
 
-fn finished(reader: Option<Reader>, until: Instant) -> StreamCapture {
-    reader
-        .map(|reader| reader.finish(until))
-        .unwrap_or_default()
+async fn finished(reader: Option<Reader>, until: Instant) -> io::Result<StreamCapture> {
+    match reader {
+        Some(reader) => reader.finish(until).await,
+        None => Ok(StreamCapture::default()),
+    }
 }
 
 /// Runs the child to completion, to the timeout, or until `cancel` is set; then terminates
 /// everything it started.
-pub(crate) fn run(
+pub(crate) async fn run(
     spawn: &Spawn,
     timeout: Duration,
     stream_limit: u64,
@@ -142,6 +150,7 @@ pub(crate) fn run(
     wrap.wrap(JobObject);
     #[cfg(unix)]
     wrap.wrap(ProcessGroup::leader());
+    wrap.wrap(KillOnDrop);
     let mut child = wrap.spawn().map_err(Failure::Spawn)?;
 
     let limit = usize::try_from(stream_limit).unwrap_or(usize::MAX);
@@ -162,7 +171,7 @@ pub(crate) fn run(
             }
             Ok(None) => {}
             Err(error) => {
-                terminate(child.as_mut());
+                terminate(child.as_mut()).await;
                 return Err(Failure::Wait(error));
             }
         }
@@ -174,27 +183,63 @@ pub(crate) fn run(
             interrupt = Some(Interrupt::TimedOut);
             break;
         }
-        thread::sleep(POLL);
+        sleep(POLL).await;
     }
 
     // Whatever the reason we stopped, nothing the child started may outlive the run.
-    terminate(child.as_mut());
+    terminate(child.as_mut()).await;
     let until = Instant::now() + DRAIN_GRACE;
-    let stdout = finished(stdout, until);
-    let stderr = finished(stderr, until);
+    let stdout = finished(stdout, until).await;
+    let stderr = finished(stderr, until).await;
 
     Ok(Supervised {
         exit_code: status.and_then(|done| done.code()),
         exited: status.is_some(),
         interrupt,
-        stdout,
-        stderr,
+        stdout: stdout.map_err(Failure::Read)?,
+        stderr: stderr.map_err(Failure::Read)?,
     })
 }
 
-fn terminate(child: &mut dyn ChildWrapper) {
+async fn terminate(child: &mut dyn ChildWrapper) {
     // Terminate the whole job (or process group), then reap only the leader process: it is already
     // dead or about to be, so this returns promptly (see the note in `run`).
     let _ = child.start_kill();
-    let _ = child.inner_mut().wait();
+    let _ = child.inner_mut().wait().await;
+}
+
+#[cfg(test)]
+mod tests {
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use tokio::io::ReadBuf;
+
+    use super::*;
+
+    struct Broken;
+
+    impl AsyncRead for Broken {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            _: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(Err(io::Error::other("stream fault")))
+        }
+    }
+
+    #[tokio::test]
+    async fn stream_read_errors_are_not_success_shaped_captures() {
+        let reader = capture(Broken, 16);
+        let result = reader.finish(Instant::now() + Duration::from_secs(1)).await;
+        assert!(matches!(result, Err(error) if error.to_string() == "stream fault"));
+    }
+
+    #[tokio::test]
+    async fn a_stream_past_the_shared_drain_deadline_is_cut_and_marked_truncated() {
+        let (stream, _writer) = tokio::io::duplex(16);
+        let result = capture(stream, 16).finish(Instant::now()).await;
+        assert!(matches!(result, Ok(captured) if captured.truncated && captured.bytes.is_empty()));
+    }
 }

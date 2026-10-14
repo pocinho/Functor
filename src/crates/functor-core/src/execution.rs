@@ -595,7 +595,9 @@ mod tests {
     #[test]
     fn input_size_limits_hold_at_the_boundary() {
         let mut at_limit = plan();
-        at_limit.inputs[0].bytes = vec![0; usize::try_from(bounds::MAX_ITEM_BYTES).unwrap()];
+        at_limit.inputs[0].bytes = vec![0; usize::try_from(bounds::MAX_ITEM_BYTES - 1).unwrap()];
+        at_limit.check(LOCAL_PROCESS_PROVIDER).unwrap();
+        at_limit.inputs[0].bytes.push(0);
         at_limit.check(LOCAL_PROCESS_PROVIDER).unwrap();
         at_limit.inputs[0].bytes.push(0);
         assert_eq!(
@@ -636,6 +638,8 @@ mod tests {
             ErrorKind::InvalidInput,
             "one byte over the total"
         );
+        let _ = at_limit.inputs.last_mut().unwrap().bytes.pop();
+        at_limit.check(LOCAL_PROCESS_PROVIDER).unwrap();
     }
 
     #[test]

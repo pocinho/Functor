@@ -1,6 +1,6 @@
 # Phase 1: Execution and Provenance Roadmap
 
-Status: Draft (planned working-prototype increment; not implemented and not a release)
+Status: Complete (working-prototype increment; phase-exit evidence recorded 2026-10-14; not a release)
 Related RFCs: [RFC-0007](../../rfcs/RFC-0007-Validation-and-Execution.md), [RFC-0001](../../rfcs/RFC-0001-Core-Semantic-Model.md), [RFC-0004](../../rfcs/RFC-0004-Relationship-Model.md), [RFC-0017](../../rfcs/RFC-0017-Event-Model.md)
 Related docs: [product-roadmap.md](product-roadmap.md), [cli-mvp-roadmap.md](cli-mvp-roadmap.md), [mvp-scope.md](mvp-scope.md), [rfc-conformance.md](rfc-conformance.md)
 
@@ -8,7 +8,7 @@ Related docs: [product-roadmap.md](product-roadmap.md), [cli-mvp-roadmap.md](cli
 
 Turn execution and validation into durable, queryable evidence over the proven Phase 0 API-first baseline. A user must be able to explain which workflow and inputs produced an output, what happened during execution, and which validation supports or challenges a conclusion.
 
-This is an implementation roadmap, not an accepted execution contract. P1.0 closes the decisions before code. Phase 1 completion is a prototype milestone; the first product release remains subject to all phases and the [product-readiness gate](product-roadmap.md#product-readiness-gate).
+This is the implementation roadmap and completion record; the accepted [execution contract](../design/execution-and-evidence.md) and ADRs define behavior. P1.0 closed the decisions before code. Phase 1 completion is a prototype milestone; the first product release remains subject to all phases and the [product-readiness gate](product-roadmap.md#product-readiness-gate).
 
 ## Scope
 
@@ -34,7 +34,7 @@ Not included:
 - Services are siblings and receive collaborators through core traits. A runtime must not depend on concrete store/validation/event services; composition roots wire them ([crate-dependencies.md](../architecture/crate-dependencies.md)).
 - `ValidationEngine` returns a `ValidationReport`; persistence/publication is the caller's responsibility. Existing `validate` does not create report artifacts. Preserve this behavior with an explicit opt-in persistence path unless an approved versioned change replaces it.
 - `revision` cannot retrieve an earlier state. Capture exact workflow/input evidence before execution; do not claim the counter provides reproducibility.
-- `supports` / `contradicts` currently use custom-type behavior under [ADR-0007](../adr/ADR-0007-relationship-types.md), including warning `V0012`.
+- At the Phase 0 baseline, `supports` / `contradicts` used custom-type behavior under [ADR-0007](../adr/ADR-0007-relationship-types.md), including warning `V0012`. Phase 1 deliberately promotes them under [ADR-0014](../adr/ADR-0014-evidence-relationships.md); other custom types retain that warning.
 - File/schema/event versions, rule codes and exit codes are [frozen contracts](mvp-scope.md#frozen-contracts). New behavior must not silently alter them.
 - Events are informational. An event append warning is not proof of lost run evidence, nor can a successful event append substitute for required evidence persistence.
 
@@ -167,6 +167,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.6: Hardening and Phase Exit
 
+**Status:** implemented and verified on Windows; [actual commands, results and limitations](#phase-exit-evidence-2026-10-14) below.
+
 **Required acceptance workflow:**
 
 1. Create a workflow artifact, input artifacts and a claim to evaluate through the API.
@@ -198,6 +200,63 @@ The benchmark measures existing repository budgets; add a phase-specific fixture
 
 **Done when:** every preceding milestone meets its gate; the complete positive/negative workflows pass on Windows; earlier acceptance and frozen contracts remain valid or have an approved migration; documentation and conformance evidence agree; remaining limitations are explicit. This document's proposed tests/commands are obligations, not evidence they have already passed.
 
+### Phase-exit evidence (2026-10-14)
+
+P1.0-P1.5 were completed in preceding milestones; P1.6 adds the final integrated acceptance, owner-death hardening and measurements. The tested platform was Windows x64 (`Microsoft Windows 10.0.26300`), PowerShell 7.6.6 and rustc 1.99.0. The release benchmark records the full environment and sampling policy in [phase-1.json](../quality/benchmarks/phase-1.json).
+
+**Positive workflows (passed):**
+
+- `rt:end_to_end::phase_one_acceptance_preserves_claims_reports_and_replay_after_live_edits`: library-only creation of workflow/input/claim, explicit grant, real execution, reopened durable evidence, exact captured bytes, saved scoped validation report, explicit supporting and contradicting assertions, `V0023` conflict semantics, upstream and downstream provenance, live-input edit, then equal declared output bytes from captured workflow and input.
+- `cli:run::phase_one_cli_acceptance_traces_claims_and_replays_captured_inputs`: the corresponding separate-process CLI workflow, version-1 schema checks, then library cross-reading of the same evidence/report/relationships. Ordinary validation and all Phase 0 goldens/reference examples remain unchanged.
+
+**Required negative workflows (passed):**
+
+| Workflow | Evidence |
+|----------|----------|
+| Invalid workflow/provider/schema | `rt:orchestrator::refusals_happen_before_any_run_exists`, `cli:run::invalid_bindings_provider_schema_and_timeouts_are_refused_before_a_run` |
+| Denied execution / explicit terminal permission | `cli:run::no_grant_prints_a_plan_and_writes_no_evidence_even_when_quiet`, `cli:run::terminal_permission_requires_an_explicit_yes_and_always_shows_the_plan`, `rt:provider::the_resolved_program_must_be_the_granted_one` |
+| Non-zero child / missing output / start failure | `rt:orchestrator::every_child_outcome_is_recorded_not_raised`, `cli:run::each_child_outcome_has_a_result_and_the_documented_exit_code`, `cli:run::a_missing_program_is_a_start_failed_outcome_not_an_infrastructure_error` |
+| Timeout / cancellation / descendants | `rt:provider::a_timeout_kills_the_whole_process_tree`, `rt:provider::cancelling_a_running_child_ends_it_promptly_and_cleans_up_its_children`, `rt:end_to_end::cancelling_a_running_child_records_a_cancelled_run` |
+| Pre-run storage failure, no child | `rt:orchestrator::a_failed_intent_write_means_no_child_starts_and_no_started_event`, `cli:run::mandatory_intent_storage_failure_never_reports_success_or_starts_the_child` |
+| Post-child publication failure, no false success | `cli:run::failed_result_publication_keeps_the_run_id_and_never_emits_completion`, `store:a_failure_at_every_write_never_reports_a_false_success_and_always_recovers`, `store:a_failure_after_the_commit_point_is_reported_and_repaired_by_recovery` |
+| Process interruption and recovery without rerun | `cli:run::killing_the_cli_releases_the_lease_kills_descendants_and_recovers_without_rerunning` (Windows), `store:reopening_exposes_interrupted_work_without_erasing_or_rerunning_it` |
+| Concurrent input change / workflow edit after review | `store:an_input_that_keeps_changing_during_capture_is_refused`, `store:one_change_during_capture_is_retried_and_the_stable_state_is_captured`, `rt:orchestrator::a_workflow_changed_after_permission_is_refused_before_recording_a_run` |
+| Failed event append | `rt:orchestrator::a_failed_event_append_is_a_warning_and_the_evidence_is_complete`, `cli:run::failed_events_warn_but_do_not_change_the_run_outcome` |
+| Damaged/missing captured evidence | `store:damaged_and_missing_evidence_is_reported_with_explicit_diagnostics`, `rt:provider::tampered_inputs_are_refused_before_anything_is_staged` |
+| Failed report saving preserves computed report | `cli:run::saved_validation_is_opt_in_and_failure_preserves_the_computed_report`, `rt:orchestrator::a_report_that_cannot_be_saved_is_still_returned_and_the_run_stands` |
+| Stream read fault / bounded drain | `rt:supervise::stream_read_errors_are_not_success_shaped_captures`, `rt:supervise::a_stream_past_the_shared_drain_deadline_is_cut_and_marked_truncated` |
+| Resource bounds at/below/over | `model:limits_stay_within_the_hard_maximums`, `model:workflow_bounds_hold_exactly_at_the_limit`, `model:workflows_enforce_the_contract_bounds`, `core:input_size_limits_hold_at_the_boundary`, `core:the_total_input_size_holds_at_the_boundary`, `rt:provider::stream_limits_hold_at_the_boundary`, `rt:provider::output_size_limits_hold_at_the_boundary` |
+
+The new interruption test initially failed: the std Job Object wrapper did not set kill-on-close. The correction uses `process-wrap`'s Tokio `JobObject` with `KillOnDrop`; the test now kills a real CLI owner and observes both lease release and stopped grandchild heartbeat. Existing timeout, cancellation and normal-exit tree cleanup tests still pass. No `unsafe` or new workspace dependency was introduced; the vetted dependency's changed feature/transitive footprint is recorded in [dependency-policy.md](../architecture/dependency-policy.md#vetting-record-process-wrap-adr-0012).
+
+**Commands and results:**
+
+| Exact command | Result |
+|---------------|--------|
+| `cargo test -p functor-runtime --lib --test provider --test end_to_end` | Passed: 16 unit, 21 provider and 11 real end-to-end tests |
+| `cargo test -p functor-cli --all-features --test run` | Passed: 18 execution/report integration tests, including complete CLI acceptance and Windows owner-kill recovery |
+| `.\scripts\ci.ps1` | Passed: fmt, all-target/all-feature Clippy with warnings denied, dependency/conformance checks, full workspace/all-feature tests, default-feature CLI tests, Markdown links |
+| `cargo test --workspace --doc` | Passed (workspace currently has no runnable doctest examples) |
+| `cargo deny check` | Passed advisories, bans, licenses and sources; non-fatal existing license/duplicate-version warnings only. The earlier RustSec database-fetch limitation did not recur |
+| `$env:RUSTDOCFLAGS = '-D warnings'; cargo doc --workspace --no-deps` | Passed |
+| `$env:RUSTDOCFLAGS = '-D warnings'; cargo doc --workspace --all-features --no-deps` | Passed |
+| `.\scripts\bench.ps1 -Baseline docs\quality\benchmarks\baseline.json` | Passed; 10,000 artifacts / 19,995 generated DAG relationships; all medians within budgets and below 3x unchanged Phase 0 baseline |
+| `.\scripts\bench.ps1 -Artifacts 1000 -Baseline docs\quality\benchmarks\baseline.json` | Passed; 1,000 artifacts / 1,995 generated DAG relationships; all medians within budgets |
+| `.\scripts\bench-execution.ps1 -Report docs\quality\benchmarks\phase-1.json` | Passed; release overhead/storage/replay and stream/output/timeout checks; timing remains informational |
+
+Existing repository benchmark medians (ms), five samples after warm-up:
+
+| Scenario | Phase 0 baseline, 1k / 10k | P1.6, 1k / 10k | Budget, 1k / 10k |
+|----------|---------------------------|----------------|-----------------|
+| artifact show | 92.5 / 562.3 | 64 / 405 | 300 / 750 |
+| query dependencies | 92.2 / 590.9 | 63 / 437 | 200 / 2000 |
+| validate | 92.8 / 561.8 | 63 / 407 | 3000 / 3000 |
+| relation add | 151.8 / 1089.8 | 124 / 810 | 300 / 1500 |
+
+Observed repository-command peak memory was at most 43 MB at 10k, below the 200 MB budget. The execution benchmark's no-op direct-child/end-to-end medians were 29.94/135.53 ms (estimated overhead 105.59 ms); the 1 MiB echo was 30.39/342.60 ms (312.21 ms overhead). Peak sampled CLI working set for no-op/echo was about 15.2 MiB. Repeated 1 MiB inputs shared one 1,048,576-byte payload file; all capture files totaled 1,049,357 bytes, and all evidence content files totaled 3,156,189 bytes (26 files, excluding entity/relationship TOML, event log, tools and retained failed-run staging). Declared replay output remained 1,048,580 bytes and hash-equal after the live file changed. Stream caps, oversized-output refusal and 1-second timeout were checked, not inferred from latency. Measurements are machine-local observations, not new performance guarantees.
+
+**Remaining limitations:** actual Windows console Ctrl-C delivery and privileged symbolic-link creation are manual checks; signal-to-token cancellation and real process-tree cancellation are automated. Non-Windows runs remain informational, and abrupt owner-death cleanup there is not guaranteed. Execution is not a filesystem/network/memory/CPU sandbox. Validation remains structural (`V0021`); evidence readers check digests. Captures provide exact bytes, not immutable source history or a guarantee about external dependencies. Completion is not release authorization.
+
 ## Phase 2 Handoff
 
 - Record the capture schema, subject identities, provider versions and limitations needed to bind new runs/reports to immutable versions later.
@@ -205,3 +264,16 @@ The benchmark measures existing repository budgets; add a phase-specific fixture
 - Do not invent pre-Phase 2 history from revision counters. Retain captures when a canonical historical version cannot be proven equivalent.
 - Hand off interrupted-run recovery semantics, publication boundaries and new event types so history/migration does not turn informational events into the source of truth.
 - Update [product-roadmap.md](product-roadmap.md) with actual Phase 1 completion evidence; begin Phase 2 only after its own contracts/ADRs are approved.
+
+Recorded handoff:
+
+| Surface | Phase 1 contract to preserve |
+|---------|------------------------------|
+| File/envelope versions | Repository `format_version = 1`, event `v = 1`, CLI `schema_version = 1`; no migration was introduced |
+| Evidence schemas | `functor.capture/1`, `functor.run/1`, `functor.run_result/1`, `functor.report/1`; content-addressed payloads and immutable evidence artifacts ([ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)) |
+| Source identity | Capture source artifact id, source revision, digest and exact bytes; revision counters do not prove historical version identity |
+| Report subject | Repository, or artifact id + evaluated revision + optional content digest; historical source metadata is not a repository snapshot |
+| Provider provenance | `local-process`, `functor-runtime 0.1.0`, captured workflow/configuration, resolved program path/digest, platform and environment names; `network = "not_enforced"` |
+| Publication/recovery | `run_result` is the commit point; no write lock across execution; per-run lease distinguishes running from abandoned; mandatory-write failures are explicit; recover repairs implied edges and records `interrupted`, never reruns |
+| Events | `run.started`, `run.completed`, `validation.recorded` follow durable transitions, remain best-effort and never replace evidence authority |
+| Versioning transition | Bind new evidence to approved immutable versions later; retain old captures unless equivalence is proven, never backfill invented history or rewrite prior evidence |

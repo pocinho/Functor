@@ -24,6 +24,11 @@ use crate::supervise::{Failure, Interrupt, Spawn, Supervised, run};
 
 const VERSION: &str = concat!("functor-runtime ", env!("CARGO_PKG_VERSION"));
 
+enum PreparedRun {
+    Complete(ProviderRun),
+    Ready(Spawn, ProgramProvenance),
+}
+
 /// Variables every child receives when the caller has them: enough for a program to find its
 /// system libraries and temporary directory, and nothing else.
 #[cfg(windows)]
@@ -38,6 +43,8 @@ const DEFAULT_ENV: [&str; 2] = ["PATH", "TMPDIR"];
 /// connect wherever the caller can; the work directory is a convention for inputs and outputs. The
 /// provider never opens the repository, persists, validates or publishes (ADR-0012); it only
 /// touches the staging directory `<work root>/<run id>/work`.
+///
+/// Execution requires a Tokio runtime with I/O and time enabled (`Builder::enable_all`).
 #[derive(Debug, Clone)]
 pub struct LocalProcessProvider {
     root: PathBuf,
@@ -95,17 +102,17 @@ impl LocalProcessProvider {
         self.started.load(Ordering::SeqCst)
     }
 
-    fn execute_blocking(&self, plan: &ExecutionPlan, cancel: &CancelToken) -> Result<ProviderRun> {
+    fn prepare(&self, plan: &ExecutionPlan, cancel: &CancelToken) -> Result<PreparedRun> {
         let workflow = &plan.workflow;
         verify_inputs(plan)?;
 
         // Resolution and the grant check come before any side effect.
         let Some(program) = resolve(&self.root, workflow.program(), self.path_var.as_deref())?
         else {
-            return Ok(refused_start(
+            return Ok(PreparedRun::Complete(refused_start(
                 workflow.program(),
                 format!("program `{}` was not found", workflow.program()),
-            ));
+            )));
         };
         if !same_file(&program, Path::new(plan.grant.program())) {
             return Err(FunctorError::permission_denied(
@@ -122,7 +129,10 @@ impl LocalProcessProvider {
             digest: file_digest(&program),
         };
         if cancel.is_cancelled() {
-            return Ok(outcome(RunOutcome::Cancelled, provenance));
+            return Ok(PreparedRun::Complete(outcome(
+                RunOutcome::Cancelled,
+                provenance,
+            )));
         }
 
         let work = self.stage(plan)?;
@@ -133,24 +143,7 @@ impl LocalProcessProvider {
             cwd: work.clone(),
             env: child_env(workflow),
         };
-        let timeout = Duration::from_secs(u64::from(plan.limits.timeout_seconds()));
-        let supervised = match run(&spawn, timeout, plan.limits.stream_bytes(), cancel) {
-            Ok(supervised) => supervised,
-            Err(Failure::Spawn(error)) => {
-                return Ok(ProviderRun {
-                    diagnostics: vec![format!(
-                        "program `{}` could not be started ({:?})",
-                        workflow.program(),
-                        error.kind()
-                    )],
-                    ..outcome(RunOutcome::StartFailed, provenance)
-                });
-            }
-            Err(Failure::Wait(error)) => {
-                return Err(FunctorError::storage("wait", &spawn.program, error));
-            }
-        };
-        Ok(classify(supervised, plan, &work, provenance))
+        Ok(PreparedRun::Ready(spawn, provenance))
     }
 
     /// Creates a fresh staging directory with the inputs in place.
@@ -415,8 +408,47 @@ impl ExecutionProvider for LocalProcessProvider {
     async fn execute(&self, plan: ExecutionPlan, cancel: CancelToken) -> Result<ProviderRun> {
         plan.check(self.name())?;
         let provider = self.clone();
-        tokio::task::spawn_blocking(move || provider.execute_blocking(&plan, &cancel))
+        let plan = Arc::new(plan);
+        let prepared_plan = Arc::clone(&plan);
+        let prepared_cancel = cancel.clone();
+        let prepared =
+            tokio::task::spawn_blocking(move || provider.prepare(&prepared_plan, &prepared_cancel))
+                .await
+                .map_err(|error| {
+                    FunctorError::Internal(format!("preparation task failed: {error}"))
+                })??;
+        let (spawn, provenance) = match prepared {
+            PreparedRun::Ready(spawn, provenance) => (spawn, provenance),
+            PreparedRun::Complete(result) => return Ok(result),
+        };
+        let timeout = Duration::from_secs(u64::from(plan.limits.timeout_seconds()));
+        let supervised = match run(&spawn, timeout, plan.limits.stream_bytes(), &cancel).await {
+            Ok(supervised) => supervised,
+            Err(Failure::Spawn(error)) => {
+                return Ok(ProviderRun {
+                    diagnostics: vec![format!(
+                        "program `{}` could not be started ({:?})",
+                        plan.workflow.program(),
+                        error.kind()
+                    )],
+                    ..outcome(RunOutcome::StartFailed, provenance)
+                });
+            }
+            Err(Failure::Wait(error)) => {
+                return Err(FunctorError::storage("wait", &spawn.program, error));
+            }
+            Err(Failure::Read(error)) => {
+                return Err(FunctorError::storage(
+                    "read process streams",
+                    &spawn.program,
+                    error,
+                ));
+            }
+        };
+        tokio::task::spawn_blocking(move || classify(supervised, &plan, &spawn.cwd, provenance))
             .await
-            .map_err(|error| FunctorError::Internal(format!("execution task failed: {error}")))?
+            .map_err(|error| {
+                FunctorError::Internal(format!("output collection task failed: {error}"))
+            })
     }
 }
