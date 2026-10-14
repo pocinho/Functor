@@ -1,5 +1,5 @@
-.github/copilot/
-.vscode/
-out/
-target/
-tests/
+/.github/copilot/
+/.vscode/
+/out/
+/target/
+/tests/
