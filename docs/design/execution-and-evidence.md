@@ -193,3 +193,16 @@ Reviewed with the maintainer during P1.0 and accepted together with ADR-0012 to 
 3. The Windows process-tree kill uses a third-party Job Object crate, chosen and recorded under the dependency policy before P1.3 starts. No `unsafe` exception is made.
 4. Network access is not enforced. Provenance records `network = "not_enforced"`; a workflow declaring `network = "none"` is refused with `Unsupported`.
 5. Execution permission is `--grant-exec` **plus** an interactive confirmation when stdin is a terminal: the CLI prints the plan, and anything other than an explicit `yes` is exit 9 with no capture or write. When stdin is not a terminal the flag alone is sufficient, so scripts work. The library never prompts; callers pass an `ExecutionGrant`.
+
+### Decisions taken before P1.4
+
+Agreed with the maintainer after P1.3:
+
+6. **Workflow format ownership.** `functor-runtime` owns the `functor.workflow/1` TOML format and its parser, because it is the crate that consumes it (ADR-0005). Parsing rejects unknown top-level keys, a newer schema (`Unsupported`) and `network = "none"` (`Unsupported`).
+7. **Output validation is structural.** The optional validation of outputs (ADR-0015, point 6) runs the existing structural rules scoped to each output artifact. Content-level checks of an output wait for the extension model (Phase 3).
+8. **Orchestrator location.** The orchestrator lives in `functor-runtime` next to the provider and depends only on core traits (`EvidenceRecorder`, `ReportRecorder`, the repository, validation and event traits), never on a concrete store, validator or publisher; composition roots wire them.
+9. **Request ids.** If `--request-id` is not given, the CLI generates a unique one, so every invocation is a new run. Passing one makes repeating the command idempotent.
+10. **Staging cleanup.** After the `run_result` and its edges are committed, the orchestrator removes the run's work folder; on any failure it keeps it for diagnosis.
+11. **Rule-set identity.** The caller of `validate --save-report` supplies the rule-set identity (for example `V0001-V0023`), which the recorder stores as report metadata, because the recorder does not know which engine produced a report.
+12. **Report document bytes.** A saved report is semantically the same as `validate --output json` but its keys are sorted, so it is not required to be byte-identical.
+13. **Benchmark budgets.** Phase-specific execution and evidence-storage budgets are set in P1.6 from measured results and stay informational, like the existing benchmark policy.
