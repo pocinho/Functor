@@ -1,0 +1,151 @@
+# Execution and Evidence Contract (Phase 1)
+
+Status: Proposed (P1.0 decision contract; not implemented; becomes Accepted when ADR-0012 to ADR-0015 are accepted)
+Related ADRs: [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md), [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md), [ADR-0014](../adr/ADR-0014-evidence-relationships.md), [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)
+Related RFCs: RFC-0001, RFC-0004, RFC-0007, RFC-0017
+Roadmap: [phase-1-execution-provenance-roadmap.md](../planning/phase-1-execution-provenance-roadmap.md)
+
+## Purpose
+
+One place that states the concrete values and shapes P1.1 to P1.5 implement: workflow format, limits, evidence records, errors, events, rules, command spelling and test obligations. The ADRs hold the reasoning; this document holds the numbers. A value changes only through a new ADR.
+
+## Workflow Artifact
+
+`type = "workflow"`, content `format = "toml"`, inline or by path (1 MiB limit as for any content):
+
+```toml
+schema = "functor.workflow/1"
+provider = "local-process"
+program = "python"
+args = ["scripts/summarize.py", "--in", "inputs/data", "--out", "outputs/summary"]
+
+[inputs]
+data = { required = true }
+
+[outputs]
+summary = { type = "report_data", format = "text" }
+
+[env]
+allow = []
+set = { LANG = "C" }
+
+[limits]
+timeout_seconds = 30
+```
+
+Rules:
+
+- `schema`, `provider`, `program` are required. `args` are literal strings; no expansion, no globbing, no shell.
+- `[inputs]` names and `[outputs]` names follow the tag grammar. A run binds each input name to exactly one existing artifact; an unbound required input, an unknown binding, or a duplicate binding is `InvalidInput`.
+- An output named `summary` is read from `outputs/summary` in the work directory. It becomes an artifact with the declared `type` and `format`. Missing required output means outcome `failed`. A declared output that is a directory, a symlink or over the size limit is `failed` with a diagnostic.
+- `[limits]` may only **lower** the defaults below, never raise them past the hard maximum. The grant may lower them further.
+- Unknown top-level keys are rejected for `functor.workflow/1` (an executable format is stricter than data files). A newer `schema` is `Unsupported`.
+
+## Limits
+
+| Limit | Default | Hard maximum |
+|-------|---------|--------------|
+| Wall-clock timeout | 60 s | 3600 s |
+| Captured stdout and stderr | 1 MiB each (truncate, set `truncated`) | 8 MiB each |
+| Arguments | 64 args, 1024 bytes each | same |
+| Environment variables set or allowed | 32 | 32 |
+| Inputs | 32, 16 MiB each, 64 MiB total | same |
+| Outputs | 16, 16 MiB each, 64 MiB total | same |
+| Workflow content | 1 MiB | 1 MiB |
+| Lock wait (each short write) | 5 s (`FUNCTOR_LOCK_TIMEOUT`) | |
+| Kill grace after cancel/timeout | 2 s, then force | |
+
+Each row gets a boundary test at the exact limit, one byte or unit over, and one under. Truncated output is stored in the `run_result` content (stdout and stderr as separate sections) with the truncation flags; truncation is not a failure.
+
+## Evidence Records
+
+All evidence artifacts carry `metadata.evidence = "<schema>"` and are immutable. Metadata values follow the existing typed rule (string, integer, boolean, array of strings); structured detail goes in the artifact content (JSON).
+
+| Type | `evidence` | Metadata | Content |
+|------|-----------|----------|---------|
+| `capture` | `functor.capture/1` | `source` (artifact id), `source_revision` (int), `sha256`, `size`, `role` (`workflow` or `input`) | the captured bytes as a path to `content/evidence/captures/<hex>` |
+| `run` | `functor.run/1` | `provider`, `workflow_capture`, `request_id`, `started` (RFC 3339), `network` (`not_enforced`) | JSON: bindings (name to capture id), arguments, limits, environment names, program path, program `sha256`, provider version, platform |
+| `run_result` | `functor.run_result/1` | `run`, `outcome`, `finished`, `exit_code` (int, absent when none), `truncated` (bool), `outputs` (ids) | JSON: stdout, stderr, diagnostics, per-output digests |
+| `validation_report` | `functor.report/1` | `outcome`, `errors`, `warnings`, `infos`, `strict`, `subject`, `rules` | JSON as `validate` output |
+
+Slugs for evidence artifacts are generated: `run-<ulid-suffix>`, `run-result-...`, `capture-<first 12 hex>-...`, `report-...`; collisions retry with a new id.
+
+## Outcomes and Errors
+
+Run outcome (data in `run_result`): `succeeded`, `failed`, `timed_out`, `cancelled`, `start_failed`, `interrupted`. Derived, not stored: `running`, `interrupted_unknown`.
+
+New `FunctorError` variants (the enum is `#[non_exhaustive]`; new `ErrorKind` entries and exit codes are additive):
+
+| Variant | Kind code | Exit code | When |
+|---------|-----------|-----------|------|
+| `PermissionDenied { action, reason }` | `permission_denied` | 9 | No or insufficient grant; a disallowed environment name; a path outside the boundary |
+| `Unsupported { what }` | `unsupported` | 2 | Unknown provider, newer workflow schema, `network = "none"` |
+
+Existing mappings are unchanged. New exit code **8**: the command ran, but the run's outcome is not `succeeded` (outcome and run id are in the output). Exit 7 covers `Storage` and `Locked`, including a failed mandatory publication. Exit 6 stays validation-only. A cancelled CLI run (Ctrl-C) ends the child tree, records `cancelled` when storage allows, and exits 8.
+
+| Situation | Child started | Evidence | Result |
+|-----------|---------------|----------|--------|
+| No grant | no | none | `PermissionDenied`, exit 9 |
+| Pre-run write fails | no | possible orphan captures | `Storage`, exit 7 |
+| Program missing | no | intent plus `start_failed` | outcome, exit 8 |
+| Non-zero exit, missing output | yes | full | outcome `failed`, exit 8 |
+| Timeout, cancel | yes (tree killed) | full | outcome, exit 8 |
+| Post-run write fails | yes | intent only; staging kept | `Storage` with run id, exit 7 |
+| Process killed mid-run | yes | intent only | `interrupted_unknown`; recover marks `interrupted` |
+| Event append fails | yes | full | warning only; exit follows the outcome |
+
+## New Validation Rules
+
+Existing codes `V0001` to `V0019` are not renumbered. `V0012` stops covering `supports`, `contradicts` and `validates`; `V0009` also covers self-reference of those three.
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| `V0020` | Warning | A `run` has no `run_result` (running or interrupted) |
+| `V0021` | Error | Evidence integrity: a capture file is missing or its digest differs, a `run_result` names a missing output, or an evidence record is malformed |
+| `V0022` | Warning | Orphan evidence: a capture or output with no `run`, or a staging directory without a record |
+| `V0023` | Warning | One source both `supports` and `contradicts` the same target |
+
+These run in ordinary `validate` (read-only). Damaged or missing captured evidence is `V0021` and an `Error`, not a crash.
+
+## Events
+
+As in [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md): `run.started`, `run.completed`, `validation.recorded`. No `artifact.created` for evidence artifacts.
+
+## Command Spelling
+
+| Command | Purpose |
+|---------|---------|
+| `functor run start <workflow> [--input <name>=<artifact>]... [--grant-exec] [--timeout <s>] [--validate-outputs] [--request-id <id>]` | Execute. Without `--grant-exec` the command prints the plan (program, arguments, limits, network note) and exits 9 |
+| `functor run show <run>` | Intent, state, outcome, captures, outputs, truncation |
+| `functor run list` | All runs with derived state |
+| `functor run recover` | Mark interrupted runs; repair implied relationships; never reruns |
+| `functor validate [artifact] [--strict] [--save-report]` | Opt-in persisted report |
+
+Evidence navigation uses `query dependencies`, `query dependents` and `query relationships`. Assertions use `relation add <evidence> supports|contradicts <claim>`. `<run>` resolves by artifact slug or id. JSON schemas (`schema_version` 1): `run-start`, `run-show`, `run-list`, `run-recover`; `validate` gains an optional `saved_report`; `error.json` gains the two new kinds. All existing schemas and golden transcripts stay unchanged.
+
+## Crates
+
+`functor-model`: evidence ids/values, `ContentDigest`, relationship types. `functor-core`: `ExecutionProvider`, `EvidenceRecorder`/`ReportRecorder` traits, `RunRequest`, `ExecutionGrant`, error kinds. `functor-testkit`: fake provider, evidence fixtures, conformance suite. `functor-store` and `functor-repository`: evidence persistence, per-run lock, layout. New `functor-runtime`: `local-process` provider and orchestrator, depending on core traits only. `functor-cli`: handlers only. SHA-256 (`sha2`) is added to `functor-store`/`functor-runtime`, and a Job Object crate to `functor-runtime`, each under the dependency-policy checklist; neither enters model or core.
+
+## Format and API Evolution
+
+All additions are additive: `format_version` 1, event `v` 1, schema `schema_version` 1 stay. There is no migration. Old binaries read evidence as ordinary artifacts and relationships and warn `V0012` for the three promoted types. Phase 2 binds captures and reports to immutable versions without rewriting them.
+
+## Test Obligations
+
+| Conformance | Obligation |
+|-------------|------------|
+| C-0001-4, C-0007-3 | Report artifact round trip; saved report equals the printed report; save failure returns the report; no recursive reports |
+| C-0001-5, C-0007-4 | Reproduce the deterministic fixture from captures after the live input changes; declared outputs equal |
+| C-0007-5 | Complete traceability both directions; interrupted and orphan states visible |
+| C-0004-2 | Built-in parsing of the three names, direction, self-reference, duplicates, `V0023`, stored custom compatibility |
+| C-0001-1 | Library-only and CLI paths over the same records (existing row, extended) |
+
+Test families from the roadmap apply: lifecycle invariants; capture under concurrent edit; failure injection at every publication step in [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md); every limit boundary; path escape; disallowed environment; cancellation with child cleanup on Windows; schema and golden tests for each CLI outcome; unknown event type tolerated by readers; `validate` default output unchanged.
+
+## Open Items to Confirm at Acceptance
+
+1. Final names for outcomes, evidence types and slug prefixes.
+2. Whether the numeric limits above are right for the first fixture.
+3. The Job Object crate (recorded before P1.3) and whether the unenforced network stance is acceptable.
+4. Whether `--grant-exec` is enough, or an interactive confirmation is required in a terminal.

@@ -42,3 +42,7 @@ Proposed | Accepted | Superseded by ADR-NNNN
 | [ADR-0009](ADR-0009-functor-repository-crate.md) | functor-repository is part of the MVP | Accepted |
 | [ADR-0010](ADR-0010-async-trait-and-dyn.md) | async-trait; dynamic dispatch allowed | Accepted |
 | [ADR-0011](ADR-0011-toml-edit-preserving-updates.md) | toml_edit; updates preserve comments and formatting | Accepted |
+| [ADR-0012](ADR-0012-execution-provider-and-safety.md) | Workflow, local execution provider and execution safety | Proposed |
+| [ADR-0013](ADR-0013-run-lifecycle-and-evidence-persistence.md) | Run lifecycle, input capture and evidence persistence | Proposed |
+| [ADR-0014](ADR-0014-evidence-relationships.md) | Evidence relationship vocabulary (amends ADR-0007) | Proposed |
+| [ADR-0015](ADR-0015-validation-report-persistence-and-events.md) | Persisted validation reports and execution events | Proposed |

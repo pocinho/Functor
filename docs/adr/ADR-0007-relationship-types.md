@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Proposed amendment: [ADR-0014](ADR-0014-evidence-relationships.md) (promotes `supports`, `contradicts`, `validates`).
 
 ## Context
 
