@@ -158,7 +158,7 @@ Choices made while writing the model, core traits and testkit; none changes an a
 
 ## Implementation Notes (P1.2)
 
-Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic over the entity store and a blob/lock backend (`FileEvidence` over `FileStore`, `InMemoryEvidence` over `MemoryStore`). Decisions that refine the ADRs are in [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md) (Proposed). In short:
+Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic over the entity store and a blob/lock backend (`FileEvidence` over `FileStore`, `InMemoryEvidence` over `MemoryStore`). decisions that refine the ADRs are in [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md) (Accepted). In short:
 
 - **Files are content-addressed.** Reports are `content/evidence/reports/<sha256 hex>`, not `<artifact-id>.json` as this contract first said, because the store assigns the artifact id. Streams, outputs and results are files too; the run intent stays inline JSON.
 - **Stored report document.** It is the `functor validate --output json` document (schema version 1); the validation time and subject (id, revision, content digest) are artifact metadata. Findings round trip exactly, including the incomplete flag, which is recovered from the stored outcome.
