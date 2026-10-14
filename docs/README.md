@@ -2,7 +2,9 @@
 
 Welcome to the Functor architecture and implementation documentation.
 
-This documentation set accompanies the Functor RFC series and provides practical guidance for building the first CLI MVP implementation in Rust.
+This documentation set accompanies the Functor RFC series and provides practical guidance for evolving the completed Rust CLI MVP baseline into the working platform prototype.
+
+Phase 0 proved the initial CLI projection; it was not a product release. Phases 1-7 and the final product-readiness gate are defined in [product-roadmap.md](planning/product-roadmap.md).
 
 The RFCs define what Functor is. The documents in this directory define how to build it.
 
@@ -59,7 +61,8 @@ Each folder holds the documents of one section below; links between documents ar
 |----------|---------|
 | [mvp-scope.md](planning/mvp-scope.md) | What is in and out of the MVP, exit criteria with their evidence, the frozen contracts |
 | [cli-mvp-roadmap.md](planning/cli-mvp-roadmap.md) | Ordered milestones M0 to M9 with acceptance evidence |
-| [product-roadmap.md](planning/product-roadmap.md) | Long-term phases after the MVP (replaces `implementation-phases.md`) |
+| [product-roadmap.md](planning/product-roadmap.md) | Phase 1-7 deliverables, dependencies, acceptance gates and product-release eligibility (replaces `implementation-phases.md`) |
+| [phase-1-execution-provenance-roadmap.md](planning/phase-1-execution-provenance-roadmap.md) | Detailed next-phase milestones for execution, durable evidence and persisted validation |
 
 ## Decisions and Traceability (`adr/`, `planning/rfc-conformance.md`, `glossary.md`)
 
@@ -138,6 +141,7 @@ RFCs define what Functor is. Documentation defines how Functor is implemented. S
 11. [cli-mvp-roadmap.md](planning/cli-mvp-roadmap.md)
 12. [testing-strategy.md](quality/testing-strategy.md), [development-workflow.md](quality/development-workflow.md), [nonfunctional-requirements.md](quality/nonfunctional-requirements.md)
 13. [rfc-conformance.md](planning/rfc-conformance.md)
+14. [product-roadmap.md](planning/product-roadmap.md), then [phase-1-execution-provenance-roadmap.md](planning/phase-1-execution-provenance-roadmap.md)
 
 ---
 
@@ -193,4 +197,4 @@ Build the smallest useful implementation first.
 
 # Long-Term Goal
 
-The CLI MVP is not the final product. It is the first validation of the Functor platform. Future projections may include desktop applications, notebooks, web applications, MCP integrations, agent participation, and distributed repositories ([product-roadmap.md](planning/product-roadmap.md)).
+The completed CLI MVP is the first validation of the Functor platform, not the final product or a product release. The working-prototype roadmap requires execution, history, extensions, service and desktop/editor/web/notebook/graph-explorer projections, agent interoperability, trust/governance and federation before product-release readiness ([product-roadmap.md](planning/product-roadmap.md)). The next implementation phase is [execution and provenance](planning/phase-1-execution-provenance-roadmap.md).

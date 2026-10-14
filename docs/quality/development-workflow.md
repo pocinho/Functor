@@ -93,4 +93,6 @@ Use the repository pull request template (`.github/pull_request_template.md`). A
 
 ## Releases
 
-Out of scope for the MVP. Every crate is `publish = false` (set workspace-wide, see [workspace-layout.md](../architecture/workspace-layout.md)); enabling publication is a deliberate decision that starts with an ADR. When releases start: tag-based release workflow, `cargo-dist` or equivalent for binaries, and a changelog from conventional commits.
+The completed Phase 0 CLI baseline and subsequent working-prototype milestones are not product releases. The first product release is eligible only after all Phases 0-7 are implemented and the [product-readiness gate](../planning/product-roadmap.md#product-readiness-gate) passes. Phase completion does not automatically authorize publication.
+
+Every crate remains `publish = false` (set workspace-wide, see [workspace-layout.md](../architecture/workspace-layout.md)); enabling publication is a separate deliberate decision that starts with an ADR. After release authorization, define a tag-based release workflow, `cargo-dist` or equivalent for binaries, and a changelog from conventional commits.

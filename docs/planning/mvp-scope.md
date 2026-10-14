@@ -8,6 +8,8 @@ Related docs: [cli-mvp-roadmap.md](cli-mvp-roadmap.md), [cli-spec.md](../cli/cli
 
 Defines what is in and out of the Functor CLI MVP. The MVP exists to validate the architectural foundations of the RFC series (API-first, semantic model, projections) with the least implementation complexity. Success is measured by proving the architecture, not by feature completeness.
 
+This is the completed Phase 0 baseline, not the scope of a product release. Its historical included/excluded scope and exit evidence remain below. The remaining working-prototype phases are specified in [product-roadmap.md](product-roadmap.md); the next implementation increment is [Phase 1: Execution and Provenance](phase-1-execution-provenance-roadmap.md). Later phases may implement these exclusions through explicit new contracts without retroactively expanding the MVP.
+
 ## Included Scope
 
 ### Repository management
