@@ -67,7 +67,7 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 | Observation | Execution/validation event types and payloads, relation to durable state, event failure warnings, watcher compatibility and no duplicate notifications from multiple projections |
 | Format/API evolution | Additive versus versioned model/core, file and CLI schema changes, error/exit mapping, migration needs and Phase 2 transition |
 
-**Status:** drafted for review as Proposed [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md) to [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md) and the [execution and evidence contract](../design/execution-and-evidence.md). Not approved; the gate below is still closed.
+**Status:** decisions recorded in Accepted [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md) to [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md) and the [execution and evidence contract](../design/execution-and-evidence.md). The provider gate remains closed until P1.3 records the Job Object crate under the dependency policy; P1.1 and P1.2 may proceed.
 
 **Done when:** decisions are approved with concrete limits and negative scenarios, contracts can express the complete sample workflow, and conformance gaps C-0001-4/5, C-0007-3/4/5 and C-0004-2 have an implementation/test obligation. RFC-0007 leaves provider protocols and sandboxing undefined; the ADR must make the chosen local boundary explicit.
 

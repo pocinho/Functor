@@ -1,6 +1,6 @@
 # Execution and Evidence Contract (Phase 1)
 
-Status: Proposed (P1.0 decision contract; not implemented; becomes Accepted when ADR-0012 to ADR-0015 are accepted)
+Status: Accepted (P1.0 decision contract with ADR-0012 to ADR-0015; not yet implemented)
 Related ADRs: [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md), [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md), [ADR-0014](../adr/ADR-0014-evidence-relationships.md), [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)
 Related RFCs: RFC-0001, RFC-0004, RFC-0007, RFC-0017
 Roadmap: [phase-1-execution-provenance-roadmap.md](../planning/phase-1-execution-provenance-roadmap.md)
@@ -115,7 +115,7 @@ As in [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md): `
 
 | Command | Purpose |
 |---------|---------|
-| `functor run start <workflow> [--input <name>=<artifact>]... [--grant-exec] [--timeout <s>] [--validate-outputs] [--request-id <id>]` | Execute. Without `--grant-exec` the command prints the plan (program, arguments, limits, network note) and exits 9 |
+| `functor run start <workflow> [--input <name>=<artifact>]... [--grant-exec] [--timeout <s>] [--validate-outputs] [--request-id <id>]` | Execute. Without `--grant-exec` the command prints the plan (program, arguments, limits, network note) and exits 9. With it and a terminal on stdin, the plan is printed and an explicit `yes` is required, otherwise exit 9 |
 | `functor run show <run>` | Intent, state, outcome, captures, outputs, truncation |
 | `functor run list` | All runs with derived state |
 | `functor run recover` | Mark interrupted runs; repair implied relationships; never reruns |
@@ -143,9 +143,12 @@ All additions are additive: `format_version` 1, event `v` 1, schema `schema_vers
 
 Test families from the roadmap apply: lifecycle invariants; capture under concurrent edit; failure injection at every publication step in [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md); every limit boundary; path escape; disallowed environment; cancellation with child cleanup on Windows; schema and golden tests for each CLI outcome; unknown event type tolerated by readers; `validate` default output unchanged.
 
-## Open Items to Confirm at Acceptance
+## Review Decisions
 
-1. Final names for outcomes, evidence types and slug prefixes.
-2. Whether the numeric limits above are right for the first fixture.
-3. The Job Object crate (recorded before P1.3) and whether the unenforced network stance is acceptable.
-4. Whether `--grant-exec` is enough, or an interactive confirmation is required in a terminal.
+Reviewed with the maintainer during P1.0 and accepted together with ADR-0012 to ADR-0015.
+
+1. Names of outcomes, evidence types and slug prefixes are final as written above.
+2. The numeric limits above are final for Phase 1.
+3. The Windows process-tree kill uses a third-party Job Object crate, chosen and recorded under the dependency policy before P1.3 starts. No `unsafe` exception is made.
+4. Network access is not enforced. Provenance records `network = "not_enforced"`; a workflow declaring `network = "none"` is refused with `Unsupported`.
+5. Execution permission is `--grant-exec` **plus** an interactive confirmation when stdin is a terminal: the CLI prints the plan, and anything other than an explicit `yes` is exit 9 with no capture or write. When stdin is not a terminal the flag alone is sufficient, so scripts work. The library never prompts; callers pass an `ExecutionGrant`.

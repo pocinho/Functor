@@ -34,8 +34,8 @@ Test column notation: each reference is `prefix:name` in backticks. `model:` uni
 | C-0001-1 | Every artifact has identity, metadata, content and relationships | Implemented | [domain-model.md](../design/domain-model.md) | `model:create_starts_at_revision_one`, `store:entities_are_stored_as_canonical_files_named_by_id`, `conf:create_get_resolve_and_list` |
 | C-0001-2 | Identity is immutable | Implemented | `ArtifactPatch` has no id field; update never changes `id` | `conf:update_increments_revision_and_preserves_identity` |
 | C-0001-3 | Relationships are first-class entities | Implemented | Own type, own id, own file | `conf:relationship_get_and_list_order`, `cli:relation::add_stores_a_canonical_file_named_by_id` |
-| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)) | `cli:validate::validation_never_changes_the_repository_state`, `val:engine::validation_does_not_modify_the_repository` |
-| C-0001-5 | Execution is a reproducible operation producing artifacts | Deferred | | |
+| C-0001-4 | Validation results are artifacts themselves | Deviation | MVP reports are printed and summarized in an event, not stored as artifacts. Deferred to the execution and provenance phase ([product-roadmap.md](product-roadmap.md)); persisted by opt-in report artifacts per [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md) | `cli:validate::validation_never_changes_the_repository_state`, `val:engine::validation_does_not_modify_the_repository` |
+| C-0001-5 | Execution is a reproducible operation producing artifacts | Deferred | Phase 1 P1.1 to P1.4: [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md), [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md) | |
 | C-0001-6 | Projections do not own the model | Implemented | CLI is a thin projection ([cli-spec.md](../cli/cli-spec.md)) | `acc:the_success_path_and_the_negative_variant_run_through_the_libraries` |
 
 ### RFC-0002 API-First Architecture
@@ -65,7 +65,7 @@ Test column notation: each reference is `prefix:name` in backticks. `model:` uni
 | ID | Requirement | Status | Implementation | Test |
 |----|-------------|--------|----------------|------|
 | C-0004-1 | Relationships are directional | Implemented | source and target | `model:relationship_direction_and_self_reference` |
-| C-0004-2 | Core types: references, depends_on, derived_from, extends, supports, contradicts | Subset | First four built-in; others as custom types ([ADR-0007](../adr/ADR-0007-relationship-types.md)) | `model:built_in_names_parse_to_built_ins`, `model:custom_types_are_flagged_and_validated` |
+| C-0004-2 | Core types: references, depends_on, derived_from, extends, supports, contradicts | Subset | First four built-in; others as custom types ([ADR-0007](../adr/ADR-0007-relationship-types.md)); `supports`, `contradicts` become built-in in Phase 1 ([ADR-0014](../adr/ADR-0014-evidence-relationships.md)) | `model:built_in_names_parse_to_built_ins`, `model:custom_types_are_flagged_and_validated` |
 | C-0004-3 | Relationships should have stable identifiers | Implemented | `rel_<ULID>` | `conf:relationship_get_and_list_order`, `cli:relation::add_stores_a_canonical_file_named_by_id` |
 | C-0004-4 | Metadata must not alter semantic meaning | Implemented | Opaque metadata map | `store:rendered_relationships_parse_back` |
 | C-0004-5 | Validate existence of referenced artifacts and detect cycles | Implemented | `V0006`, `V0007`, `V0009`, `V0011` ([validation-rules.md](../design/validation-rules.md)) | `val:rules::v0006_dangling_source`, `val:rules::v0007_dangling_target`, `val:rules::v0009_self_reference`, `val:rules::v0011_*` |
@@ -105,8 +105,8 @@ See the coverage table in [query-model-mvp.md](../design/query-model-mvp.md).
 | C-0007-1 | Validation outcomes explicit: Passed, Failed, Warning, Unknown | Implemented | `Outcome` | `model:outcome_derivation_table`, `val:evaluate::the_outcome_follows_the_worst_finding`, `val:evaluate::an_unreadable_path_makes_the_outcome_unknown_unless_there_is_an_error`, `cli:exit::validation_outcomes_map_to_the_documented_exit_codes` |
 | C-0007-2 | Validation of artifacts and relationships | Implemented | Rule catalog `V0001` to `V0019` | `val:rules::v0001_*` to `val:rules::v0019_*`, `val:engine::v0001_*` to `val:engine::v0018_*` (real files), `cli:validate` |
 | C-0007-3 | Validation outputs representable as artifacts | Deviation | See C-0001-4 | |
-| C-0007-4 | Execution as evidence; reproducible executions | Deferred | | |
-| C-0007-5 | Traceability between inputs, executions, outputs, validations | Deferred | `validation.completed` event is the only record | |
+| C-0007-4 | Execution as evidence; reproducible executions | Deferred | Phase 1 P1.1 to P1.4: [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md), [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md) | |
+| C-0007-5 | Traceability between inputs, executions, outputs, validations | Deferred | `validation.completed` event is the only record. Phase 1: [ADR-0014](../adr/ADR-0014-evidence-relationships.md), [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md) | |
 
 ### RFC-0008 Storage and Persistence
 

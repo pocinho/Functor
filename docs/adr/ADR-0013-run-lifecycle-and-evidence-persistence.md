@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -26,7 +26,7 @@ Storage writes one entity per atomic operation under a short repository lock ([s
    (none) -> intent_recorded -> result_recorded(outcome)
    ```
 
-   Terminal outcomes in `run_result`: `succeeded`, `failed` (non-zero exit or declared output missing/invalid), `timed_out`, `cancelled`, `start_failed` (program or provider could not start), `interrupted` (written only by recovery). An intent with no result is reported as `running` when its per-run lock is held and `interrupted_unknown` when it is not. Names are proposals until this ADR is accepted.
+   Terminal outcomes in `run_result`: `succeeded`, `failed` (non-zero exit or declared output missing/invalid), `timed_out`, `cancelled`, `start_failed` (program or provider could not start), `interrupted` (written only by recovery). An intent with no result is reported as `running` when its per-run lock is held and `interrupted_unknown` when it is not. The names were approved with this ADR.
 4. **Outcome is not error.** A completed child with a bad outcome returns `Ok(RunRecord)` with that outcome. `Err(FunctorError)` means infrastructure or policy failure: `PermissionDenied`, `Unsupported`, `InvalidInput`, `Storage`, `Locked`, `Conflict`. A validation outcome is a separate value ([ADR-0015](ADR-0015-validation-report-persistence-and-events.md)).
 5. **Publication order** (every step is its own short write lock; the lock is never held while the child runs):
    1. Capture files, then `capture` artifacts.

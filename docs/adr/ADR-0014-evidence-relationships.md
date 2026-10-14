@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Amends [ADR-0007](ADR-0007-relationship-types.md).
+Accepted. Amends [ADR-0007](ADR-0007-relationship-types.md).
 
 ## Context
 
