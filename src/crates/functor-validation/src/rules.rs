@@ -503,7 +503,8 @@ mod tests {
         .into_iter()
         .map(|kind| issue(kind, "artifacts/x.toml"))
         .collect();
-        load.relationships.push(relationship(11, 2, "supports", 1));
+        load.relationships
+            .push(relationship(11, 2, "related_to", 1));
         for rule in RULES {
             let expected = rule_info(rule.code).unwrap().severity;
             for finding in (rule.check)(&load).findings {
@@ -701,8 +702,8 @@ mod tests {
         assert_eq!(fired(&load), Vec::<&str>::new());
         let mut custom = clean();
         custom.relationships = vec![
-            relationship(10, 2, "supports", 1),
-            relationship(11, 1, "supports", 2),
+            relationship(10, 2, "related_to", 1),
+            relationship(11, 1, "related_to", 2),
         ];
         assert_eq!(fired(&custom), ["V0012", "V0012"]);
     }
@@ -720,10 +721,21 @@ mod tests {
     #[test]
     fn v0012_custom_relationship_type() {
         let mut load = clean();
-        load.relationships = vec![relationship(10, 2, "supports", 1)];
+        load.relationships = vec![relationship(10, 2, "related_to", 1)];
         assert_eq!(fired(&load), ["V0012"]);
         let found = (RULES[11].check)(&load).findings;
-        assert_eq!(found[0].message, "custom relationship type `supports`");
+        assert_eq!(found[0].message, "custom relationship type `related_to`");
+    }
+
+    #[test]
+    fn v0012_does_not_fire_for_evidence_types() {
+        let mut load = clean();
+        load.relationships = vec![
+            relationship(10, 2, "supports", 1),
+            relationship(11, 2, "contradicts", 1),
+            relationship(12, 2, "validates", 1),
+        ];
+        assert!(fired(&load).iter().all(|code| *code != "V0012"));
     }
 
     #[test]

@@ -143,6 +143,19 @@ All additions are additive: `format_version` 1, event `v` 1, schema `schema_vers
 
 Test families from the roadmap apply: lifecycle invariants; capture under concurrent edit; failure injection at every publication step in [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md); every limit boundary; path escape; disallowed environment; cancellation with child cleanup on Windows; schema and golden tests for each CLI outcome; unknown event type tolerated by readers; `validate` default output unchanged.
 
+## Implementation Notes (P1.1)
+
+Choices made while writing the model, core traits and testkit; none changes an accepted ADR.
+
+- **Where things live.** Values (`Workflow`, `ExecutionLimits`, `RunIntent`, `RunResult`, `RunRecord`, `Capture`, `ContentDigest`, `EvidenceKind`) are in `functor-model`; every numeric bound of the limits table is a constant in `functor_model::bounds`. `ExecutionProvider`, `EvidenceRecorder`, `ReportRecorder`, the plan, grant and cancel types are in `functor-core`. The model hashes nothing: `ContentDigest` validates and formats `sha256:<hex>`, and the SHA-256 dependency stays in the store and runtime crates. The testkit uses a clearly non-cryptographic `fake_digest`.
+- **Failed runs publish no outputs.** The ADRs left open whether a failed run retains partial outputs. P1.1 fixes it: only a `succeeded` run lists outputs; stdout, stderr and diagnostics of every run are kept in the `run_result`. `RunResult::new` and `ProviderRun::check` enforce it, so partial output cannot be mistaken for a result.
+- **Exit status shape.** Only `succeeded` and `failed` runs carry an exit status; `timed_out`, `cancelled`, `start_failed` and `interrupted` have none, because the process was killed or never ran. A `failed` run that exited 0 (a missing required output) must carry a diagnostic.
+- **Error mapping.** `PermissionDenied` maps to exit 9 and `Unsupported` to exit 2 now. Exit 8 and the `run` commands arrive in P1.5. The `error.json` schema accepts both new codes and exit codes up to 9.
+- **Rules and events deferred.** `V0020` to `V0023` and the event types are implemented in P1.4; this step changes only the `V0009` description (evidence types) and the scope of `V0012`.
+- **Relationship promotion.** The only existing tests that used `supports` as the custom example now use `related_to`; the transcript for the custom-type warning changed accordingly. Self-reference of `supports`, `contradicts` and `validates` is rejected by the model constructor and reported as `V0009` when loading a file.
+- **Provider pre-flight.** `ExecutionPlan::check` is the shared refusal logic (provider name, limits against the grant, granted environment names, input bindings and sizes). The path, program-resolution and environment-value rules of ADR-0012 are enforced by the `local-process` provider in P1.3, which must also run `run_provider_conformance`.
+- **Lease.** `RunLease` is `Debug` so it can appear in test assertions; dropping it releases the run.
+
 ## Review Decisions
 
 Reviewed with the maintainer during P1.0 and accepted together with ADR-0012 to ADR-0015.

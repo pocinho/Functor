@@ -39,7 +39,7 @@ functor relation list
 functor relation show <relation>
 ```
 
-Built-in relationship types: `depends_on`, `references`, `derived_from`, `extends`. Other well-formed type names are accepted with `--allow-custom-type` and flagged by validation (ADR-0007). Relationships are immutable.
+Built-in relationship types: `depends_on`, `references`, `derived_from`, `extends` (Phase 1 adds `supports`, `contradicts` and `validates`, [ADR-0014](../adr/ADR-0014-evidence-relationships.md)). Other well-formed type names are accepted with `--allow-custom-type` and flagged by validation (ADR-0007). Relationships are immutable.
 
 ### Query operations
 

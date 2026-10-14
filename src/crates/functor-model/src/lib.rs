@@ -6,6 +6,7 @@
 mod artifact;
 mod error;
 mod event;
+mod evidence;
 mod grammar;
 mod id;
 mod query;
@@ -20,6 +21,12 @@ pub use artifact::{
 };
 pub use error::ModelError;
 pub use event::{Event, EventData, EventKind, EventSubject, NewEvent};
+pub use evidence::{
+    Capture, CaptureRole, ContentDigest, EVIDENCE_KEY, EvidenceKind, ExecutionLimits, InputBinding,
+    InputSpec, LOCAL_PROCESS_PROVIDER, NETWORK_NOT_ENFORCED, OutputSpec, ProgramProvenance,
+    RequestId, RunIntent, RunOutcome, RunRecord, RunRequest, RunResult, RunResultSpec, RunStatus,
+    Truncation, WORKFLOW_SCHEMA, Workflow, WorkflowSpec, bounds,
+};
 pub use id::{
     ArtifactId, ArtifactRef, EntityKind, EventId, MonotonicUlids, RelationshipId, RepositoryId,
     Slug,

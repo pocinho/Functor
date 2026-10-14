@@ -206,7 +206,7 @@ fn a_custom_type_needs_allow_custom_type() {
     let sandbox = populated();
     let out = sandbox
         .run(
-            &["relation", "add", "rfc-0001", "supports", "rfc-0000"],
+            &["relation", "add", "rfc-0001", "related_to", "rfc-0000"],
             200,
         )
         .fails(2);
@@ -219,7 +219,7 @@ fn a_custom_type_needs_allow_custom_type() {
                 "relation",
                 "add",
                 "rfc-0001",
-                "supports",
+                "related_to",
                 "rfc-0000",
                 "--allow-custom-type",
                 "-o",
@@ -228,7 +228,7 @@ fn a_custom_type_needs_allow_custom_type() {
             200,
         )
         .ok();
-    assert_eq!(out.json()["relationship"]["type"], "supports");
+    assert_eq!(out.json()["relationship"]["type"], "related_to");
     assert_schema("relationship-document", &out.json());
 }
 
@@ -510,7 +510,7 @@ fn list_filters_by_type_source_and_target() {
         list(&["--source", "rfc-0001", "--type", "references"]),
         [rel(201)]
     );
-    assert_eq!(list(&["--type", "supports"]), Vec::<String>::new());
+    assert_eq!(list(&["--type", "related_to"]), Vec::<String>::new());
     assert_eq!(list(&["--source", "rfc-0000"]), Vec::<String>::new());
 }
 

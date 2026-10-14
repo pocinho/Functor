@@ -14,7 +14,8 @@ use crate::render::{
 };
 use crate::resolve;
 
-const BUILT_IN_TYPES: &str = "depends_on, references, derived_from, extends";
+const BUILT_IN_TYPES: &str =
+    "depends_on, references, derived_from, extends, supports, contradicts, validates";
 
 /// Parses a type name; a type that is not built in needs `--allow-custom-type`.
 fn parse_type(text: &str, allow_custom: bool) -> Result<RelationshipType> {

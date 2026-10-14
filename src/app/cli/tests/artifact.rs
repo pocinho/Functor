@@ -1035,7 +1035,7 @@ fn the_schemas_can_actually_fail() {
     );
     assert_schema_rejects(
         "error",
-        &json!({"error": {"code": "conflict", "message": "m"}, "exit_code": 9}),
+        &json!({"error": {"code": "conflict", "message": "m"}, "exit_code": 10}),
     );
     assert_schema_rejects(
         "init",

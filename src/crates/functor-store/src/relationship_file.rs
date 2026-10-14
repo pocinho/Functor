@@ -40,7 +40,8 @@ fn invalid_identifier(error: impl Display) -> FileProblem {
 ///
 /// # Errors
 /// A missing `id` is `MissingIdentifier`; a malformed relationship or artifact id is
-/// `InvalidIdentifier`; an acyclic relationship pointing at its own source is `SelfReference`
+/// `InvalidIdentifier`; a relationship of an acyclic or evidence type pointing at its own source is
+/// `SelfReference`
 /// (the model constructor rejects it, so it is reported rather than built); anything else wrong
 /// is `MalformedFile`.
 pub fn parse_relationship_file(text: &str) -> FileResult<ParsedRelationship> {
@@ -72,7 +73,7 @@ pub fn parse_relationship_file(text: &str) -> FileResult<ParsedRelationship> {
         Some(item) => parse_metadata(item)?,
     };
 
-    if source == target && relationship_type.is_acyclic() {
+    if source == target && relationship_type.rejects_self_reference() {
         return Err(FileProblem::new(
             LoadIssueKind::SelfReference,
             format!("a `{relationship_type}` relationship cannot point at its own source {source}"),
@@ -263,8 +264,15 @@ mod tests {
     }
 
     #[test]
-    fn self_reference_of_acyclic_types_is_reported_not_built() {
-        for kind in ["depends_on", "derived_from", "extends"] {
+    fn self_reference_of_acyclic_and_evidence_types_is_reported_not_built() {
+        for kind in [
+            "depends_on",
+            "derived_from",
+            "extends",
+            "supports",
+            "contradicts",
+            "validates",
+        ] {
             let text = render_relationship_file(&sample("references", SRC, SRC))
                 .replace("references", kind);
             assert_eq!(problem(&text).kind, LoadIssueKind::SelfReference, "{kind}");

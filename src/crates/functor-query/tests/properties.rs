@@ -33,7 +33,7 @@ fn graph() -> impl Strategy<Value = Graph> {
             let edges = raw
                 .into_iter()
                 .filter(|&(source, target, ty)| {
-                    (source != target || !TYPES[ty].is_acyclic())
+                    (source != target || !TYPES[ty].rejects_self_reference())
                         && seen.insert((source, target, ty))
                 })
                 .collect();

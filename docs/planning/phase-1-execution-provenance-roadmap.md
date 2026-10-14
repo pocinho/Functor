@@ -75,6 +75,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.1: Model, Core Contracts and Testkit
 
+**Status:** implemented (see the [P1.1 implementation notes](../design/execution-and-evidence.md#implementation-notes-p11)). Evidence for the done-when criteria: contracts compile with public documentation under `cargo clippy -D warnings`; `MemoryEvidence` and `FakeProvider` pass the shared suites and each deliberately broken fake is rejected (`evidence::tests`, `execution::tests` in `functor-testkit`); invalid transitions cannot produce a success record (`model:a_success_must_be_a_real_success`, `model:a_run_completes_exactly_once_and_only_with_its_own_result`, `core:broken_provider_reports_are_rejected`); `script:check-deps.ps1` shows no storage or protocol dependency in model or core.
+
 **Components:** `functor-model`, `functor-core`, `functor-testkit`; [domain model](../design/domain-model.md), [traits](../architecture/traits-and-interfaces.md), [error handling](../architecture/error-handling.md).
 
 **Deliverables:**

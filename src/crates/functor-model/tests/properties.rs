@@ -88,8 +88,16 @@ proptest! {
     }
 
     #[test]
-    fn built_in_names_never_become_custom(index in 0usize..4, kebab in any::<bool>()) {
-        let name = ["depends_on", "references", "derived_from", "extends"][index];
+    fn built_in_names_never_become_custom(index in 0usize..7, kebab in any::<bool>()) {
+        let name = [
+            "depends_on",
+            "references",
+            "derived_from",
+            "extends",
+            "supports",
+            "contradicts",
+            "validates",
+        ][index];
         let input = if kebab { name.replace('_', "-") } else { name.to_owned() };
         let parsed = RelationshipType::parse(&input).unwrap();
         prop_assert!(parsed.is_built_in());

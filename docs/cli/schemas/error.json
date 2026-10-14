@@ -21,7 +21,9 @@
             "inconsistent",
             "locked",
             "storage",
-            "internal"
+            "internal",
+            "permission_denied",
+            "unsupported"
           ]
         },
         "message": { "type": "string", "minLength": 1 },
@@ -30,6 +32,6 @@
         "suggestions": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
       }
     },
-    "exit_code": { "type": "integer", "minimum": 1, "maximum": 7 }
+    "exit_code": { "type": "integer", "minimum": 1, "maximum": 9 }
   }
 }

@@ -46,6 +46,12 @@ pub enum FunctorError {
 
     #[error("internal error: {0}")]
     Internal(String),                                       // bug; should never be user-caused
+
+    #[error("permission denied for {action}: {reason}")]
+    PermissionDenied { action: String, reason: String },    // no execution grant, policy refusal (ADR-0012)
+
+    #[error("unsupported: {what}")]
+    Unsupported { what: String },                           // unknown provider, newer workflow schema
 }
 ```
 
@@ -61,12 +67,16 @@ Stable across releases. New codes are only added, never reassigned.
 |------|---------|--------|
 | 0 | Success. `validate`: outcome `Passed` or `Warning` (see `--strict` in [cli-spec.md](../cli/cli-spec.md)) | |
 | 1 | Unexpected internal error | `Internal`, panics caught at the top level |
-| 2 | Usage or input error | clap parse errors, `InvalidInput` |
+| 2 | Usage or input error | clap parse errors, `InvalidInput`, `Unsupported` |
 | 3 | Not found | `NotFound` |
 | 4 | Conflict | `Conflict` |
 | 5 | Not a repository or unsupported format | `NotARepository`, `UnsupportedFormat`, `Inconsistent` |
 | 6 | Validation failed | `validate` outcome `Failed` (or `Warning` with `--strict`) |
 | 7 | Storage or locking failure | `Storage`, `Locked` |
+| 8 | A run executed but did not succeed (reserved; arrives with the `run` commands, P1.5) | run outcome other than `succeeded` |
+| 9 | Permission denied | `PermissionDenied` (no execution grant or a policy refusal) |
+
+Codes 8 and 9 are the Phase 1 additions ([execution-and-evidence.md](../design/execution-and-evidence.md)); codes 0 to 7 are unchanged.
 
 `watch` exits 0 on Ctrl-C (SIGINT) or when its output pipe closes, and 7 if the event log becomes unreadable.
 

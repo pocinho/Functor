@@ -187,7 +187,7 @@ fn read_only_and_failed_commands_emit_nothing() {
         &["artifact", "update", "rfc-0000"],   // no change option
         &["relation", "add", "rfc-0001", "depends_on", "rfc-0000"], // duplicate
         &["relation", "add", "rfc-0000", "depends_on", "rfc-0000"], // self-reference
-        &["relation", "add", "rfc-0000", "supports", "rfc-0001"], // custom type
+        &["relation", "add", "rfc-0000", "related_to", "rfc-0001"], // custom type
         &["validate", "nope"],                 // failed to start
         &["relation", "show", "rfc-0000"],
     ];

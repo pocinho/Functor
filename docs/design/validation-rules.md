@@ -43,10 +43,10 @@ Precedence: `Failed` > `Unknown` > `Warning` > `Passed`. `Info` findings never c
 | `V0006` | Error | Relationship source does not exist (dangling source) |
 | `V0007` | Error | Relationship target does not exist |
 | `V0008` | Error | Duplicate relationship id |
-| `V0009` | Error | Self-referencing relationship of an acyclic type (`depends_on`, `derived_from`, `extends`) |
+| `V0009` | Error | Self-referencing relationship of an acyclic type (`depends_on`, `derived_from`, `extends`) or an evidence type (`supports`, `contradicts`, `validates`; [ADR-0014](../adr/ADR-0014-evidence-relationships.md)) |
 | `V0010` | Error | Content path is unsafe (absolute, `..`, escapes the repository) or the referenced file does not exist |
 | `V0011` | Error | Cycle in an acyclic relationship type (`depends_on`, `derived_from`, `extends`) |
-| `V0012` | Warning | Custom (non built-in) relationship type in use |
+| `V0012` | Warning | Custom (non built-in) relationship type in use; `supports`, `contradicts` and `validates` are built-in since [ADR-0014](../adr/ADR-0014-evidence-relationships.md) |
 | `V0013` | Error | Unsupported `format_version` |
 | `V0014` | Error | Repository structure violation: missing `.functor/repository.toml`, `artifacts/` or `relationships/` |
 | `V0015` | Warning | Duplicate relationship: same `(source, type, target)` appears more than once |

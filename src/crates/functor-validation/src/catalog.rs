@@ -39,7 +39,7 @@ rules! {
     V0006 = "V0006", Error, "Relationship source does not exist";
     V0007 = "V0007", Error, "Relationship target does not exist";
     V0008 = "V0008", Error, "Duplicate relationship id";
-    V0009 = "V0009", Error, "Self-referencing relationship of an acyclic type";
+    V0009 = "V0009", Error, "Self-referencing relationship of an acyclic or evidence type";
     V0010 = "V0010", Error, "Content path is unsafe or the referenced file does not exist";
     V0011 = "V0011", Error, "Cycle in an acyclic relationship type";
     V0012 = "V0012", Warning, "Custom relationship type in use";

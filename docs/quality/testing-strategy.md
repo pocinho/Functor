@@ -33,11 +33,11 @@ Defines how the Functor CLI MVP is tested, what must be covered at each level, a
 
 ### functor-model
 
-Every invariant in the table at the end of [domain-model.md](../design/domain-model.md): id round trips, slug grammar tables, relationship type parsing (including the kebab alias and the built-in-never-custom rule), `Revision` non-zero, tag normalization, `ContentPath` rejection cases, outcome derivation.
+Every invariant in the table at the end of [domain-model.md](../design/domain-model.md): id round trips, slug grammar tables, relationship type parsing (including the kebab alias, the built-in-never-custom rule and the evidence types), `Revision` non-zero, tag normalization, `ContentPath` rejection cases, outcome derivation. Phase 1 adds the execution and evidence values (`evidence.rs`): workflow bounds at and over every limit, secret-looking environment names, binding checks, limits that may only be lowered, digests, run result consistency (a success is always a real success) and the single `complete` transition of a run.
 
 ### functor-core
 
-Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit), and a compile-time check that every core trait is object-safe (`&dyn Trait` coerces, [ADR-0010](../adr/ADR-0010-async-trait-and-dyn.md)).
+Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit), and a compile-time check that every core trait is object-safe (`&dyn Trait` coerces, [ADR-0010](../adr/ADR-0010-async-trait-and-dyn.md)). Phase 1 adds the provider preflight (`ExecutionPlan::check`: error kinds and input size boundaries) and `ProviderRun::check`, which rejects every contract-breaking provider report.
 
 ### functor-repository
 
@@ -84,6 +84,14 @@ Strict-versus-lenient behavior on **damaged** data needs store-specific injectio
 `MemoryStore` and `FileStore` both run the suite (`RepositoryManager` is tested in `functor-repository`). A future store must pass it to be accepted. This is what makes the storage independence of RFC-0008 and the projection independence of RFC-0002 enforceable rather than aspirational.
 
 **The suite is itself tested.** `functor-testkit` contains a small reference store that must pass, plus deliberately broken variants (duplicate slugs allowed, expected revision ignored, endpoint check skipped, duplicate relationships allowed, list in reverse, revision bumped on a no-op) that the suite must reject. A suite that cannot fail would prove nothing.
+
+### Execution and evidence suites (Phase 1)
+
+`run_provider_conformance(&subject)` takes a `ProviderUnderTest` (the provider, a plan per `ProviderScenario`, and a count of started executions). It covers: success with the declared output; failure, missing program, missing required output and timeout as outcomes (never errors); output cut exactly at the stream limit with truncation indicated; cancellation as an outcome; refusals (`Unsupported`, `PermissionDenied`, `InvalidInput`) that start nothing; and deterministic replay of declared outputs. Every report also passes `ProviderRun::check`. `FakeProvider` runs it; the real `local-process` provider runs the same scenarios against fixture programs (P1.3), with mid-run cancellation covered by that crate's own tests because the suite is runtime-agnostic.
+
+`run_evidence_conformance(factory)` takes a factory of `EvidenceUnderTest` (the two recorder traits plus helpers to create and edit live artifacts, the digest in use and damaging a capture). It covers: exact captures that survive later edits; `NotFound` for unknown sources; idempotent intent by request id; intent requiring existing captures; exclusive leases released on drop; derived status; the result as the single commit point with the injected time; inconsistent finishes rejected with nothing written; every non-success outcome recorded without outputs; recovery completing only orphans and being idempotent; damaged captures reported as `Inconsistent`; run ordering; and report round trips and immutability. `MemoryEvidence` runs it; the store-backed recorder runs it in P1.2.
+
+Both suites are themselves tested with deliberately broken fakes (six provider defects, nine recorder defects), each of which the suite must reject.
 
 ## Fixtures
 

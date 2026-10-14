@@ -99,9 +99,9 @@ At least one change option is required (exit 2). Increments `revision`. The stor
 
 ### `functor relation add <SOURCE> <TYPE> <TARGET>`
 
-Create `SOURCE --TYPE--> TARGET`. `TYPE` is `depends_on`, `references`, `derived_from` or `extends` (kebab-case aliases accepted). Other well-formed names require `--allow-custom-type`. Option `--meta <key=value>` (repeatable).
+Create `SOURCE --TYPE--> TARGET`. `TYPE` is `depends_on`, `references`, `derived_from`, `extends`, `supports`, `contradicts` or `validates` (kebab-case aliases accepted; the last three are built in since [ADR-0014](../adr/ADR-0014-evidence-relationships.md)). Other well-formed names require `--allow-custom-type`. Option `--meta <key=value>` (repeatable).
 
-Errors: unknown artifact exit 3; self-reference of an acyclic type, bad type name or a type that is not built in without `--allow-custom-type`, bad `--meta` exit 2; duplicate `(source, type, target)` exit 4. The type and metadata are checked before the artifacts are looked up. Nothing is written on any error.
+Errors: unknown artifact exit 3; self-reference of an acyclic or evidence type, bad type name or a type that is not built in without `--allow-custom-type`, bad `--meta` exit 2; duplicate `(source, type, target)` exit 4. The type and metadata are checked before the artifacts are looked up. Nothing is written on any error.
 Emits `relationship.created`. Text: `added <rel id>: <source slug> <type> <target slug>`.
 
 Note: argument order is `source type target`, so `functor relation add rfc-0001 depends_on rfc-0000` means rfc-0001 depends on rfc-0000.
@@ -169,7 +169,7 @@ Behavior and errors:
 
 ## Exit Codes
 
-Defined in [error-handling.md](../architecture/error-handling.md): 0 success, 1 internal, 2 usage or input, 3 not found, 4 conflict, 5 not a repository or unsupported format, 6 validation failed, 7 storage or lock.
+Defined in [error-handling.md](../architecture/error-handling.md): 0 success, 1 internal, 2 usage or input, 3 not found, 4 conflict, 5 not a repository or unsupported format, 6 validation failed, 7 storage or lock, 9 permission denied (8 is reserved for a run that did not succeed).
 
 ## Text Output Examples (golden)
 

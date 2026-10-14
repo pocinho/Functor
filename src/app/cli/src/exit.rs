@@ -22,6 +22,9 @@ pub const REPOSITORY: u8 = 5;
 pub const VALIDATION_FAILED: u8 = 6;
 /// A storage or locking failure.
 pub const STORAGE: u8 = 7;
+/// Permission to execute was not granted, or a policy refused the request. (Exit code 8 is
+/// reserved for a run that executed without succeeding and arrives with the `run` commands.)
+pub const PERMISSION_DENIED: u8 = 9;
 
 /// The exit code of a finished validation run (`docs/design/validation-rules.md`): `unknown` and `failed`
 /// always fail, `warning` fails only with `--strict`.
@@ -43,13 +46,14 @@ pub fn validation_exit_code(outcome: Outcome, strict: bool) -> u8 {
 pub fn exit_code(kind: ErrorKind) -> u8 {
     match kind {
         ErrorKind::Internal => INTERNAL,
-        ErrorKind::InvalidInput => USAGE,
+        ErrorKind::InvalidInput | ErrorKind::Unsupported => USAGE,
         ErrorKind::NotFound => NOT_FOUND,
         ErrorKind::Conflict => CONFLICT,
         ErrorKind::NotARepository | ErrorKind::UnsupportedFormat | ErrorKind::Inconsistent => {
             REPOSITORY
         }
         ErrorKind::Storage | ErrorKind::Locked => STORAGE,
+        ErrorKind::PermissionDenied => PERMISSION_DENIED,
     }
 }
 
@@ -69,6 +73,8 @@ mod tests {
             (ErrorKind::Locked, 7),
             (ErrorKind::Storage, 7),
             (ErrorKind::Internal, 1),
+            (ErrorKind::PermissionDenied, 9),
+            (ErrorKind::Unsupported, 2),
         ];
         // The table must list every kind, in the same order as `ErrorKind::ALL`.
         let kinds: Vec<ErrorKind> = expected.iter().map(|(kind, _)| *kind).collect();
@@ -110,9 +116,10 @@ mod tests {
                 CONFLICT,
                 REPOSITORY,
                 VALIDATION_FAILED,
-                STORAGE
+                STORAGE,
+                PERMISSION_DENIED
             ],
-            [0, 1, 2, 3, 4, 5, 6, 7]
+            [0, 1, 2, 3, 4, 5, 6, 7, 9]
         );
     }
 }
