@@ -50,6 +50,10 @@ rules! {
     V0017 = "V0017", Error, "File name does not match the entity id";
     V0018 = "V0018", Info, "Unknown field";
     V0019 = "V0019", Info, "File or directory could not be read";
+    V0020 = "V0020", Warning, "Run without a result";
+    V0021 = "V0021", Error, "Evidence record is inconsistent";
+    V0022 = "V0022", Warning, "Orphan evidence";
+    V0023 = "V0023", Warning, "Source both supports and contradicts a target";
 }
 
 /// Looks up a rule by code.
@@ -65,7 +69,7 @@ mod tests {
     #[test]
     fn the_catalog_is_ordered_unique_and_complete() {
         let codes: Vec<&str> = CATALOG.iter().map(|r| r.code.as_str()).collect();
-        let expected: Vec<String> = (1..=19).map(|n| format!("V{n:04}")).collect();
+        let expected: Vec<String> = (1..=23).map(|n| format!("V{n:04}")).collect();
         assert_eq!(codes, expected);
     }
 

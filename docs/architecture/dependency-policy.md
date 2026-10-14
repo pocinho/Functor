@@ -22,7 +22,7 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 |---------|-------|--------|
 | Id generation and parsing | `ulid` | model |
 | Error types | `thiserror` | model, core and other libraries |
-| TOML read, create and in-place edit | `toml_edit` (document API, no serde) | repository, store |
+| TOML read, create and in-place edit | `toml_edit` (document API, no serde) | repository, store, runtime (read-only, workflow format) |
 | Serialization framework | `serde` (derive) | events, cli (JSON output) |
 | JSON | `serde_json` | events, cli, store (evidence documents, [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)) |
 | SHA-256 | `sha2` (RustCrypto; MIT or Apache-2.0; pure Rust with CPU-feature detection through `cpufeatures`) | store, runtime |

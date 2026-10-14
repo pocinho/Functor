@@ -4,7 +4,7 @@
   "Implemented" or "Subset" row names at least one test, and every named test exists.
 .DESCRIPTION
   A test reference is `prefix:path` in backticks, where the prefix selects the crate(s) to look in:
-    model:  repo:  store:  conf:  query:  val:  events:  cli:  acc:   (see the table in the document)
+    model:  repo:  store:  conf:  query:  val:  events:  rt:  cli:  acc:   (see the table in the document)
     script: a file in scripts/ (a check that is not a cargo test)
   and the path is `function`, `module::function`, `module::prefix_*` (a wildcard), `module::*`
   (the module exists) or a bare test file name (`cli:validate` is tests/validate.rs).
@@ -23,6 +23,7 @@ $scopes = @{
     'query'  = @('src/crates/functor-query')
     'val'    = @('src/crates/functor-validation')
     'events' = @('src/crates/functor-events')
+    'rt'     = @('src/crates/functor-runtime')
     'cli'    = @('src/app/cli')
     'acc'    = @('src/app/cli/tests')
 }

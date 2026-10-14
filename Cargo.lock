@@ -493,12 +493,18 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "functor-core",
+ "functor-events",
  "functor-model",
+ "functor-query",
+ "functor-repository",
+ "functor-store",
  "functor-testkit",
+ "functor-validation",
  "process-wrap",
  "sha2",
  "tempfile",
  "tokio",
+ "toml_edit",
 ]
 
 [[package]]

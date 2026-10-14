@@ -21,7 +21,7 @@ pub use evidence::{
 };
 pub use execution::{
     CancelToken, ExecutionGrant, ExecutionPlan, ExecutionProvider, InputPayload, OutputPayload,
-    ProviderRun, StreamCapture,
+    ProviderRun, StreamCapture, check_grant,
 };
 pub use repository::{
     InitOptions, LoadIssue, LoadIssueKind, RepositoryHandle, RepositoryManager, RepositoryReader,

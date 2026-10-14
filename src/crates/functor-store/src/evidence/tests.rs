@@ -1167,10 +1167,17 @@ async fn reports_are_saved_as_files_with_a_validates_edge_to_their_subject() {
                 digest: Some(sha256(b"text")),
             },
             false,
+            "V0001-V0023",
         )
         .await
         .unwrap();
     let snapshot = RepositoryReader::snapshot(evidence.store()).await.unwrap();
+    let stored = snapshot.artifact(&id).unwrap();
+    assert_eq!(
+        super::codec::meta_str(stored, "rules"),
+        Some("V0001-V0023"),
+        "the rule-set identity is stored with the report"
+    );
     assert!(edge_set(snapshot.relationships()).contains(&(
         id,
         RelationshipType::Validates,

@@ -54,6 +54,10 @@ Precedence: `Failed` > `Unknown` > `Warning` > `Passed`. `Info` findings never c
 | `V0017` | Error | File name does not match the entity id inside it |
 | `V0018` | Info | Unknown field in an entity or repository file (kept for forward compatibility) |
 | `V0019` | Info | A file or directory could not be read, so rules that needed it could not run to completion; the outcome becomes `Unknown` unless an error exists |
+| `V0020` | Warning | A `run` evidence artifact has no `run_result`: the run is still in progress or was interrupted ([ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md)) |
+| `V0021` | Error | An evidence record is inconsistent: missing or malformed metadata, a reference to an artifact that does not exist or is of the wrong kind, a run that completed more than once, outputs listed on a run that did not succeed. Structural only: stored bytes are re-hashed when evidence is read, and a missing evidence file is `V0010` |
+| `V0022` | Warning | Orphan evidence: a capture no run uses, or an output artifact no completed run lists |
+| `V0023` | Warning | The same source both `supports` and `contradicts` the same target ([ADR-0014](../adr/ADR-0014-evidence-relationships.md)) |
 
 Mapping from the MVP scope list in [mvp-scope.md](../planning/mvp-scope.md):
 

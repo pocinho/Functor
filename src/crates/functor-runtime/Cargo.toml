@@ -23,9 +23,15 @@ functor-model.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 sha2.workspace = true
+toml_edit.workspace = true
 process-wrap = { workspace = true, features = ["std", "job-object", "process-group"] }
 
 [dev-dependencies]
 functor-testkit.workspace = true
+functor-store.workspace = true
+functor-repository.workspace = true
+functor-events.workspace = true
+functor-validation.workspace = true
+functor-query.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "time"] }

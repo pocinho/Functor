@@ -454,7 +454,14 @@ impl ReportRecorder for MemoryEvidence {
         report: &ValidationReport,
         subject: ReportSubject,
         _strict: bool,
+        rules: &str,
     ) -> Result<ArtifactId> {
+        if rules.is_empty() || rules.len() > 100 {
+            return Err(FunctorError::invalid_input(
+                "rules",
+                "must be 1 to 100 characters",
+            ));
+        }
         let mut state = self.state();
         if let ReportSubject::Artifact { id, .. } = &subject
             && !state.sources.contains_key(id)
@@ -1083,7 +1090,7 @@ fn sample_report(env: &Env) -> ValidationReport {
 pub async fn reports_round_trip_and_stay_immutable<R: EvidenceUnderTest>(recorder: &R, env: &Env) {
     let report = sample_report(env);
     let whole = recorder
-        .save_report(&report, ReportSubject::Repository, false)
+        .save_report(&report, ReportSubject::Repository, false, RULES)
         .await
         .unwrap();
     let (loaded, subject) = recorder.load_report(&whole).await.unwrap().unwrap();
@@ -1097,11 +1104,11 @@ pub async fn reports_round_trip_and_stay_immutable<R: EvidenceUnderTest>(recorde
         digest: Some(recorder.digest(b"text")),
     };
     let scoped = recorder
-        .save_report(&report, scoped_subject.clone(), true)
+        .save_report(&report, scoped_subject.clone(), true, RULES)
         .await
         .unwrap();
     let again = recorder
-        .save_report(&report, scoped_subject.clone(), true)
+        .save_report(&report, scoped_subject.clone(), true, RULES)
         .await
         .unwrap();
     assert_ne!(scoped, again, "every save is a new artifact");
@@ -1117,7 +1124,8 @@ pub async fn reports_round_trip_and_stay_immutable<R: EvidenceUnderTest>(recorde
     );
 }
 
-/// A report about an artifact that does not exist is refused, and nothing is stored.
+/// A report about an artifact that does not exist is refused, and nothing is stored; so is a
+/// report without a rule-set identity.
 pub async fn reports_need_an_existing_subject<R: EvidenceUnderTest>(recorder: &R, env: &Env) {
     expect_err(
         recorder
@@ -1129,12 +1137,35 @@ pub async fn reports_need_an_existing_subject<R: EvidenceUnderTest>(recorder: &R
                     digest: None,
                 },
                 false,
+                RULES,
             )
             .await,
         ErrorKind::NotFound,
         "unknown subject",
     );
+    expect_err(
+        recorder
+            .save_report(&sample_report(env), ReportSubject::Repository, false, "")
+            .await,
+        ErrorKind::InvalidInput,
+        "no rule-set identity",
+    );
+    expect_err(
+        recorder
+            .save_report(
+                &sample_report(env),
+                ReportSubject::Repository,
+                false,
+                &"x".repeat(101),
+            )
+            .await,
+        ErrorKind::InvalidInput,
+        "an over-long rule-set identity",
+    );
 }
+
+/// The rule-set identity the suite saves reports with.
+const RULES: &str = "V0001-V0023";
 
 #[cfg(test)]
 mod tests {

@@ -11,8 +11,15 @@
 //! (a repository root); it never opens a store, validates or publishes. Durable publication is the
 //! orchestrator's job (P1.4).
 
+mod orchestrator;
 mod program;
 mod provider;
 mod supervise;
+mod workflow;
 
+pub use orchestrator::{
+    OutputChecks, OutputValidation, RecoveryReport, RunFailure, RunOrchestrator, RunReport,
+    SavedReport,
+};
 pub use provider::LocalProcessProvider;
+pub use workflow::parse_workflow;

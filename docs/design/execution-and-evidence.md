@@ -102,7 +102,7 @@ Existing codes `V0001` to `V0019` are not renumbered. `V0012` stops covering `su
 | Code | Severity | Description |
 |------|----------|-------------|
 | `V0020` | Warning | A `run` has no `run_result` (running or interrupted) |
-| `V0021` | Error | Evidence integrity: a capture file is missing or its digest differs, a `run_result` names a missing output, or an evidence record is malformed |
+| `V0021` | Error | Evidence integrity (structural): malformed evidence metadata, a reference to a missing artifact, more than one result per run, outputs on a run that did not succeed. A missing or altered evidence file is reported by `V0010` and when the evidence is read; validation does not re-hash files |
 | `V0022` | Warning | Orphan evidence: a capture or output with no `run`, or a staging directory without a record |
 | `V0023` | Warning | One source both `supports` and `contradicts` the same target |
 
@@ -183,6 +183,18 @@ Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic o
 - **Wrapper caveat.** `process-wrap`'s `wait` and `try_wait` both consume the job's completion port, which made a first version hang under parallel load. The supervisor polls and reaps the leader process and uses the job only to terminate ([vetting record](../architecture/dependency-policy.md#vetting-record-process-wrap-adr-0012)).
 - **Test program.** `runtime-fixture` (`functor-runtime/fixture/main.rs`) is a deterministic helper built with the crate for the real-process tests; it is not part of the product.
 - **Not covered.** Network is not enforced (accepted in ADR-0012), so there is no network test. A repository-relative program that is a symbolic link out of the repository is covered by the same canonical-path check as `..`, but only `..` is tested because creating links on Windows needs a privilege. Non-Windows results are informational.
+
+## Implementation Notes (P1.4)
+
+`RunOrchestrator` in `functor-runtime` wires the pieces through core traits only; the library path alone runs the whole workflow (`execute`, `record_validation`, `recover`). How it behaves and what was decided while building it:
+
+- **Order.** Capture the workflow, parse the captured bytes (they are authoritative), check bindings, `preflight`, capture inputs, durable intent, lease, `run.started`, execute, validate the provider's report against the plan, commit the result, `run.completed`, then optional output validation. Refusals (`PermissionDenied`, `Unsupported`, bad bindings, limits above the grant) happen before any run exists; a workflow capture made before a refusal may remain as an orphan (`V0022`).
+- **Trait additions.** `ExecutionProvider` gained default methods `preflight(workflow, limits, grant) -> ProgramProvenance`, `env_names(workflow)` and `discard_staging(run)`, so the orchestrator never needs a concrete provider; `check_grant` is the shared authorization used by both `ExecutionPlan::check` and the orchestrator. `ReportRecorder::save_report` gained a `rules: &str` parameter (decision 11): 1 to 100 characters, no control characters, stored as report metadata.
+- **Failure after the provider starts.** A provider error is recorded as `start_failed` and returned. A report that breaks the provider contract is recorded as `failed` and returned as `Internal`. A failed result write is returned with the run id, no `run.completed` is published, and `recover` marks the run `interrupted`. Staging is removed only after a successful commit.
+- **Events.** One owner publishes them, after the durable transition, best effort (a failure becomes a warning in the report). `run.started` (`workflow`, `provider`, `request_id`), `run.completed` (`outcome`, `result`, `outputs`, `truncated`) with the run as subject, and `validation.recorded` (`outcome`, `subject`, `errors`, `warnings`, `infos`) with the report as subject. A repeated request id returns the existing run and publishes nothing.
+- **Output validation.** Per output: validate scoped to the output, save the report, then publish; a report that cannot be saved is returned, not persisted, and does not change the run. Reports are never validated in turn.
+- **Deviation: `V0021` is structural.** Validation rules are pure functions over the loaded repository and do no file reads, so `V0021` checks evidence metadata, references, one result per run and outputs only on success. A missing evidence file is already `V0010`; re-hashing a file is done when evidence is read (`read_capture`, `streams`), where damage is an explicit diagnostic. Rules also gained `V0020` to `V0023` as specified.
+- **Not covered.** There is no cross-process reopen test (reopening a second store in one process is tested); `validate` does not re-hash evidence files.
 
 ## Review Decisions
 

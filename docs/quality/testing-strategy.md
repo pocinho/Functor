@@ -94,6 +94,10 @@ Strict-versus-lenient behavior on **damaged** data needs store-specific injectio
 
 Both suites are themselves tested with deliberately broken fakes (six provider defects, nine recorder defects), each of which the suite must reject.
 
+### Orchestration tests (P1.4)
+
+Two layers in `functor-runtime/tests`. `orchestrator.rs` is fast and deterministic: a counting wrapper over the testkit's `FakeProvider`, in-memory evidence with switchable write failures, and a recording event publisher, so every failure ordering (intent, result, report, events, provider fault) and every outcome is exercised in milliseconds. `end_to_end.rs` uses everything real (file store, file event log, `LocalProcessProvider`, the `runtime-fixture` program): restart and reopen, replay from captured inputs, timeout, cancellation, a refused grant, an unwritable or deleted event log, concurrent requests with one id, and clean validation afterwards. Both build repositories under the git-ignored `tests/scratch` folder.
+
 ## Fixtures
 
 - Builders in `functor-testkit` create repositories programmatically (`RepoFixture::new().artifact("rfc-0000").artifact("rfc-0001").relation("rfc-0001", "depends_on", "rfc-0000").build()` returns a strict `RepositorySnapshot`).

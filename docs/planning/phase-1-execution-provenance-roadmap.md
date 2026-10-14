@@ -130,6 +130,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.4: Integrate the Evidence Graph, Validation and Events
 
+**Status:** implemented (see the [P1.4 implementation notes](../design/execution-and-evidence.md#implementation-notes-p14)). Evidence for the done-when criteria: `functor-runtime/tests/orchestrator.rs` (fast, fake provider and in-memory evidence) covers traceability both ways, every outcome, refusals before any run, duplicate requests, event and storage failures, output validation pass/warning/failed/unknown, no recursive reports, read-only `validate`, `supports`/`contradicts` direction and `V0020` to `V0023`; `tests/end_to_end.rs` runs the real file store, event log and child process: durable run surviving a reopen, replay from captured inputs, failing, timed-out and cancelled children, a refused grant, an unwritable event log, a deleted event log, one child for a repeated request id, and clean validation. `V0021` is structural only (deviation recorded in the notes).
+
 **Components:** runtime orchestration, core repository/validation/event traits, query/validation services and composition wiring.
 
 **Deliverables:**

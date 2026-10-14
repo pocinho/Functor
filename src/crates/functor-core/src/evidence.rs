@@ -149,13 +149,16 @@ pub enum ReportSubject {
 pub trait ReportRecorder: Send + Sync {
     /// Stores the report as an immutable `validation_report` artifact and, for an artifact
     /// subject, a `validates` relationship to it. The report is not modified or revalidated.
-    /// Fails with `NotFound` when the subject artifact does not exist and with `Inconsistent`
-    /// when the repository is damaged; the caller keeps its report either way.
+    /// `rules` identifies the rule set that produced the report (for example `V0001-V0023`) and is
+    /// stored with it. Fails with `NotFound` when the subject artifact does not exist,
+    /// `InvalidInput` for an empty or over-long `rules` and `Inconsistent` when the repository is
+    /// damaged; the caller keeps its report either way.
     async fn save_report(
         &self,
         report: &ValidationReport,
         subject: ReportSubject,
         strict: bool,
+        rules: &str,
     ) -> Result<ArtifactId>;
 
     /// Loads a saved report and its subject, or `None` when the artifact is not a report.

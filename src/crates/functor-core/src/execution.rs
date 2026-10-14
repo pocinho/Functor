@@ -116,6 +116,47 @@ pub struct ExecutionPlan {
     pub grant: ExecutionGrant,
 }
 
+/// The authorization checks every provider performs before doing anything with side effects:
+/// the workflow selects this provider, the limits fit inside the grant and every environment
+/// variable the workflow allows is granted.
+///
+/// # Errors
+/// `Unsupported` for another provider, `PermissionDenied` for limits above the grant or an
+/// environment variable the grant does not list.
+pub fn check_grant(
+    provider: &str,
+    workflow: &Workflow,
+    limits: ExecutionLimits,
+    grant: &ExecutionGrant,
+) -> Result<()> {
+    if workflow.provider() != provider {
+        return Err(FunctorError::unsupported(format!(
+            "provider `{}`",
+            workflow.provider()
+        )));
+    }
+    let granted = grant.limits();
+    if limits.timeout_seconds() > granted.timeout_seconds()
+        || limits.stream_bytes() > granted.stream_bytes()
+    {
+        return Err(FunctorError::permission_denied(
+            "execute",
+            "the requested limits exceed the grant",
+        ));
+    }
+    if let Some(name) = workflow
+        .env_allow()
+        .iter()
+        .find(|name| !grant.permits_env(name))
+    {
+        return Err(FunctorError::permission_denied(
+            "execute",
+            format!("environment variable `{name}` is not granted"),
+        ));
+    }
+    Ok(())
+}
+
 impl ExecutionPlan {
     /// The checks every provider performs before doing anything with side effects.
     ///
@@ -125,32 +166,7 @@ impl ExecutionPlan {
     ///   environment variable the grant does not;
     /// - `InvalidInput` for an undeclared, duplicate, missing-required or oversized input.
     pub fn check(&self, provider: &str) -> Result<()> {
-        if self.workflow.provider() != provider {
-            return Err(FunctorError::unsupported(format!(
-                "provider `{}`",
-                self.workflow.provider()
-            )));
-        }
-        let granted = self.grant.limits();
-        if self.limits.timeout_seconds() > granted.timeout_seconds()
-            || self.limits.stream_bytes() > granted.stream_bytes()
-        {
-            return Err(FunctorError::permission_denied(
-                "execute",
-                "the requested limits exceed the grant",
-            ));
-        }
-        if let Some(name) = self
-            .workflow
-            .env_allow()
-            .iter()
-            .find(|name| !self.grant.permits_env(name))
-        {
-            return Err(FunctorError::permission_denied(
-                "execute",
-                format!("environment variable `{name}` is not granted"),
-            ));
-        }
+        check_grant(provider, &self.workflow, self.limits, &self.grant)?;
         let mut seen = BTreeSet::new();
         let mut total: u64 = 0;
         for input in &self.inputs {
@@ -327,6 +343,52 @@ pub trait ExecutionProvider: Send + Sync {
     /// The provider version, recorded as provenance.
     fn version(&self) -> &str;
 
+    /// Checks, before anything is recorded, that this provider would accept `workflow` under
+    /// `grant` with `limits`, and describes the program it would run (recorded in the run
+    /// intent).
+    ///
+    /// Must have no side effect. The default performs the shared authorization checks
+    /// ([`check_grant`]) and describes the program as named in the workflow, without a digest.
+    ///
+    /// # Errors
+    /// `Unsupported`, or `PermissionDenied` for a grant that does not cover the run.
+    async fn preflight(
+        &self,
+        workflow: &Workflow,
+        limits: ExecutionLimits,
+        grant: &ExecutionGrant,
+    ) -> Result<ProgramProvenance> {
+        check_grant(self.name(), workflow, limits, grant)?;
+        Ok(ProgramProvenance {
+            path: workflow.program().to_owned(),
+            digest: None,
+        })
+    }
+
+    /// The names (never values) of the environment variables a child of `workflow` would see.
+    /// The default is the workflow's allowed and literal names.
+    fn env_names(&self, workflow: &Workflow) -> Vec<String> {
+        let mut names: Vec<String> = workflow
+            .env_allow()
+            .iter()
+            .chain(workflow.env_set().keys())
+            .cloned()
+            .collect();
+        names.sort();
+        names.dedup();
+        names
+    }
+
+    /// Removes whatever the provider staged for `run`. Called by the orchestrator after a
+    /// successful, fully published run; staging of a failed run is kept for diagnosis. The default
+    /// has nothing to remove.
+    ///
+    /// # Errors
+    /// `Storage` when the staging cannot be removed.
+    async fn discard_staging(&self, _run: &ArtifactId) -> Result<()> {
+        Ok(())
+    }
+
     /// Executes the plan once.
     async fn execute(&self, plan: ExecutionPlan, cancel: CancelToken) -> Result<ProviderRun>;
 }
@@ -408,6 +470,68 @@ mod tests {
     #[test]
     fn a_valid_plan_passes_the_preflight() {
         plan().check(LOCAL_PROCESS_PROVIDER).unwrap();
+    }
+
+    /// Drives a future that never waits on anything external; core names no runtime.
+    fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        let mut future = std::pin::pin!(future);
+        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+        loop {
+            if let std::task::Poll::Ready(value) = future.as_mut().poll(&mut context) {
+                return value;
+            }
+        }
+    }
+
+    #[test]
+    fn the_default_provider_methods_authorize_describe_and_clean_up_nothing() {
+        block_on(default_provider_methods());
+    }
+
+    async fn default_provider_methods() {
+        struct Minimal;
+        #[async_trait]
+        impl ExecutionProvider for Minimal {
+            fn name(&self) -> &'static str {
+                LOCAL_PROCESS_PROVIDER
+            }
+            fn version(&self) -> &'static str {
+                "0"
+            }
+            async fn execute(&self, _: ExecutionPlan, _: CancelToken) -> Result<ProviderRun> {
+                Err(FunctorError::unsupported("nothing"))
+            }
+        }
+        let workflow = plan().workflow;
+        let grant = ExecutionGrant::new("tool", ExecutionLimits::DEFAULT).with_env("LANG");
+        let provider = Minimal;
+        let described = provider
+            .preflight(&workflow, ExecutionLimits::DEFAULT, &grant)
+            .await
+            .unwrap();
+        assert_eq!(described.path, "tool");
+        assert_eq!(described.digest, None);
+        assert_eq!(provider.env_names(&workflow), ["LANG"]);
+        provider
+            .discard_staging(&ArtifactId::from_bits(1))
+            .await
+            .unwrap();
+
+        let no_env = ExecutionGrant::new("tool", ExecutionLimits::DEFAULT);
+        let error = provider
+            .preflight(&workflow, ExecutionLimits::DEFAULT, &no_env)
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::PermissionDenied);
+        let error = provider
+            .preflight(&workflow, ExecutionLimits::MAX, &grant)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.kind(),
+            ErrorKind::PermissionDenied,
+            "limits above the grant"
+        );
     }
 
     #[test]

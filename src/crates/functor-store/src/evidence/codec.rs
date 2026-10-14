@@ -508,6 +508,7 @@ pub(crate) fn report_metadata(
     subject: &str,
     revision: Option<Revision>,
     digest: Option<&ContentDigest>,
+    rules: &str,
 ) -> Result<Metadata> {
     let counts = report.counts();
     let mut m = MetaBuilder::evidence(EvidenceKind::ValidationReport)?;
@@ -517,6 +518,7 @@ pub(crate) fn report_metadata(
         .put("infos", int(counts.infos as u64)?)?
         .put("strict", strict)?
         .put("subject", subject)?
+        .put("rules", rules)?
         .put("completed", report.completed().to_string())?;
     if let Some(revision) = revision {
         m.put("subject_revision", int(revision.get())?)?;

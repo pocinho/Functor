@@ -739,7 +739,14 @@ impl<S: EvidenceBacking, B: EvidenceBlobs> ReportRecorder for EvidenceStore<S, B
         report: &ValidationReport,
         subject: ReportSubject,
         strict: bool,
+        rules: &str,
     ) -> Result<ArtifactId> {
+        if rules.is_empty() || rules.chars().count() > 100 || rules.chars().any(char::is_control) {
+            return Err(FunctorError::invalid_input(
+                "rules",
+                "must be 1 to 100 characters without control characters",
+            ));
+        }
         let (label, target, revision, digest) = match &subject {
             ReportSubject::Repository => ("repository".to_owned(), None, None, None),
             ReportSubject::Artifact {
@@ -766,7 +773,7 @@ impl<S: EvidenceBacking, B: EvidenceBlobs> ReportRecorder for EvidenceStore<S, B
             .blobs
             .put("reports", &content_digest, document.into_bytes())
             .await?;
-        let metadata = report_metadata(report, strict, &label, revision, digest.as_ref())?;
+        let metadata = report_metadata(report, strict, &label, revision, digest.as_ref(), rules)?;
         let saved = self
             .create_artifact(
                 EvidenceKind::ValidationReport.slug_prefix(),

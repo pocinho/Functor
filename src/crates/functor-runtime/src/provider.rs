@@ -10,12 +10,12 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use functor_core::{
-    CancelToken, ExecutionPlan, ExecutionProvider, FunctorError, OutputPayload, ProviderRun,
-    Result, StreamCapture,
+    CancelToken, ExecutionGrant, ExecutionPlan, ExecutionProvider, FunctorError, OutputPayload,
+    ProviderRun, Result, StreamCapture, check_grant,
 };
 use functor_model::{
-    ArtifactId, ContentDigest, LOCAL_PROCESS_PROVIDER, ProgramProvenance, RunOutcome, Workflow,
-    bounds,
+    ArtifactId, ContentDigest, ExecutionLimits, LOCAL_PROCESS_PROVIDER, ProgramProvenance,
+    RunOutcome, Workflow, bounds,
 };
 use sha2::{Digest, Sha256};
 
@@ -93,15 +93,6 @@ impl LocalProcessProvider {
     #[must_use]
     pub fn started(&self) -> usize {
         self.started.load(Ordering::SeqCst)
-    }
-
-    /// The names (never values) of the environment variables a child of `workflow` would see.
-    #[must_use]
-    pub fn env_names(&self, workflow: &Workflow) -> Vec<String> {
-        child_env(workflow)
-            .keys()
-            .map(|name| name.to_string_lossy().into_owned())
-            .collect()
     }
 
     fn execute_blocking(&self, plan: &ExecutionPlan, cancel: &CancelToken) -> Result<ProviderRun> {
@@ -364,6 +355,61 @@ impl ExecutionProvider for LocalProcessProvider {
 
     fn version(&self) -> &'static str {
         VERSION
+    }
+
+    async fn preflight(
+        &self,
+        workflow: &Workflow,
+        limits: ExecutionLimits,
+        grant: &ExecutionGrant,
+    ) -> Result<ProgramProvenance> {
+        check_grant(self.name(), workflow, limits, grant)?;
+        let provider = self.clone();
+        let program = workflow.program().to_owned();
+        let granted = grant.program().to_owned();
+        tokio::task::spawn_blocking(move || {
+            // A program that cannot be found is described as named: the run will record a start
+            // failure. One that is found must be exactly the granted one.
+            let Some(path) = provider.resolve_program(&program)? else {
+                return Ok(ProgramProvenance {
+                    path: program,
+                    digest: None,
+                });
+            };
+            if !same_file(&path, Path::new(&granted)) {
+                return Err(FunctorError::permission_denied(
+                    "execute",
+                    format!(
+                        "the program `{}` is not the granted program `{granted}`",
+                        path.display()
+                    ),
+                ));
+            }
+            Ok(ProgramProvenance {
+                digest: file_digest(&path),
+                path: path.to_string_lossy().into_owned(),
+            })
+        })
+        .await
+        .map_err(|error| FunctorError::Internal(format!("preflight task failed: {error}")))?
+    }
+
+    fn env_names(&self, workflow: &Workflow) -> Vec<String> {
+        child_env(workflow)
+            .keys()
+            .map(|name| name.to_string_lossy().into_owned())
+            .collect()
+    }
+
+    async fn discard_staging(&self, run: &ArtifactId) -> Result<()> {
+        let dir = self.work_root.join(run.to_string());
+        tokio::task::spawn_blocking(move || match fs::remove_dir_all(&dir) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(FunctorError::storage("remove directory", &dir, error)),
+        })
+        .await
+        .map_err(|error| FunctorError::Internal(format!("cleanup task failed: {error}")))?
     }
 
     async fn execute(&self, plan: ExecutionPlan, cancel: CancelToken) -> Result<ProviderRun> {
