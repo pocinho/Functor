@@ -100,6 +100,8 @@ Two layers in `functor-runtime/tests`. `orchestrator.rs` is fast and determinist
 
 ## Fixtures
 
+Phase 1 CLI execution tests use the same runtime fixture source as a feature-gated binary (`execution-fixture`, `test-support` only), so default builds do not ship it. Run text/JSON goldens cover every outcome and derived state; integration tests cover schema rejection, program failure, timeout, saved-report failure, partial result publication and recovery, cross-process inspection and library/CLI interoperability. Shared JSON schemas are registered locally in the test validator; schema checking performs no network requests. Terminal confirmation and signal cancellation use injected readers/futures rather than relying on a CI console.
+
 - Builders in `functor-testkit` create repositories programmatically (`RepoFixture::new().artifact("rfc-0000").artifact("rfc-0001").relation("rfc-0001", "depends_on", "rfc-0000").build()` returns a strict `RepositorySnapshot`).
 - Static fixture repositories live in `examples/` and `tests/fixtures/`: `clean/`, `one-per-rule/V00NN/`, `getting-started/`. They are real repositories on disk, created once by tests using the library and committed; a test verifies the checked-in fixtures are still produced by the current serializer (prevents silent drift).
 - Fixtures use fixed ids and timestamps.

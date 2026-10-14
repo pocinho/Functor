@@ -1,6 +1,6 @@
 # Execution and Evidence Contract (Phase 1)
 
-Status: Accepted (P1.0 decision contract with ADR-0012 to ADR-0015; not yet implemented)
+Status: Accepted (P1.1 to P1.5 implemented; P1.6 hardening remains)
 Related ADRs: [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md), [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md), [ADR-0014](../adr/ADR-0014-evidence-relationships.md), [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)
 Related RFCs: RFC-0001, RFC-0004, RFC-0007, RFC-0017
 Roadmap: [phase-1-execution-provenance-roadmap.md](../planning/phase-1-execution-provenance-roadmap.md)
@@ -106,7 +106,7 @@ Existing codes `V0001` to `V0019` are not renumbered. `V0012` stops covering `su
 | `V0022` | Warning | Orphan evidence: a capture or output with no `run`, or a staging directory without a record |
 | `V0023` | Warning | One source both `supports` and `contradicts` the same target |
 
-These run in ordinary `validate` (read-only). Damaged or missing captured evidence is `V0021` and an `Error`, not a crash.
+These run in ordinary `validate` (read-only). Malformed evidence metadata is `V0021`; missing content files are `V0010`. Digest damage is reported explicitly when evidence is read, not re-hashed by structural validation.
 
 ## Events
 
@@ -195,6 +195,15 @@ Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic o
 - **Output validation.** Per output: validate scoped to the output, save the report, then publish; a report that cannot be saved is returned, not persisted, and does not change the run. Reports are never validated in turn.
 - **Deviation: `V0021` is structural.** Validation rules are pure functions over the loaded repository and do no file reads, so `V0021` checks evidence metadata, references, one result per run and outputs only on success. A missing evidence file is already `V0010`; re-hashing a file is done when evidence is read (`read_capture`, `streams`), where damage is an explicit diagnostic. Rules also gained `V0020` to `V0023` as specified.
 - **Not covered.** There is no cross-process reopen test (reopening a second store in one process is tested); `validate` does not re-hash evidence files.
+
+## Implementation Notes (P1.5)
+
+- **Composition.** The CLI wires `FileEvidence`, `LocalProcessProvider`, `FileEventLog` and `RunOrchestrator` in `context`. Execution and saved validation use an uncached store so outputs/reports written mid-command are immediately visible. Inspection reads evidence, never events.
+- **Permission preview.** Read workflow bytes without capture or writes. The plan names program, literal arguments, limits, environment names and the unenforced network boundary. Terminal confirmation goes to stderr so stdout stays machine-readable. `--quiet` cannot bypass it. `RunRequest::with_workflow_digest` pins the reviewed bytes; the orchestrator refuses a mismatching capture before recording intent.
+- **Output contracts.** `run-start`, `run-show`, `run-list`, `run-recover` and a read-only `run-plan` schema are version 1. Shared run definitions live in `run-show.json`. Streams are byte arrays in JSON; text escapes control characters. An error after intent includes the run id, including result-publication failure. Exit 8 belongs to `run start` only; successful inspection/recovery exits 0.
+- **Saved validation.** Ordinary `validate` output is unchanged. With `--save-report`, evaluate one lenient load and retain the scoped artifact's revision from that load, then read its content digest and save through the orchestrator. The optional `saved_report` has independent id/error fields; any save failure still prints the report and exits 7. A successfully saved warning report with `--strict` still exits 6.
+- **Interruption.** The signal adapter cancels and awaits the existing execution future; it never drops the future while mandatory evidence is being published. Signal-listener installation failure is reported and also cancels, rather than leaving an uninterruptible run.
+- **Tests.** CLI subprocess tests run real programs, cross-read with library evidence, exercise pre-intent and post-child storage faults, idempotency, saved reports and watch. Golden text/JSON cover all terminal and derived states. The terminal-confirmation reader and the signal-to-token adapter are injected in unit tests; actual OS console Ctrl-C delivery is not exercised by the piped subprocess harness. Real process-tree cancellation is covered by the runtime tests.
 
 ## Review Decisions
 

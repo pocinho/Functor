@@ -412,6 +412,7 @@ dependencies = [
  "functor-model",
  "functor-query",
  "functor-repository",
+ "functor-runtime",
  "functor-store",
  "functor-testkit",
  "functor-validation",
@@ -420,6 +421,7 @@ dependencies = [
  "predicates",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tokio",
 ]

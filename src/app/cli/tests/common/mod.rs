@@ -167,8 +167,7 @@ pub fn load_schema(name: &str) -> Value {
 
 /// Asserts that `instance` conforms to the schema `docs/cli/schemas/<name>.json`.
 pub fn assert_schema(name: &str, instance: &Value) {
-    let schema = load_schema(name);
-    let validator = jsonschema::validator_for(&schema).expect("the schema is valid");
+    let validator = schema_validator(name);
     let errors: Vec<String> = validator
         .iter_errors(instance)
         .map(|error| format!("{error} (at {})", error.instance_path()))
@@ -182,10 +181,32 @@ pub fn assert_schema(name: &str, instance: &Value) {
 
 /// Asserts that `instance` does **not** conform (used to prove the schemas can fail).
 pub fn assert_schema_rejects(name: &str, instance: &Value) {
-    let schema = load_schema(name);
-    let validator = jsonschema::validator_for(&schema).expect("the schema is valid");
+    let validator = schema_validator(name);
     assert!(
         !validator.is_valid(instance),
         "{name} should reject {instance}"
     );
+}
+
+fn schema_validator(name: &str) -> jsonschema::Validator {
+    // Resolve shared schema definitions locally; validating contracts must never use the network.
+    let mut registry = jsonschema::Registry::new();
+    for file in fs::read_dir(schemas_dir()).unwrap() {
+        let path = file.unwrap().path();
+        if path.extension().is_some_and(|ext| ext == "json") {
+            let uri = format!(
+                "https://functor.test/schemas/{}",
+                path.file_name().unwrap().to_str().unwrap()
+            );
+            let schema: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+            registry = registry.add(uri, schema).unwrap();
+        }
+    }
+    let registry = registry.prepare().expect("local schemas resolve");
+    jsonschema::options()
+        .with_base_uri(format!("https://functor.test/schemas/{name}.json"))
+        .with_registry(&registry)
+        .offline()
+        .build(&load_schema(name))
+        .expect("the schema is valid")
 }

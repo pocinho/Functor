@@ -149,6 +149,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.5: CLI Projection and User Workflow
 
+**Status:** implemented. `run start/show/list/recover`, `validate --save-report`, exit 8, permission preview/terminal confirmation and cancellation now project the library APIs. [CLI contracts and walkthrough](../cli/cli-spec.md) and [implementation notes](../design/execution-and-evidence.md#implementation-notes-p15) describe the shapes and limitations. Evidence: CLI `tests/run.rs` (real subprocesses and library cross-reading), renderer golden tests for every state, explicit confirmation/cancellation adapter tests, JSON schema acceptance/rejection, and the unchanged existing validation goldens. OS console Ctrl-C delivery remains a manual check; the adapter and runtime cancellation are tested separately.
+
 **Components:** `functor-cli`, [CLI specification](../cli/cli-spec.md), [JSON schemas](../cli/schemas/), examples and walkthrough documentation.
 
 **Deliverables:**

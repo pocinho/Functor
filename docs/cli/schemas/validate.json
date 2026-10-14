@@ -21,7 +21,17 @@
         "infos": { "type": "integer", "minimum": 0 }
       }
     },
-    "findings": { "type": "array", "items": { "$ref": "#/$defs/Finding" } }
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/Finding" } },
+    "saved_report": {
+      "type": "object",
+      "required": ["id", "error"],
+      "additionalProperties": false,
+      "properties": { "id": {}, "error": {} },
+      "oneOf": [
+        { "properties": { "id": { "type": "string", "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$" }, "error": { "type": "null" } } },
+        { "properties": { "id": { "type": "null" }, "error": { "type": "string", "minLength": 1 } } }
+      ]
+    }
   },
   "$defs": {
     "Finding": {

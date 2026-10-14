@@ -22,8 +22,9 @@ pub const REPOSITORY: u8 = 5;
 pub const VALIDATION_FAILED: u8 = 6;
 /// A storage or locking failure.
 pub const STORAGE: u8 = 7;
-/// Permission to execute was not granted, or a policy refused the request. (Exit code 8 is
-/// reserved for a run that executed without succeeding and arrives with the `run` commands.)
+/// A run did not succeed, or an idempotent request returned an unfinished run.
+pub const RUN_FAILED: u8 = 8;
+/// Permission to execute was not granted, or a policy refused the request.
 pub const PERMISSION_DENIED: u8 = 9;
 
 /// The exit code of a finished validation run (`docs/design/validation-rules.md`): `unknown` and `failed`
@@ -117,9 +118,10 @@ mod tests {
                 REPOSITORY,
                 VALIDATION_FAILED,
                 STORAGE,
+                RUN_FAILED,
                 PERMISSION_DENIED
             ],
-            [0, 1, 2, 3, 4, 5, 6, 7, 9]
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         );
     }
 }

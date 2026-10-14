@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor run start",
+  "type": "object",
+  "required": ["schema_version", "run", "created", "validations"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run": { "$ref": "run-show.json#/$defs/Run" },
+    "created": { "type": "boolean" },
+    "validations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["output", "report", "saved_report", "save_error"],
+        "additionalProperties": false,
+        "properties": {
+          "output": { "$ref": "run-show.json#/$defs/Id" },
+          "report": { "$ref": "validate.json" },
+          "saved_report": { "oneOf": [{ "type": "null" }, { "$ref": "run-show.json#/$defs/Id" }] },
+          "save_error": { "type": ["string", "null"] }
+        },
+        "oneOf": [
+          { "properties": { "saved_report": { "type": "string" }, "save_error": { "type": "null" } } },
+          { "properties": { "saved_report": { "type": "null" }, "save_error": { "type": "string", "minLength": 1 } } }
+        ]
+      }
+    }
+  }
+}

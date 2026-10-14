@@ -250,6 +250,15 @@ impl RunOrchestrator {
             .recorder
             .capture(request.workflow(), CaptureRole::Workflow)
             .await?;
+        if request
+            .workflow_digest()
+            .is_some_and(|expected| expected != &captured.capture.digest)
+        {
+            return Err(FunctorError::conflict(
+                functor_model::EntityKind::Artifact,
+                "workflow changed after the execution plan was reviewed; review and grant again",
+            ));
+        }
         let workflow = parse_workflow(&captured.bytes)?;
         request.check_bindings(&workflow)?;
         let limits = request.effective_limits(&workflow);

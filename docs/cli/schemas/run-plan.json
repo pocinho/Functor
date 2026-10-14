@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor run start without an execution grant",
+  "type": "object",
+  "required": ["schema_version", "program", "args", "limits", "env_names", "network", "granted"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "program": { "type": "string", "minLength": 1 },
+    "args": { "type": "array", "items": { "type": "string" } },
+    "limits": { "$ref": "run-show.json#/$defs/Limits" },
+    "env_names": { "type": "array", "items": { "type": "string" } },
+    "network": { "const": "not_enforced" },
+    "granted": { "const": false }
+  }
+}

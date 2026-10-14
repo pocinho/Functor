@@ -1,0 +1,56 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "format!(\"exit: {}\\n{}\", out.code,\nserde_json::to_string_pretty(&document).unwrap())"
+---
+exit: 0
+{
+  "created": true,
+  "run": {
+    "args": [
+      "exit",
+      "0"
+    ],
+    "env_names": [
+      "<environment names>"
+    ],
+    "id": "art_0000000000000000000000009M",
+    "inputs": {
+      "data": "art_0000000000000000000000009H"
+    },
+    "limits": {
+      "stream_bytes": 1048576,
+      "timeout_seconds": 60
+    },
+    "network": "not_enforced",
+    "platform": "<platform>",
+    "program": {
+      "path": "<program>",
+      "sha256": "<sha256>"
+    },
+    "provider": "local-process",
+    "provider_version": "functor-runtime 0.1.0",
+    "ref": "functor:artifact:art_0000000000000000000000009M",
+    "request_id": "art_0000000000000000000000009c",
+    "result": {
+      "diagnostics": [],
+      "exit_code": 0,
+      "finished": "2026-10-12T18:00:00Z",
+      "id": "art_0000000000000000000000009S",
+      "outcome": "succeeded",
+      "outputs": [],
+      "truncated": {
+        "stderr": false,
+        "stdout": false
+      }
+    },
+    "started": "2026-10-12T18:00:00Z",
+    "state": "succeeded",
+    "streams": {
+      "stderr": [],
+      "stdout": []
+    },
+    "workflow_capture": "art_0000000000000000000000009E"
+  },
+  "schema_version": 1,
+  "validations": []
+}

@@ -189,7 +189,7 @@ pub trait EvidenceRecorder: Send + Sync {
 }
 
 pub trait ReportRecorder: Send + Sync {
-    async fn save_report(&self, report: &ValidationReport, subject: ReportSubject, strict: bool) -> Result<ArtifactId>;
+    async fn save_report(&self, report: &ValidationReport, subject: ReportSubject, strict: bool, rules: &str) -> Result<ArtifactId>;
     async fn load_report(&self, id: &ArtifactId) -> Result<Option<(ValidationReport, ReportSubject)>>;
 }
 ```
@@ -199,7 +199,7 @@ pub trait ReportRecorder: Send + Sync {
 - **Recorder.** One short critical section per method; the write lock is never held across a child. A run is complete if and only if its `run_result` exists; `record_result` refuses a second result (`Conflict`) and an inconsistent `RunFinish` (`InvalidInput`, nothing written). `RunStatus` is derived (`Running` only while a lease is held). `recover` completes orphans as `interrupted` and never reruns, publishes or deletes.
 - **Reports.** `ReportRecorder` is separate from `ValidationEngine`, which stays free of side effects.
 - **Outcome versus error.** A run that finishes badly is `Ok(RunRecord)` with its outcome; infrastructure and policy failures are `FunctorError`.
-- The orchestration that wires capture, intent, execution, publication, relationships, validation and events is P1.4; there is no `ExecutionEngine` trait.
+- `RunOrchestrator` in `functor-runtime` wires capture, intent, execution, publication, relationships, validation and events. There is no `ExecutionEngine` trait. A `RunRequest` may bind an expected workflow digest (`with_workflow_digest`) to refuse changes between a caller's permission preview and the authoritative capture.
 
 ## Implementations
 

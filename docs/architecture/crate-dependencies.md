@@ -42,7 +42,7 @@ Services are **siblings**: none depends on another, with one exception. `functor
 | `functor-events` | `functor-core`, `functor-model`, `functor-repository` | `serde`, `serde_json`, `tokio`, `notify`, `async-trait` |
 | `functor-runtime` | `functor-core`, `functor-model` | `tokio` (rt), `async-trait`, `sha2`, `toml_edit` (reads the `functor.workflow/1` format), `process-wrap` (Job Object and process-group termination, [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md)) |
 | `functor-testkit` | `functor-core`, `functor-model` | `tempfile`, `proptest` (added when first needed); `async-trait` (dev, for its own self-tests) |
-| `functor-cli` | all of the above | `clap`, `serde`, `serde_json`, `tokio` |
+| `functor-cli` | all of the above except `functor-testkit` (dev only) | `clap`, `serde`, `serde_json`, `tokio`, `sha2` (reviewed workflow and report-subject digests) |
 
 Dev-dependencies (any crate): `functor-testkit`, `proptest`, `insta`, `tempfile`; CLI tests also `assert_cmd` and `predicates`. The approved list and rules for adding crates are in [dependency-policy.md](dependency-policy.md).
 

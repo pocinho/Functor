@@ -760,6 +760,7 @@ pub struct RunRequest {
     request_id: RequestId,
     validate_outputs: bool,
     limits: ExecutionLimits,
+    workflow_digest: Option<ContentDigest>,
 }
 
 impl RunRequest {
@@ -783,6 +784,7 @@ impl RunRequest {
             request_id,
             validate_outputs: false,
             limits: ExecutionLimits::MAX,
+            workflow_digest: None,
         })
     }
 
@@ -798,6 +800,20 @@ impl RunRequest {
     pub fn with_limits(mut self, limits: ExecutionLimits) -> Self {
         self.limits = limits;
         self
+    }
+
+    /// Requires the captured workflow to match the bytes the caller reviewed before granting
+    /// execution. A changed workflow is refused before any run is recorded.
+    #[must_use]
+    pub fn with_workflow_digest(mut self, digest: ContentDigest) -> Self {
+        self.workflow_digest = Some(digest);
+        self
+    }
+
+    /// The workflow digest reviewed by the caller, if execution was preceded by a preview.
+    #[must_use]
+    pub fn workflow_digest(&self) -> Option<&ContentDigest> {
+        self.workflow_digest.as_ref()
     }
 
     /// The workflow to execute.

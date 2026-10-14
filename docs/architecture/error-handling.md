@@ -73,12 +73,14 @@ Stable across releases. New codes are only added, never reassigned.
 | 5 | Not a repository or unsupported format | `NotARepository`, `UnsupportedFormat`, `Inconsistent` |
 | 6 | Validation failed | `validate` outcome `Failed` (or `Warning` with `--strict`) |
 | 7 | Storage or locking failure | `Storage`, `Locked` |
-| 8 | A run executed but did not succeed (reserved; arrives with the `run` commands, P1.5) | run outcome other than `succeeded` |
+| 8 | A run did not succeed | `run start`: outcome other than `succeeded`, or an idempotent request returning unfinished work |
 | 9 | Permission denied | `PermissionDenied` (no execution grant or a policy refusal) |
 
 Codes 8 and 9 are the Phase 1 additions ([execution-and-evidence.md](../design/execution-and-evidence.md)); codes 0 to 7 are unchanged.
 
 `watch` exits 0 on Ctrl-C (SIGINT) or when its output pipe closes, and 7 if the event log becomes unreadable.
+
+`run start` handles Ctrl-C by cancelling and awaiting the child tree and terminal evidence, then exits 8. A failed mandatory write instead exits with its infrastructure error code. `validate --save-report` always prints its computed report; any save failure exits 7 and is separate from the validation outcome.
 
 ## Message Rules
 
@@ -96,13 +98,13 @@ hint: run `functor artifact list` to see available artifacts
 - Never print stack traces. Internal errors print `error: internal error: <message>` and ask the user to report it; the backtrace appears with `RUST_BACKTRACE=1`.
 - Messages must name the user-visible reference (slug or id), never an internal path unless the error is about that path.
 
-In `--output json` mode errors go to **stderr** as one JSON object so scripts can parse them, while stdout stays empty:
+In `--output json` mode errors go to **stderr** as one JSON object so scripts can parse them. Stdout stays empty except when a read-only execution plan or a computed validation/run report is already available:
 
 ```json
 {"error":{"code":"not_found","message":"artifact not found: rfc-0009","entity":"artifact","reference":"rfc-0009","suggestions":["rfc-0000"]},"exit_code":3}
 ```
 
-`code` is a stable snake_case value per variant: `not_found`, `conflict`, `invalid_input`, `not_a_repository`, `unsupported_format`, `inconsistent`, `locked`, `storage`, `internal`.
+`code` is a stable snake_case value per variant: `not_found`, `conflict`, `invalid_input`, `not_a_repository`, `unsupported_format`, `inconsistent`, `locked`, `storage`, `internal`, `permission_denied`, `unsupported`. Execution infrastructure errors add an optional top-level `run` id when a durable intent exists, so inspection and recovery remain possible.
 
 ## Propagation Rules
 

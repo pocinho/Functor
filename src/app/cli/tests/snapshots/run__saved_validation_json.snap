@@ -1,0 +1,21 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "serde_json::to_string_pretty(&saved).unwrap()"
+---
+{
+  "counts": {
+    "artifacts": 2,
+    "errors": 0,
+    "infos": 0,
+    "relationships": 0,
+    "warnings": 0
+  },
+  "findings": [],
+  "outcome": "passed",
+  "saved_report": {
+    "error": null,
+    "id": "art_000000000000000000000000CJ"
+  },
+  "schema_version": 1,
+  "strict": false
+}

@@ -25,7 +25,7 @@ Which third-party crates the MVP uses, where, and the rules for adding more. Ver
 | TOML read, create and in-place edit | `toml_edit` (document API, no serde) | repository, store, runtime (read-only, workflow format) |
 | Serialization framework | `serde` (derive) | events, cli (JSON output) |
 | JSON | `serde_json` | events, cli, store (evidence documents, [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md)) |
-| SHA-256 | `sha2` (RustCrypto; MIT or Apache-2.0; pure Rust with CPU-feature detection through `cpufeatures`) | store, runtime |
+| SHA-256 | `sha2` (RustCrypto; MIT or Apache-2.0; pure Rust with CPU-feature detection through `cpufeatures`) | store, runtime, cli (reviewed workflow and report-subject digests) |
 | Process-tree termination | `process-wrap` (std wrappers only; features `std`, `job-object`, `process-group`; see the vetting record below) | runtime |
 | Async trait support | `async-trait` | core and the crates implementing core traits |
 | Async runtime | `tokio` (features: `rt`; later `time`, `signal`, `io-util`, `sync` where needed; `macros` in dev-dependencies for `#[tokio::test]`) | repository, store, events, cli |

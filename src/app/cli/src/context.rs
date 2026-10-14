@@ -8,12 +8,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use functor_core::{
-    Clock, FunctorError, IdGenerator, RepositoryHandle, Result, SystemClock, UlidGenerator,
+    Clock, FunctorError, IdGenerator, RepositoryHandle, RepositoryReader, Result, SystemClock,
+    UlidGenerator,
 };
 use functor_events::{EventLogOptions, FileEventLog};
-use functor_model::RepositoryId;
+use functor_model::{Artifact, Content, RepositoryId};
 use functor_repository::{DEFAULT_LOCK_TIMEOUT, FileRepositoryManager, discover_root};
-use functor_store::{CachingStore, FileStore, StoreOptions};
+use functor_runtime::{LocalProcessProvider, RunOrchestrator};
+use functor_store::{CachingStore, EvidenceBlobs, FileEvidence, FileStore, StoreOptions};
 
 use crate::cli::OutputMode;
 use crate::events::Recorder;
@@ -27,6 +29,8 @@ pub struct Globals {
     pub output: OutputMode,
     /// `--quiet`.
     pub quiet: bool,
+    /// Include the error cause chain in terminal diagnostics.
+    pub verbose: bool,
 }
 
 /// The injected time and id sources.
@@ -146,4 +150,60 @@ pub async fn open(globals: &Globals, services: &Services) -> Result<Context> {
         store,
         recorder,
     })
+}
+
+/// The execution composition. Evidence uses an uncached store: writes made during a run must
+/// be visible immediately to validation and inspection.
+pub struct ExecutionContext {
+    pub evidence: Arc<FileEvidence>,
+    pub provider: Arc<LocalProcessProvider>,
+    pub orchestrator: RunOrchestrator,
+}
+
+/// Wires execution and report persistence over an already selected file store.
+pub async fn execution(store: FileStore, services: &Services) -> Result<ExecutionContext> {
+    let info = store.info().await?;
+    let provider = Arc::new(LocalProcessProvider::new(store.layout().root()));
+    let log = FileEventLog::new(
+        store.layout().root(),
+        *info.id(),
+        Arc::clone(&services.clock),
+        Arc::clone(&services.ids),
+        EventLogOptions::default().with_lock_timeout(lock_timeout()?),
+    );
+    let evidence = Arc::new(FileEvidence::open(
+        store,
+        Arc::clone(&services.clock),
+        Arc::clone(&services.ids),
+    ));
+    let orchestrator = RunOrchestrator::new(
+        evidence.clone(),
+        evidence.clone(),
+        provider.clone(),
+        Arc::clone(&services.clock),
+    )
+    .with_events(Arc::new(log));
+    Ok(ExecutionContext {
+        evidence,
+        provider,
+        orchestrator,
+    })
+}
+
+/// Reads content without creating a capture or otherwise mutating the repository. File reads
+/// use the same bounded, repository-confined reader as evidence capture.
+pub async fn content(evidence: &FileEvidence, artifact: &Artifact) -> Result<Option<Vec<u8>>> {
+    match artifact.content() {
+        Content::None => Ok(None),
+        Content::Inline { text, .. } => Ok(Some(text.as_bytes().to_vec())),
+        Content::Path { path, .. } => evidence.blobs().get(path).await?.map_or_else(
+            || {
+                Err(FunctorError::Inconsistent {
+                    detail: format!("content file `{path}` is missing"),
+                })
+            },
+            |bytes| Ok(Some(bytes)),
+        ),
+        _ => Err(FunctorError::unsupported("this kind of artifact content")),
+    }
 }

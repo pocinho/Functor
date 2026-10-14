@@ -577,9 +577,22 @@ pub struct ValidateDocument {
     strict: bool,
     counts: CountsDto,
     findings: Vec<FindingDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub saved_report: Option<SavedReportDto>,
+}
+
+/// Persistence is separate from the validation outcome; absent on ordinary validation.
+#[derive(Debug, Serialize)]
+pub struct SavedReportDto {
+    pub id: Option<String>,
+    pub error: Option<String>,
 }
 
 impl ValidateDocument {
+    pub fn outcome(&self) -> &'static str {
+        self.outcome
+    }
+
     /// Builds the document from a report.
     ///
     /// # Errors
@@ -602,6 +615,7 @@ impl ValidateDocument {
                 .iter()
                 .map(FindingDto::new)
                 .collect::<Result<_, _>>()?,
+            saved_report: None,
         })
     }
 }

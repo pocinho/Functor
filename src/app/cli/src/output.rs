@@ -69,6 +69,8 @@ struct ErrorBody {
 struct ErrorDocument {
     error: ErrorBody,
     exit_code: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    run: Option<String>,
 }
 
 fn error_body(error: &FunctorError) -> ErrorBody {
@@ -137,6 +139,7 @@ pub fn error_json(error: &FunctorError, exit_code: u8) -> String {
     let document = ErrorDocument {
         error: error_body(error),
         exit_code,
+        run: None,
     };
     serde_json::to_string(&document).unwrap_or_else(|_| {
         format!(
@@ -146,12 +149,51 @@ pub fn error_json(error: &FunctorError, exit_code: u8) -> String {
     })
 }
 
+/// Reports an execution infrastructure failure, retaining its durable run identity for recovery.
+pub fn report_run_failure(failure: &functor_runtime::RunFailure, globals: &Globals) -> u8 {
+    for warning in &failure.warnings {
+        eprintln!("warning: {}", crate::render::sanitize(warning));
+    }
+    let code = exit::exit_code(failure.kind());
+    if globals.output == OutputMode::Json {
+        let document = ErrorDocument {
+            error: error_body(&failure.error),
+            exit_code: code,
+            run: failure.run.map(|id| id.to_string()),
+        };
+        match serde_json::to_string(&document) {
+            Ok(json) => eprintln!("{json}"),
+            Err(error) => {
+                return report_error(
+                    &FunctorError::Internal(format!("could not render run error: {error}")),
+                    globals.output,
+                    globals.verbose,
+                );
+            }
+        }
+    } else {
+        let _ = report_error(&failure.error, globals.output, globals.verbose);
+        if let Some(id) = failure.run {
+            eprintln!(
+                "run: {id}\nhint: inspect with `functor run show {id}`; repair with `functor run recover`"
+            );
+        }
+    }
+    code
+}
+
 /// Prints an error to stderr in the requested mode and returns its exit code.
 ///
 /// With `verbose`, text mode also prints the cause chain.
 #[must_use]
 pub fn report_error(error: &FunctorError, mode: OutputMode, verbose: bool) -> u8 {
     let code = exit::exit_code(error.kind());
+    report_error_code(error, mode, verbose, code);
+    code
+}
+
+/// Reports an error with the command's policy code (a report-save failure is always exit 7).
+pub fn report_error_code(error: &FunctorError, mode: OutputMode, verbose: bool, code: u8) {
     let rendered = match mode {
         OutputMode::Text => {
             let mut text = error_text(error);
@@ -165,7 +207,6 @@ pub fn report_error(error: &FunctorError, mode: OutputMode, verbose: bool) -> u8
     };
     // Nothing useful can be done if stderr itself is closed.
     let _ = writeln!(io::stderr().lock(), "{rendered}");
-    code
 }
 
 #[cfg(test)]

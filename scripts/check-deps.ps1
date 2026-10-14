@@ -19,7 +19,7 @@ $allowed = @{
     'functor-testkit'    = @('functor-core', 'functor-model')
     'functor-runtime'    = @('functor-core', 'functor-model')
     'functor-cli'        = @('functor-model', 'functor-core', 'functor-repository', 'functor-store',
-                             'functor-query', 'functor-validation', 'functor-events')
+                             'functor-query', 'functor-validation', 'functor-events', 'functor-runtime')
 }
 
 $pure = @('serde', 'serde_json', 'toml_edit', 'tokio', 'clap', 'anyhow', 'tracing-subscriber', 'notify', 'fd-lock')

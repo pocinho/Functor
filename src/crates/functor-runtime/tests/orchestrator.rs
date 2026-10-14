@@ -682,3 +682,45 @@ async fn provenance_records_names_never_values() {
         format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
     );
 }
+
+#[tokio::test]
+async fn a_workflow_changed_after_permission_is_refused_before_recording_a_run() {
+    let fast = Fast::new().await;
+    let capture = fast
+        .evidence
+        .capture(
+            &ArtifactRef::Id(fast.workflow),
+            functor_model::CaptureRole::Workflow,
+        )
+        .await
+        .unwrap();
+    let req = request("reviewed").with_workflow_digest(capture.capture.digest);
+    let changed =
+        functor_model::ArtifactPatch::new().with_content(functor_model::Content::Inline {
+            format: functor_model::ContentFormat::new("toml").unwrap(),
+            text: format!("{WORKFLOW}\n# changed after review\n"),
+        });
+    ArtifactRepository::update(fast.store(), &fast.workflow, changed, None)
+        .await
+        .unwrap();
+    let failure = fast.run(&req, fast.grant()).await.unwrap_err();
+    assert_eq!(failure.kind(), ErrorKind::Conflict);
+    assert_eq!(failure.run, None);
+    assert_eq!(fast.provider.inner.started(), 0);
+    assert_eq!(fast.evidence.runs().await.unwrap().len(), 0);
+    let current = fast
+        .evidence
+        .capture(
+            &ArtifactRef::Id(fast.workflow),
+            functor_model::CaptureRole::Workflow,
+        )
+        .await
+        .unwrap();
+    fast.run(
+        &request("reviewed").with_workflow_digest(current.capture.digest),
+        fast.grant(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(fast.provider.inner.started(), 1);
+}
