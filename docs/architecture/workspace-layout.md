@@ -50,6 +50,7 @@ functor/
 │   │   ├── functor-query/        # snapshot query engine
 │   │   ├── functor-validation/   # rule catalog and engine
 │   │   ├── functor-events/       # event log, rotation, publisher, watcher
+│   │   ├── functor-runtime/      # local-process execution provider (Phase 1)
 │   │   └── functor-testkit/      # test doubles, conformance suite, fixtures
 │   └── app/
 │       ├── cli/                  # package functor-cli, binary "functor"
@@ -91,6 +92,7 @@ Each crate sets `[lints] workspace = true`.
 | `functor-query` | `SnapshotQueryEngine`: lookup, search, traverse | RFC-0006 |
 | `functor-validation` | Rule catalog `V0001..`, `RuleValidationEngine`, report assembly | RFC-0007 (validation half) |
 | `functor-events` | `FileEventLog`: publish, rotation and pruning, subscribe, tailing, event DTO | RFC-0017 (subset) |
+| `functor-runtime` | `LocalProcessProvider`: bounded child-process execution with tree termination (never a sandbox) | RFC-0007 (subset), ADR-0012 |
 | `functor-testkit` | `FixedClock`, `SequentialIds`, fixture builders, store conformance suite, snapshot helpers | testing support |
 | `functor-cli` | Argument parsing (clap), command handlers, rendering (text and JSON DTOs), exit-code mapping, composition root | RFC-0011 |
 

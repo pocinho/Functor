@@ -17,6 +17,7 @@ $allowed = @{
     'functor-validation' = @('functor-core', 'functor-model')
     'functor-events'     = @('functor-core', 'functor-model', 'functor-repository')
     'functor-testkit'    = @('functor-core', 'functor-model')
+    'functor-runtime'    = @('functor-core', 'functor-model')
     'functor-cli'        = @('functor-model', 'functor-core', 'functor-repository', 'functor-store',
                              'functor-query', 'functor-validation', 'functor-events')
 }
@@ -31,6 +32,7 @@ $forbiddenExternal = @{
     'functor-repository' = $library
     'functor-store'      = $library
     'functor-events'     = $library
+    'functor-runtime'    = $library
     'functor-testkit'    = $library
 }
 

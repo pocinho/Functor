@@ -53,7 +53,8 @@ Rules:
 | Outputs | 16, 16 MiB each, 64 MiB total | same |
 | Workflow content | 1 MiB | 1 MiB |
 | Lock wait (each short write) | 5 s (`FUNCTOR_LOCK_TIMEOUT`) | |
-| Kill grace after cancel/timeout | 2 s, then force | |
+| Kill grace after cancel/timeout | none: the process tree is terminated at once (Job Object termination on Windows, `SIGKILL` to the process group elsewhere) | |
+| Output drain after the tree is gone | 2 s, then the stream is cut and marked truncated | |
 
 Each row gets a boundary test at the exact limit, one byte or unit over, and one under. Truncated output is stored in the `run_result` content (stdout and stderr as separate sections) with the truncation flags; truncation is not a failure.
 
@@ -167,6 +168,21 @@ Durable evidence is implemented by `EvidenceStore` in `functor-store`, generic o
 - **Immutability.** The shared store rules refuse to update an artifact whose type and `evidence` metadata agree (`Conflict`), so both stores and the CLI inherit it; the store conformance suite pins it.
 - **Not yet done.** Staging directories for provider work (`.functor/runs/<run-id>/`) are created by the orchestrator in P1.4. Validation rules `V0020` to `V0023`, the events and the CLI are P1.4 and P1.5. The persisted rule-set identity of ADR-0015 is not recorded: the recorder does not know which engine produced a report.
 - **Dependencies.** `sha2` and `serde_json` were added to `functor-store` only (licenses, bans and sources checked with `cargo deny check licenses bans sources`).
+
+## Implementation Notes (P1.3)
+
+`LocalProcessProvider` in `functor-runtime` implements ADR-0012. How the controls are enforced and what was decided while building it:
+
+- **Not a sandbox.** The child has the caller's privileges and network. What is enforced: no shell (structured program and arguments), the granted program, a cleared environment, bounded streams and outputs, a timeout, cancellation and tree termination.
+- **Program and grant.** A bare name is looked up on the caller's `PATH` (with `PATHEXT` on Windows); a path with a separator is repository-relative and may not leave the repository, including through a link (`PermissionDenied`). The resolved absolute path must equal the granted program, otherwise `PermissionDenied` before anything is staged. A program that does not exist, or exists but cannot start, is a `start_failed` outcome, not an error. The program file is hashed (streamed) and recorded.
+- **Environment.** Cleared, then `SystemRoot`, `PATH`, `TEMP`, `TMP` (Windows) or `PATH`, `TMPDIR`, then the workflow's allowed names that the grant lists, then the workflow's literal values. `env_names` returns names only, for provenance.
+- **Staging.** `<work root>/<run id>/work` holds `inputs/<name>` and an empty `outputs/`, and is the child's working directory. It is deleted and recreated for each execution of a run id, and left in place afterwards: the orchestrator (P1.4) keeps it after a failure and removes it after publication. Inputs are verified against their captured digests before anything is staged (`InvalidInput`).
+- **Outputs.** Read only after exit status 0, from `outputs/<name>`: a missing required output, a non-regular file (directory or link), a file over 16 MiB or more than 64 MiB in total makes the run `failed` with a diagnostic and no outputs.
+- **Termination.** There is no grace period: on timeout or cancellation the whole job is terminated at once. The same termination runs after a normal exit, so a child left behind by a finished run is cleaned up. A token that is already cancelled starts nothing.
+- **Output drain.** Reader threads keep draining past the limit so the child never blocks on a full pipe. After the tree is gone the supervisor waits at most 2 s for end-of-file; because a Windows process started at the same moment can inherit a pipe's write end, a stream still open after that is cut and marked truncated.
+- **Wrapper caveat.** `process-wrap`'s `wait` and `try_wait` both consume the job's completion port, which made a first version hang under parallel load. The supervisor polls and reaps the leader process and uses the job only to terminate ([vetting record](../architecture/dependency-policy.md#vetting-record-process-wrap-adr-0012)).
+- **Test program.** `runtime-fixture` (`functor-runtime/fixture/main.rs`) is a deterministic helper built with the crate for the real-process tests; it is not part of the product.
+- **Not covered.** Network is not enforced (accepted in ADR-0012), so there is no network test. A repository-relative program that is a symbolic link out of the repository is covered by the same canonical-path check as `..`, but only `..` is tested because creating links on Windows needs a privilege. Non-Windows results are informational.
 
 ## Review Decisions
 

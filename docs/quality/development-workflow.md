@@ -13,6 +13,8 @@ How code is built, checked and merged for the Rust implementation. These are the
 - Edition 2024; resolver 3 (ADR-0004).
 - Build output goes to `out/cargo` (`.cargo/config.toml`, already configured and git-ignored via `out/`).
 
+- **Scratch directory.** Tests that start real processes (`functor-runtime`) create their repositories under `tests/scratch` at the repository root instead of the system temp directory, so a failed run can be inspected and the folder can be excluded from virus scanning (a freshly built program can take many seconds to launch the first time it is scanned). `tests/*` is git-ignored, each test removes its own directory, `FUNCTOR_TEST_DIR` overrides the location, and `scripts/ci.ps1` removes `tests/` when it finishes.
+
 ## Standard Commands
 
 ```bash

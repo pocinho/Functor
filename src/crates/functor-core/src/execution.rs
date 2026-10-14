@@ -481,6 +481,40 @@ mod tests {
     }
 
     #[test]
+    fn the_total_input_size_holds_at_the_boundary() {
+        let item = usize::try_from(bounds::MAX_ITEM_BYTES).unwrap();
+        let mut spec = plan().workflow.spec().clone();
+        spec.inputs = (0..5)
+            .map(|n| InputSpec {
+                name: format!("i{n}"),
+                required: false,
+            })
+            .collect();
+        let mut at_limit = plan();
+        at_limit.workflow = Workflow::new(spec).unwrap();
+        at_limit.inputs = (0..4)
+            .map(|n| InputPayload {
+                name: format!("i{n}"),
+                digest: digest(),
+                bytes: vec![0; item],
+            })
+            .collect();
+        at_limit.check(LOCAL_PROCESS_PROVIDER).unwrap();
+
+        let mut over = at_limit.clone();
+        over.inputs.push(InputPayload {
+            name: "i4".to_owned(),
+            digest: digest(),
+            bytes: vec![0],
+        });
+        assert_eq!(
+            over.check(LOCAL_PROCESS_PROVIDER).unwrap_err().kind(),
+            ErrorKind::InvalidInput,
+            "one byte over the total"
+        );
+    }
+
+    #[test]
     fn a_well_behaved_run_passes_the_contract_check() {
         run().check(&plan()).unwrap();
     }

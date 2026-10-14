@@ -112,6 +112,8 @@ P1.2 and P1.3 can proceed independently against P1.1 contracts/test doubles. CLI
 
 ## P1.3: Bounded Local Execution Provider
 
+**Status:** implemented (see the [P1.3 implementation notes](../design/execution-and-evidence.md#implementation-notes-p13) and the `process-wrap` [vetting record](../architecture/dependency-policy.md#vetting-record-process-wrap-adr-0012)). Evidence for the done-when criteria: `functor-runtime/tests/provider.rs` runs the shared provider conformance suite against real child processes, then each safety control at its boundary: stream limits at the limit, one under and one over; item and total output sizes at and one byte over; timeout at its threshold; grant program, environment and limits (allowed and denied); path escape; tampered inputs; cancellation, timeout and a finished run's leftovers each cleaning up a grandchild (its heartbeat stops); pre-cancelled tokens starting nothing; fresh staging per run. Fifteen consecutive full runs passed. Unsupported or unreproducible dependencies are not hidden: network is stated as not enforced.
+
 **Components:** candidate `functor-runtime` service; provider contract from P1.1; testkit and dependency-policy/check updates.
 
 **Deliverables:**
