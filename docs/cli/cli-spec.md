@@ -16,7 +16,7 @@ The exact command surface, arguments, output and exit codes of the MVP CLI. The 
 - Human friendly: concise text output, actionable error messages.
 - Agent friendly: every command has `--output json` with a stable schema.
 - Noun-verb grammar: `functor <resource> <action> [arguments] [options]`, with the verb-only exceptions `init`, `query`, `validate` and `watch`.
-- No interactive prompts in the MVP. Nothing blocks waiting for input.
+- Existing commands never prompt. `run start --grant-exec` is the deliberate Phase 1 exception: terminal stdin requires an explicit `yes`; non-terminal stdin uses the flag alone.
 
 ## Global Options
 
@@ -99,9 +99,9 @@ At least one change option is required (exit 2). Increments `revision`. The stor
 
 ### `functor relation add <SOURCE> <TYPE> <TARGET>`
 
-Create `SOURCE --TYPE--> TARGET`. `TYPE` is `depends_on`, `references`, `derived_from` or `extends` (kebab-case aliases accepted). Other well-formed names require `--allow-custom-type`. Option `--meta <key=value>` (repeatable).
+Create `SOURCE --TYPE--> TARGET`. `TYPE` is `depends_on`, `references`, `derived_from`, `extends`, `supports`, `contradicts` or `validates` (kebab-case aliases accepted; the last three are built in since [ADR-0014](../adr/ADR-0014-evidence-relationships.md)). Other well-formed names require `--allow-custom-type`. Option `--meta <key=value>` (repeatable).
 
-Errors: unknown artifact exit 3; self-reference of an acyclic type, bad type name or a type that is not built in without `--allow-custom-type`, bad `--meta` exit 2; duplicate `(source, type, target)` exit 4. The type and metadata are checked before the artifacts are looked up. Nothing is written on any error.
+Errors: unknown artifact exit 3; self-reference of an acyclic or evidence type, bad type name or a type that is not built in without `--allow-custom-type`, bad `--meta` exit 2; duplicate `(source, type, target)` exit 4. The type and metadata are checked before the artifacts are looked up. Nothing is written on any error.
 Emits `relationship.created`. Text: `added <rel id>: <source slug> <type> <target slug>`.
 
 Note: argument order is `source type target`, so `functor relation add rfc-0001 depends_on rfc-0000` means rfc-0001 depends on rfc-0000.
@@ -143,6 +143,38 @@ Validate the repository ([validation-rules.md](../design/validation-rules.md)). 
 - **`[ARTIFACT]`** takes an id, canonical reference or slug and restricts the reported findings as described in [validation-rules.md](../design/validation-rules.md#scoped-validation). An artifact that does not exist, or did not load cleanly, is exit 3.
 - `-q` does not silence the report.
 
+`--save-report` opts into an immutable `validation_report` artifact after the report is computed. Scoped reports retain the artifact id, the revision from the evaluated load, and a content digest when content exists. Repository reports identify the repository and have no subject edge. Saving never triggers another validation. The default path and its bytes are unchanged.
+
+With this flag, JSON adds `saved_report: {"id": <artifact id>, "error": null}` on success or `{"id": null, "error": <message>}` on failure. Text appends `saved_report: <id>` or `saved_report: not saved`. The computed report is printed even if saving fails; stderr describes the failure and the exit code is **7**, independently of the validation outcome. Successful saving preserves the ordinary validation exit code. `validation.completed` is unchanged; a saved report also emits `validation.recorded`.
+
+### `functor run start <WORKFLOW>`
+
+Execute the [workflow format and safety contract](../design/execution-and-evidence.md) through the same orchestrator as library callers.
+
+| Option | Description |
+|--------|-------------|
+| `--input <name>=<artifact>` (repeatable) | Bind a declared input to an artifact reference |
+| `--grant-exec` | Explicit permission to run the displayed program and environment, within the displayed limits |
+| `--timeout <seconds>` | Lower the workflow timeout (1 to 3600; cannot raise the workflow's limit) |
+| `--validate-outputs` | Structurally validate each published output and save one report per output |
+| `--request-id <id>` | Idempotency key, `[a-z0-9][a-z0-9_-]{0,63}`; omitted means a unique request |
+
+- Without `--grant-exec`, print a read-only plan to stdout (program, literal arguments, effective limits, environment **names** and `network: not_enforced`), then a permission-denied error to stderr and exit **9**. No capture, intent, child or event is created.
+- With `--grant-exec` and terminal stdin, print the plan and confirmation prompt to **stderr**, in both output modes, even with `--quiet`. Only `yes` permits execution; refusal or EOF exits 9 without writes. With non-terminal stdin the flag alone grants permission. The workflow digest is checked again after capture: a workflow changed after preview is refused with conflict (exit 4), never silently executed.
+- This is **not a sandbox**. The child has the caller's privileges and network. Do not grant execution to an untrusted workflow. No implicit shell, expansion or globbing is performed.
+- Stdout contains the recorded run and evidence references, even for child failure, timeout, cancellation or a missing executable. Exit **0** means `succeeded`; exit **8** means any other run outcome, or an idempotent request returning an unfinished run. Ctrl-C requests cancellation, waits for process-tree termination **and terminal evidence publication**, then exits 8. Infrastructure failures retain their normal error code; when an intent exists the diagnostic includes its run id and inspection/recovery hints (JSON error adds optional `run`).
+- A repeated request id returns the existing run (`created: false`), never reruns or re-emits events. It does not repeat optional output validation.
+- Output validation outcomes do not change the execution outcome. Each validation has its own report and save status. A report-save failure prints the run and report, reports the error and exits 7. An event append or successful-run staging-cleanup failure is only a warning.
+- `--quiet` does not silence run results, safety plans, confirmation prompts or diagnostics.
+
+### `functor run show <RUN>`, `run list`, `run recover`
+
+`show` accepts a run artifact's slug, id or canonical reference. It prints intent, state, captured workflow and inputs, program provenance, result/output references, truncation, diagnostics and streams. JSON streams are arrays of bytes (0 to 255), preserving binary output; terminal rendering escapes control characters. Unknown artifact: exit 3; an artifact that is not a run: exit 2.
+
+`list` prints runs ordered by id; streams are `null` to avoid loading every byte. State is `running` (lease held), `interrupted_unknown` (no owner/result), or the terminal outcome. `show` and `list` exit 0 when inspection succeeds, even for a failed run. They never write or depend on event logs.
+
+`recover` marks abandoned runs `interrupted`, repairs implied evidence relationships, and emits `run.completed` for recovered runs. It never reruns a child or takes an active run's lease. JSON lists newly recovered runs, with `streams: null`; an empty repeat succeeds with `runs: []`. Mandatory repair failures are errors, not a misleading success.
+
 ### `functor watch`
 
 Stream repository events ([event-model-mvp.md](../design/event-model-mvp.md)).
@@ -158,6 +190,8 @@ Stream repository events ([event-model-mvp.md](../design/event-model-mvp.md)).
 
 Text output, one line per event: `<seq>  <at>  <type>  <summary>`, where the summary is the slug for artifact events, `<source slug> <type> <target slug>` for `relationship.created` and the outcome for `validation.completed`. Slugs are resolved when the line is printed; an artifact that no longer resolves prints its id.
 
+Execution events use `<run slug> provider=<provider>` for `run.started` and `<run slug> <outcome>` for `run.completed`; `validation.recorded` uses `<report slug> <outcome>`. For example, `watch --from-start --type run.` selects execution events, and `watch --from-start --type validation.` selects both validation event kinds.
+
 Without `--count` and `--timeout` it runs until interrupted (exit 0). `--from-start` and `--after` are mutually exclusive. `--count` must be at least 1 and counts only events that pass the filters. `--timeout` is an **idle** timeout: it restarts every time an event arrives, so `watch --timeout 3` keeps running while events keep coming at least every 3 seconds.
 
 Behavior and errors:
@@ -167,9 +201,65 @@ Behavior and errors:
 - `watch` opens the repository (so a damaged `repository.toml` is exit 5, as for other commands) but never takes the write lock and never writes.
 - `-q` does not silence `watch`.
 
+## Execution Walkthrough (PowerShell)
+
+Requires Rust for the build and Python 3 available as `python` on `PATH`. Python is an explicitly granted external dependency here, not part of Functor; it runs without an implicit shell. Run from the source checkout, choosing a new `demo` directory. The resulting repository uses format version 1 and requires no service.
+
+```powershell
+cargo build -p functor-cli --bin functor
+$functor = (Resolve-Path .\out\cargo\debug\functor.exe).Path
+& $functor init .\demo --name Execution
+Set-Location .\demo
+
+@'
+schema = "functor.workflow/1"
+provider = "local-process"
+program = "python"
+args = ["-c", "from pathlib import Path; Path('outputs/result').write_bytes(b'out:' + Path('inputs/data').read_bytes()); print('ok')"]
+
+[inputs]
+data = { required = true }
+
+[outputs]
+result = { type = "dataset", format = "text", required = true }
+'@ | Set-Content -Encoding utf8 workflow.toml
+
+& $functor artifact create workflow --type workflow --content-path workflow.toml
+& $functor artifact create input --content-text hello
+& $functor artifact create claim --content-text "The transform prefixes its input."
+
+# Read-only preview: expected exit 9, no captures or run.
+& $functor run start workflow --input data=input
+
+# Piped stdin makes this script non-interactive; --grant-exec is still mandatory.
+# If invoked with terminal stdin instead, review the plan and type yes.
+$run = ("" | & $functor run start workflow --input data=input --grant-exec --validate-outputs -o json) | ConvertFrom-Json
+$id = $run.run.id
+$output = $run.run.result.outputs[0]
+& $functor run show $id
+& $functor run list
+& $functor artifact show $output --content
+& $functor validate $output --save-report
+& $functor relation add $output supports claim
+& $functor query relationships claim
+& $functor query dependencies $output --type derived_from --type depends_on --depth all
+& $functor query dependents input --type derived_from --type depends_on --depth all
+& $functor watch --from-start --type run. --count 2 --timeout 2
+
+# Live edits do not rewrite the first run's captured input or output.
+& $functor artifact update input --content-text changed
+& $functor artifact show $output --content
+$capture = $run.run.inputs.data
+$replay = ("" | & $functor run start workflow --input "data=$capture" --grant-exec -o json) | ConvertFrom-Json
+& $functor artifact show $replay.run.result.outputs[0] --content
+& $functor run recover
+```
+
+Both displayed outputs contain `out:hello`, although the live input now says `changed`. Repeated inspection commands run in separate processes and read the durable artifacts. Use `--request-id <stable-key>` when retries must return one existing run instead of creating a new one. Review output states and exit codes before treating a run as evidence.
+
 ## Exit Codes
 
-Defined in [error-handling.md](../architecture/error-handling.md): 0 success, 1 internal, 2 usage or input, 3 not found, 4 conflict, 5 not a repository or unsupported format, 6 validation failed, 7 storage or lock.
+Defined in [error-handling.md](../architecture/error-handling.md): 0 success, 1 internal, 2 usage or input, 3 not found, 4 conflict, 5 not a repository or unsupported format, 6 validation failed, 7 storage/lock or report-save failure, 8 run did not succeed, 9 permission denied.
 
 ## Text Output Examples (golden)
 
@@ -225,6 +315,11 @@ Finding       {"code","severity","subject":{"kind","id"|"path"},"message","relat
 | `relation list` | `{"schema_version":1,"relationships":[Relationship]}` |
 | `query dependencies`, `query dependents` | `{"schema_version":1,"start":ArtifactRef,"direction":"outbound"\|"inbound","relationship_types":[...],"max_depth":n\|null,"nodes":[{"depth","artifact":Artifact,"via":Relationship}],"edges":[Relationship]}` |
 | `query relationships` | `{"schema_version":1,"artifact":ArtifactRef,"relationships":[Relationship]}` |
+| `run start` | `{"schema_version":1,"run":Run,"created":bool,"validations":[{"output","report":Validate,"saved_report":id\|null,"save_error":string\|null}]}` ([schema](schemas/run-start.json)) |
+| `run start` without a grant | `{"schema_version":1,"program","args":[],"limits":{"timeout_seconds","stream_bytes"},"env_names":[],"network":"not_enforced","granted":false}` ([schema](schemas/run-plan.json)); error JSON is on stderr |
+| `run show` | `{"schema_version":1,"run":Run}` ([schema](schemas/run-show.json)) |
+| `run list` | `{"schema_version":1,"runs":[Run]}` ([schema](schemas/run-list.json)); streams omitted from loading, represented as `null` |
+| `run recover` | `{"schema_version":1,"runs":[Run]}` ([schema](schemas/run-recover.json)); newly recovered runs only |
 | `validate` | `{"schema_version":1,"outcome":"passed"\|"warning"\|"failed"\|"unknown","strict":bool,"counts":{"artifacts","relationships","errors","warnings","infos"},"findings":[Finding]}`; a subject is `{"kind":"repository"}`, `{"kind":"artifact"\|"relationship","id"}` or `{"kind":"file","path"}` |
 | `watch` | one event envelope per line, exactly as stored in the log |
 

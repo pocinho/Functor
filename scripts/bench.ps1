@@ -36,11 +36,14 @@ function New-Id([string]$prefix, [long]$n) {
     return $prefix + (-join $chars)
 }
 
-$root = Join-Path ([System.IO.Path]::GetTempPath()) ("functor-bench-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$scratch = Join-Path (Get-Location) 'tests\scratch'
+New-Item -ItemType Directory -Force -Path $scratch | Out-Null
+$root = Join-Path $scratch ("functor-bench-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 Push-Location $root
 try {
     & $exe init --name bench | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'benchmark repository initialization failed' }
     $stamp = '2026-10-12T18:00:00Z'
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     $t = [Diagnostics.Stopwatch]::StartNew()
@@ -143,5 +146,5 @@ try {
 }
 finally {
     Pop-Location
-    Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $root -Recurse -Force
 }

@@ -326,7 +326,7 @@ async fn v0012_custom_relationship_type_is_a_warning() {
     RelationshipRepository::create(
         &repo.store,
         NewRelationship::new(
-            RelationshipType::parse("supports").unwrap(),
+            RelationshipType::parse("related_to").unwrap(),
             *repo.alpha.id(),
             *repo.beta.id(),
         ),
@@ -466,7 +466,7 @@ async fn scoped_validation_follows_the_artifact() {
     RelationshipRepository::create(
         &repo.store,
         NewRelationship::new(
-            RelationshipType::parse("supports").unwrap(),
+            RelationshipType::parse("related_to").unwrap(),
             *repo.beta.id(),
             *repo.beta.id(),
         ),

@@ -228,7 +228,7 @@ mod tests {
         let mut warning = load();
         warning
             .relationships
-            .push(relationship(12, 1, "supports", 4));
+            .push(relationship(12, 1, "related_to", 4));
         assert_eq!(
             run(&warning, &ValidationTarget::Repository).outcome(),
             Outcome::Warning
@@ -284,7 +284,7 @@ mod tests {
         load.relationships = vec![
             relationship(11, 1, "depends_on", 99),
             relationship(10, 1, "depends_on", 98),
-            relationship(12, 98, "supports", 1),
+            relationship(12, 98, "related_to", 1),
         ];
         let report = run(&load, &ValidationTarget::Repository);
         assert_eq!(codes(&report), ["V0006", "V0007", "V0007", "V0012"]);
@@ -303,7 +303,8 @@ mod tests {
         let mut load = load();
         load.relationships
             .push(relationship(12, 1, "depends_on", 99));
-        load.relationships.push(relationship(13, 1, "supports", 2));
+        load.relationships
+            .push(relationship(13, 1, "related_to", 2));
         let first = run(&load, &ValidationTarget::Repository);
         let second = run(&load, &ValidationTarget::Repository);
         assert_eq!(first, second);
@@ -316,7 +317,8 @@ mod tests {
         // A dangling relationship touching `a`, a custom one touching only `c` and `lonely`.
         load.relationships
             .push(relationship(12, 1, "depends_on", 99));
-        load.relationships.push(relationship(13, 3, "supports", 4));
+        load.relationships
+            .push(relationship(13, 3, "related_to", 4));
         load
     }
 

@@ -12,6 +12,7 @@
 
 mod artifact_file;
 mod caching;
+mod evidence;
 mod file_store;
 mod loader;
 mod memory;
@@ -23,6 +24,10 @@ pub use artifact_file::{
     render_artifact_file,
 };
 pub use caching::CachingStore;
+pub use evidence::{
+    EvidenceBacking, EvidenceBlobs, EvidenceStore, FileBlobs, FileEvidence, Guard,
+    InMemoryEvidence, MemoryBlobs,
+};
 pub use file_store::{FileStore, StoreOptions};
 pub use memory::MemoryStore;
 pub use relationship_file::{

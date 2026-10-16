@@ -13,6 +13,8 @@ How code is built, checked and merged for the Rust implementation. These are the
 - Edition 2024; resolver 3 (ADR-0004).
 - Build output goes to `out/cargo` (`.cargo/config.toml`, already configured and git-ignored via `out/`).
 
+- **Scratch directory.** Tests that start real processes (`functor-runtime`) create their repositories under `tests/scratch` at the repository root instead of the system temp directory, so a failed run can be inspected and the folder can be excluded from virus scanning (a freshly built program can take many seconds to launch the first time it is scanned). `tests/*` is git-ignored, each test removes its own directory, `FUNCTOR_TEST_DIR` overrides the location, and `scripts/ci.ps1` removes `tests/` when it finishes.
+
 ## Standard Commands
 
 ```bash
@@ -93,4 +95,6 @@ Use the repository pull request template (`.github/pull_request_template.md`). A
 
 ## Releases
 
-Out of scope for the MVP. Every crate is `publish = false` (set workspace-wide, see [workspace-layout.md](../architecture/workspace-layout.md)); enabling publication is a deliberate decision that starts with an ADR. When releases start: tag-based release workflow, `cargo-dist` or equivalent for binaries, and a changelog from conventional commits.
+The completed Phase 0 CLI baseline and subsequent working-prototype milestones are not product releases. The first product release is eligible only after all Phases 0-7 are implemented and the [product-readiness gate](../planning/product-roadmap.md#product-readiness-gate) passes. Phase completion does not automatically authorize publication.
+
+Every crate remains `publish = false` (set workspace-wide, see [workspace-layout.md](../architecture/workspace-layout.md)); enabling publication is a separate deliberate decision that starts with an ADR. After release authorization, define a tag-based release workflow, `cargo-dist` or equivalent for binaries, and a changelog from conventional commits.

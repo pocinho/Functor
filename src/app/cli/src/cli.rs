@@ -54,6 +54,9 @@ pub enum Command {
     /// Search artifacts and navigate relationships (read-only).
     #[command(subcommand)]
     Query(QueryCommand),
+    /// Execute workflows and inspect durable execution evidence.
+    #[command(subcommand)]
+    Run(RunCommand),
     /// Check the repository for problems.
     Validate(ValidateArgs),
     /// Stream repository events.
@@ -98,6 +101,53 @@ pub struct ValidateArgs {
     /// Also fail (exit 6) when the outcome is `warning`.
     #[arg(long)]
     pub strict: bool,
+
+    /// Persist this report as an immutable artifact after validation.
+    #[arg(long)]
+    pub save_report: bool,
+}
+
+/// The `functor run` subcommands.
+#[derive(Debug, Subcommand)]
+pub enum RunCommand {
+    /// Execute a workflow with explicit permission.
+    Start(RunStartArgs),
+    /// Show a run's intent, state and terminal evidence.
+    Show {
+        /// A run artifact id, canonical reference or slug.
+        run: String,
+    },
+    /// List recorded runs and their current states.
+    List,
+    /// Mark abandoned runs interrupted and repair evidence relationships; never rerun.
+    Recover,
+}
+
+/// Arguments of `functor run start`.
+#[derive(Debug, Args)]
+pub struct RunStartArgs {
+    /// A workflow artifact id, canonical reference or slug.
+    pub workflow: String,
+
+    /// Bind an input as NAME=ARTIFACT; repeat for several.
+    #[arg(long = "input", value_name = "NAME=ARTIFACT")]
+    pub inputs: Vec<String>,
+
+    /// Permit the displayed program, limits and environment (not a sandbox).
+    #[arg(long)]
+    pub grant_exec: bool,
+
+    /// Wall-clock timeout in seconds (1 to 3600).
+    #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u32).range(1..=3600))]
+    pub timeout: Option<u32>,
+
+    /// Structurally validate each output and persist its report.
+    #[arg(long)]
+    pub validate_outputs: bool,
+
+    /// Idempotency key; omitted means a new run on every invocation.
+    #[arg(long, value_name = "ID")]
+    pub request_id: Option<String>,
 }
 
 /// Arguments of `functor init`.

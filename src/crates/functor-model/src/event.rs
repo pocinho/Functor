@@ -11,7 +11,7 @@ use crate::error::{ModelError, Result};
 use crate::id::{ArtifactId, EventId, RelationshipId, RepositoryId};
 use crate::timestamp::Timestamp;
 
-/// The event types of the MVP.
+/// The event types: the MVP set plus the Phase 1 run and validation-record events (ADR-0015).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum EventKind {
@@ -23,9 +23,26 @@ pub enum EventKind {
     RelationshipCreated,
     /// `validation.completed`
     ValidationCompleted,
+    /// `run.started`: the intent and its relationships are durable and the child is about to start.
+    RunStarted,
+    /// `run.completed`: the run's `run_result` and relationships are durable.
+    RunCompleted,
+    /// `validation.recorded`: a validation report was persisted as an artifact.
+    ValidationRecorded,
 }
 
 impl EventKind {
+    /// Every event type.
+    pub const ALL: [Self; 7] = [
+        Self::ArtifactCreated,
+        Self::ArtifactUpdated,
+        Self::RelationshipCreated,
+        Self::ValidationCompleted,
+        Self::RunStarted,
+        Self::RunCompleted,
+        Self::ValidationRecorded,
+    ];
+
     /// The dotted, hierarchical name.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -34,23 +51,21 @@ impl EventKind {
             Self::ArtifactUpdated => "artifact.updated",
             Self::RelationshipCreated => "relationship.created",
             Self::ValidationCompleted => "validation.completed",
+            Self::RunStarted => "run.started",
+            Self::RunCompleted => "run.completed",
+            Self::ValidationRecorded => "validation.recorded",
         }
     }
 
     /// Parses a dotted name.
     ///
     /// # Errors
-    /// Fails for names that are not MVP event types.
+    /// Fails for names that are not known event types.
     pub fn parse(input: &str) -> Result<Self> {
-        [
-            Self::ArtifactCreated,
-            Self::ArtifactUpdated,
-            Self::RelationshipCreated,
-            Self::ValidationCompleted,
-        ]
-        .into_iter()
-        .find(|kind| kind.as_str() == input)
-        .ok_or_else(|| ModelError::new("event type", format!("unknown event type `{input}`")))
+        Self::ALL
+            .into_iter()
+            .find(|kind| kind.as_str() == input)
+            .ok_or_else(|| ModelError::new("event type", format!("unknown event type `{input}`")))
     }
 
     /// Whether this type's name equals `prefix` or starts with it (for example `artifact.`).
@@ -227,14 +242,22 @@ mod tests {
 
     #[test]
     fn kind_names_round_trip() {
-        for kind in [
-            EventKind::ArtifactCreated,
-            EventKind::ArtifactUpdated,
-            EventKind::RelationshipCreated,
-            EventKind::ValidationCompleted,
-        ] {
+        for kind in EventKind::ALL {
             assert_eq!(EventKind::parse(kind.as_str()).unwrap(), kind);
         }
+        let names: Vec<&str> = EventKind::ALL.iter().map(|k| k.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "artifact.created",
+                "artifact.updated",
+                "relationship.created",
+                "validation.completed",
+                "run.started",
+                "run.completed",
+                "validation.recorded"
+            ]
+        );
         assert!(EventKind::parse("artifact.deleted").is_err());
         assert!(EventKind::parse("").is_err());
     }
@@ -244,6 +267,11 @@ mod tests {
         assert!(EventKind::ArtifactCreated.matches_prefix("artifact."));
         assert!(EventKind::ArtifactCreated.matches_prefix("artifact.created"));
         assert!(!EventKind::ArtifactCreated.matches_prefix("relationship."));
+        assert!(EventKind::RunStarted.matches_prefix("run."));
+        assert!(EventKind::RunCompleted.matches_prefix("run."));
+        assert!(EventKind::ValidationRecorded.matches_prefix("validation."));
+        assert!(EventKind::ValidationCompleted.matches_prefix("validation."));
+        assert!(!EventKind::RunStarted.matches_prefix("validation."));
     }
 
     #[test]

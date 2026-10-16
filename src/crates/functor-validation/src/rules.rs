@@ -4,12 +4,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use functor_core::{LoadIssue, LoadIssueKind, SnapshotLoad};
 use functor_model::{
-    Artifact, ArtifactId, Finding, Relationship, RelationshipType, RuleCode, Severity, Subject,
+    Artifact, ArtifactId, CaptureRole, ContentDigest, EvidenceKind, Finding, MetadataKey,
+    MetadataValue, Outcome, Relationship, RelationshipType, RequestId, RuleCode, RunOutcome,
+    Severity, Subject, Timestamp,
 };
 
 use crate::catalog::{
     V0001, V0002, V0003, V0004, V0005, V0006, V0007, V0008, V0009, V0010, V0011, V0012, V0013,
-    V0014, V0015, V0016, V0017, V0018, V0019, rule_info,
+    V0014, V0015, V0016, V0017, V0018, V0019, V0020, V0021, V0022, V0023, rule_info,
 };
 use crate::graph::components;
 
@@ -104,6 +106,22 @@ pub(crate) const RULES: &[Rule] = &[
     Rule {
         code: V0019,
         check: v0019,
+    },
+    Rule {
+        code: V0020,
+        check: v0020,
+    },
+    Rule {
+        code: V0021,
+        check: v0021,
+    },
+    Rule {
+        code: V0022,
+        check: v0022,
+    },
+    Rule {
+        code: V0023,
+        check: v0023,
     },
 ];
 
@@ -386,6 +404,378 @@ fn v0015(load: &SnapshotLoad) -> Output {
     }
 }
 
+// ---- rules about evidence (ADR-0013, ADR-0014, ADR-0015) ----
+//
+// Like every rule these are pure functions over the load: they check the structure of the
+// evidence records (metadata, references, one result per run) and never read evidence files, so a
+// whole-repository `validate` stays as cheap as before. Re-hashing stored bytes happens whenever
+// evidence is read (`EvidenceRecorder::read_capture` and `streams` report `Inconsistent`), and a
+// capture file that is missing is already `V0010`.
+
+fn meta_value<'a>(artifact: &'a Artifact, key: &str) -> Option<&'a MetadataValue> {
+    artifact.metadata().get(&MetadataKey::new(key).ok()?)
+}
+
+fn meta_str<'a>(artifact: &'a Artifact, key: &str) -> Option<&'a str> {
+    match meta_value(artifact, key)? {
+        MetadataValue::String(text) => Some(text),
+        _ => None,
+    }
+}
+
+fn meta_id(artifact: &Artifact, key: &str) -> Option<ArtifactId> {
+    meta_str(artifact, key)?.parse().ok()
+}
+
+fn meta_int(artifact: &Artifact, key: &str) -> Option<i64> {
+    match meta_value(artifact, key)? {
+        MetadataValue::Integer(number) => Some(*number),
+        _ => None,
+    }
+}
+
+fn meta_bool(artifact: &Artifact, key: &str) -> Option<bool> {
+    match meta_value(artifact, key)? {
+        MetadataValue::Bool(flag) => Some(*flag),
+        _ => None,
+    }
+}
+
+/// The ids in a string-list value; `None` when it is absent, not a list or holds a bad id.
+fn meta_ids(artifact: &Artifact, key: &str) -> Option<Vec<ArtifactId>> {
+    match meta_value(artifact, key)? {
+        MetadataValue::StringList(items) => items.iter().map(|item| item.parse().ok()).collect(),
+        _ => None,
+    }
+}
+
+fn evidence_of(load: &SnapshotLoad, kind: EvidenceKind) -> Vec<&Artifact> {
+    let mut found: Vec<&Artifact> = load
+        .artifacts
+        .iter()
+        .filter(|artifact| EvidenceKind::of(artifact) == Some(kind))
+        .collect();
+    found.sort_by_key(|artifact| *artifact.id());
+    found
+}
+
+/// The `run_result` artifacts of each run, ordered by id.
+fn results_by_run(load: &SnapshotLoad) -> BTreeMap<ArtifactId, Vec<&Artifact>> {
+    let mut grouped: BTreeMap<ArtifactId, Vec<&Artifact>> = BTreeMap::new();
+    for result in evidence_of(load, EvidenceKind::RunResult) {
+        if let Some(run) = meta_id(result, "run") {
+            grouped.entry(run).or_default().push(result);
+        }
+    }
+    grouped
+}
+
+fn v0020(load: &SnapshotLoad) -> Output {
+    let results = results_by_run(load);
+    let findings = evidence_of(load, EvidenceKind::Run)
+        .into_iter()
+        .filter(|run| !results.contains_key(run.id()))
+        .map(|run| {
+            finding(
+                V0020,
+                Subject::Artifact(*run.id()),
+                format!(
+                    "run `{}` has no result: it is still running or was interrupted",
+                    run.slug()
+                ),
+            )
+        })
+        .collect();
+    Output {
+        findings,
+        incomplete: false,
+    }
+}
+
+/// A problem with one evidence record and what it points at.
+type Problem = (String, Vec<Subject>);
+
+fn problem(message: impl Into<String>) -> Problem {
+    (message.into(), Vec::new())
+}
+
+fn reference_problems(
+    by_id: &BTreeMap<ArtifactId, &Artifact>,
+    owner: &str,
+    key: &str,
+    id: Option<ArtifactId>,
+    expected: Option<EvidenceKind>,
+) -> Vec<Problem> {
+    let Some(id) = id else {
+        return vec![problem(format!("`{key}` is missing or not an artifact id"))];
+    };
+    match by_id.get(&id) {
+        None => vec![(
+            format!("{owner}: `{key}` refers to {id}, which does not exist"),
+            vec![Subject::Artifact(id)],
+        )],
+        Some(target) if expected.is_some() && EvidenceKind::of(target) != expected => vec![(
+            format!(
+                "{owner}: `{key}` refers to {id}, which is not {} evidence",
+                expected.map_or("the expected", EvidenceKind::artifact_type)
+            ),
+            vec![Subject::Artifact(id)],
+        )],
+        Some(_) => Vec::new(),
+    }
+}
+
+fn capture_problems(artifact: &Artifact, by_id: &BTreeMap<ArtifactId, &Artifact>) -> Vec<Problem> {
+    let mut problems = Vec::new();
+    if meta_str(artifact, "role").is_none_or(|role| CaptureRole::parse(role).is_err()) {
+        problems.push(problem("`role` is missing or not `workflow` or `input`"));
+    }
+    if meta_str(artifact, "sha256").is_none_or(|digest| ContentDigest::new(digest).is_err()) {
+        problems.push(problem("`sha256` is missing or not a SHA-256 digest"));
+    }
+    if meta_int(artifact, "size").is_none_or(|size| size < 0) {
+        problems.push(problem("`size` is missing or negative"));
+    }
+    if meta_int(artifact, "source_revision").is_none_or(|revision| revision < 1) {
+        problems.push(problem("`source_revision` is missing or less than 1"));
+    }
+    problems.extend(reference_problems(
+        by_id,
+        "capture",
+        "source",
+        meta_id(artifact, "source"),
+        None,
+    ));
+    problems
+}
+
+fn run_problems(artifact: &Artifact, by_id: &BTreeMap<ArtifactId, &Artifact>) -> Vec<Problem> {
+    let mut problems = Vec::new();
+    if meta_str(artifact, "request_id").is_none_or(|id| RequestId::new(id).is_err()) {
+        problems.push(problem("`request_id` is missing or malformed"));
+    }
+    if meta_str(artifact, "provider").is_none_or(str::is_empty) {
+        problems.push(problem("`provider` is missing"));
+    }
+    if meta_str(artifact, "started").is_none_or(|at| at.parse::<Timestamp>().is_err()) {
+        problems.push(problem("`started` is missing or not a timestamp"));
+    }
+    problems.extend(reference_problems(
+        by_id,
+        "run",
+        "workflow_capture",
+        meta_id(artifact, "workflow_capture"),
+        Some(EvidenceKind::Capture),
+    ));
+    problems
+}
+
+fn result_problems(
+    artifact: &Artifact,
+    by_id: &BTreeMap<ArtifactId, &Artifact>,
+    results: &BTreeMap<ArtifactId, Vec<&Artifact>>,
+) -> Vec<Problem> {
+    let mut problems = Vec::new();
+    let run = meta_id(artifact, "run");
+    problems.extend(reference_problems(
+        by_id,
+        "result",
+        "run",
+        run,
+        Some(EvidenceKind::Run),
+    ));
+    if meta_str(artifact, "finished").is_none_or(|at| at.parse::<Timestamp>().is_err()) {
+        problems.push(problem("`finished` is missing or not a timestamp"));
+    }
+    let outcome = meta_str(artifact, "outcome").and_then(|text| RunOutcome::parse(text).ok());
+    if outcome.is_none() {
+        problems.push(problem("`outcome` is missing or unknown"));
+    }
+    match meta_ids(artifact, "outputs") {
+        None => problems.push(problem("`outputs` is missing or holds a malformed id")),
+        Some(outputs) => {
+            if outcome.is_some_and(|outcome| !outcome.is_success()) && !outputs.is_empty() {
+                problems.push(problem("a run that did not succeed lists outputs"));
+            }
+            for output in outputs {
+                problems.extend(reference_problems(
+                    by_id,
+                    "result",
+                    "outputs",
+                    Some(output),
+                    None,
+                ));
+            }
+        }
+    }
+    if let Some(first) = run
+        .and_then(|run| results.get(&run))
+        .and_then(|group| group.first())
+        && first.id() != artifact.id()
+    {
+        problems.push((
+            "the run already has an earlier result, so it completed more than once".to_owned(),
+            vec![Subject::Artifact(*first.id())],
+        ));
+    }
+    problems
+}
+
+fn report_problems(artifact: &Artifact, by_id: &BTreeMap<ArtifactId, &Artifact>) -> Vec<Problem> {
+    let mut problems = Vec::new();
+    if meta_str(artifact, "outcome").is_none_or(|text| Outcome::parse(text).is_err()) {
+        problems.push(problem("`outcome` is missing or unknown"));
+    }
+    if meta_str(artifact, "completed").is_none_or(|at| at.parse::<Timestamp>().is_err()) {
+        problems.push(problem("`completed` is missing or not a timestamp"));
+    }
+    if meta_bool(artifact, "strict").is_none() {
+        problems.push(problem("`strict` is missing"));
+    }
+    match meta_str(artifact, "subject") {
+        Some("repository") => {}
+        Some(text) => problems.extend(reference_problems(
+            by_id,
+            "report",
+            "subject",
+            text.parse().ok(),
+            None,
+        )),
+        None => problems.push(problem("`subject` is missing")),
+    }
+    problems
+}
+
+fn v0021(load: &SnapshotLoad) -> Output {
+    let by_id: BTreeMap<ArtifactId, &Artifact> =
+        load.artifacts.iter().map(|a| (*a.id(), a)).collect();
+    let results = results_by_run(load);
+    let mut findings = Vec::new();
+    for artifact in &load.artifacts {
+        let Some(kind) = EvidenceKind::of(artifact) else {
+            continue;
+        };
+        let problems = match kind {
+            EvidenceKind::Capture => capture_problems(artifact, &by_id),
+            EvidenceKind::Run => run_problems(artifact, &by_id),
+            EvidenceKind::RunResult => result_problems(artifact, &by_id, &results),
+            EvidenceKind::ValidationReport => report_problems(artifact, &by_id),
+            _ => Vec::new(),
+        };
+        for (message, related) in problems {
+            findings.push(
+                finding(
+                    V0021,
+                    Subject::Artifact(*artifact.id()),
+                    format!("{kind} `{}`: {message}", artifact.slug()),
+                )
+                .with_related(related),
+            );
+        }
+    }
+    Output {
+        findings,
+        incomplete: false,
+    }
+}
+
+fn v0022(load: &SnapshotLoad) -> Output {
+    let by_id: BTreeMap<ArtifactId, &Artifact> =
+        load.artifacts.iter().map(|a| (*a.id(), a)).collect();
+    let is_run = |id: &ArtifactId| {
+        by_id
+            .get(id)
+            .is_some_and(|a| EvidenceKind::of(a) == Some(EvidenceKind::Run))
+    };
+
+    let used: BTreeSet<ArtifactId> = load
+        .relationships
+        .iter()
+        .filter(|r| *r.relationship_type() == RelationshipType::DependsOn && is_run(r.source()))
+        .map(|r| *r.target())
+        .collect();
+    let mut findings: Vec<Finding> = evidence_of(load, EvidenceKind::Capture)
+        .into_iter()
+        .filter(|capture| !used.contains(capture.id()))
+        .map(|capture| {
+            finding(
+                V0022,
+                Subject::Artifact(*capture.id()),
+                format!("capture `{}` is not used by any run", capture.slug()),
+            )
+        })
+        .collect();
+
+    let published: BTreeSet<ArtifactId> = evidence_of(load, EvidenceKind::RunResult)
+        .into_iter()
+        .filter_map(|result| meta_ids(result, "outputs"))
+        .flatten()
+        .collect();
+    let mut outputs: Vec<&Artifact> = load
+        .artifacts
+        .iter()
+        .filter(|a| {
+            EvidenceKind::of(a).is_none()
+                && meta_str(a, "output").is_some()
+                && meta_id(a, "run").is_some_and(|run| is_run(&run))
+                && !published.contains(a.id())
+        })
+        .collect();
+    outputs.sort_by_key(|a| *a.id());
+    findings.extend(outputs.into_iter().map(|output| {
+        finding(
+            V0022,
+            Subject::Artifact(*output.id()),
+            format!(
+                "output `{}` was not published by a completed run",
+                output.slug()
+            ),
+        )
+    }));
+    Output {
+        findings,
+        incomplete: false,
+    }
+}
+
+/// One finding per `(source, target)` pair that has both `supports` and `contradicts`, about the
+/// lowest-numbered `supports` relationship and relating the `contradicts` ones.
+fn v0023(load: &SnapshotLoad) -> Output {
+    type Pair = (ArtifactId, ArtifactId);
+    let mut supports: BTreeMap<Pair, Vec<&Relationship>> = BTreeMap::new();
+    let mut contradicts: BTreeMap<Pair, Vec<&Relationship>> = BTreeMap::new();
+    for relationship in &load.relationships {
+        let pair = (*relationship.source(), *relationship.target());
+        match relationship.relationship_type() {
+            RelationshipType::Supports => supports.entry(pair).or_default().push(relationship),
+            RelationshipType::Contradicts => {
+                contradicts.entry(pair).or_default().push(relationship);
+            }
+            _ => {}
+        }
+    }
+    let mut findings = Vec::new();
+    for (pair, mut support) in supports {
+        let Some(mut against) = contradicts.remove(&pair) else {
+            continue;
+        };
+        support.sort_by_key(|r| *r.id());
+        against.sort_by_key(|r| *r.id());
+        findings.push(
+            finding(
+                V0023,
+                Subject::Relationship(*support[0].id()),
+                format!("{} both supports and contradicts {}", pair.0, pair.1),
+            )
+            .with_related(against.iter().map(|r| Subject::Relationship(*r.id()))),
+        );
+    }
+    Output {
+        findings,
+        incomplete: false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use functor_model::{
@@ -503,7 +893,8 @@ mod tests {
         .into_iter()
         .map(|kind| issue(kind, "artifacts/x.toml"))
         .collect();
-        load.relationships.push(relationship(11, 2, "supports", 1));
+        load.relationships
+            .push(relationship(11, 2, "related_to", 1));
         for rule in RULES {
             let expected = rule_info(rule.code).unwrap().severity;
             for finding in (rule.check)(&load).findings {
@@ -701,8 +1092,8 @@ mod tests {
         assert_eq!(fired(&load), Vec::<&str>::new());
         let mut custom = clean();
         custom.relationships = vec![
-            relationship(10, 2, "supports", 1),
-            relationship(11, 1, "supports", 2),
+            relationship(10, 2, "related_to", 1),
+            relationship(11, 1, "related_to", 2),
         ];
         assert_eq!(fired(&custom), ["V0012", "V0012"]);
     }
@@ -720,10 +1111,21 @@ mod tests {
     #[test]
     fn v0012_custom_relationship_type() {
         let mut load = clean();
-        load.relationships = vec![relationship(10, 2, "supports", 1)];
+        load.relationships = vec![relationship(10, 2, "related_to", 1)];
         assert_eq!(fired(&load), ["V0012"]);
         let found = (RULES[11].check)(&load).findings;
-        assert_eq!(found[0].message, "custom relationship type `supports`");
+        assert_eq!(found[0].message, "custom relationship type `related_to`");
+    }
+
+    #[test]
+    fn v0012_does_not_fire_for_evidence_types() {
+        let mut load = clean();
+        load.relationships = vec![
+            relationship(10, 2, "supports", 1),
+            relationship(11, 2, "contradicts", 1),
+            relationship(12, 2, "validates", 1),
+        ];
+        assert!(fired(&load).iter().all(|code| *code != "V0012"));
     }
 
     #[test]
@@ -851,5 +1253,371 @@ mod tests {
             ".functor/repository.toml",
         ));
         assert_eq!(fired(&load), ["V0001"]);
+    }
+
+    // ---- evidence rules V0020 to V0023 ----
+
+    /// An evidence artifact of `kind` with the given metadata.
+    fn evidence(bits: u128, kind: EvidenceKind, pairs: &[(&str, MetadataValue)]) -> Artifact {
+        let mut metadata = functor_model::Metadata::new();
+        metadata.insert(
+            MetadataKey::new(functor_model::EVIDENCE_KEY).unwrap(),
+            MetadataValue::from(kind.schema()),
+        );
+        for (key, value) in pairs {
+            metadata.insert(MetadataKey::new(key).unwrap(), value.clone());
+        }
+        Artifact::create(
+            ArtifactId::from_bits(bits),
+            functor_model::NewArtifact::new(
+                functor_model::Slug::parse(&format!("{}{bits}", kind.slug_prefix())).unwrap(),
+                kind.to_artifact_type(),
+                functor_model::Title::new("evidence").unwrap(),
+            )
+            .with_metadata(metadata),
+            at(),
+        )
+    }
+
+    fn id(bits: u128) -> MetadataValue {
+        MetadataValue::from(ArtifactId::from_bits(bits).to_string())
+    }
+
+    fn digest() -> MetadataValue {
+        MetadataValue::from(ContentDigest::from_bytes([7; 32]).to_string())
+    }
+
+    fn capture(bits: u128, source: u128, role: &str) -> Artifact {
+        evidence(
+            bits,
+            EvidenceKind::Capture,
+            &[
+                ("role", role.into()),
+                ("source", id(source)),
+                ("source_revision", 1_i64.into()),
+                ("sha256", digest()),
+                ("size", 5_i64.into()),
+            ],
+        )
+    }
+
+    fn run(bits: u128, workflow_capture: u128) -> Artifact {
+        evidence(
+            bits,
+            EvidenceKind::Run,
+            &[
+                ("provider", "local-process".into()),
+                ("workflow_capture", id(workflow_capture)),
+                ("request_id", "req-1".into()),
+                ("started", "2026-10-12T18:00:00Z".into()),
+            ],
+        )
+    }
+
+    fn result(bits: u128, run: u128, outcome: &str, outputs: &[u128]) -> Artifact {
+        evidence(
+            bits,
+            EvidenceKind::RunResult,
+            &[
+                ("run", id(run)),
+                ("outcome", outcome.into()),
+                ("finished", "2026-10-12T18:00:05Z".into()),
+                (
+                    "outputs",
+                    MetadataValue::from(
+                        outputs
+                            .iter()
+                            .map(|o| ArtifactId::from_bits(*o).to_string())
+                            .collect::<Vec<_>>(),
+                    ),
+                ),
+            ],
+        )
+    }
+
+    fn depends(bits: u128, run: u128, capture: u128) -> Relationship {
+        relationship(bits, run, "depends_on", capture)
+    }
+
+    /// Source 1, workflow capture 2, input capture 3, run 4 and its successful result 5 with
+    /// output 6: a healthy run with no findings.
+    fn healthy_run() -> SnapshotLoad {
+        let mut output = artifact(6, "out");
+        let mut metadata = functor_model::Metadata::new();
+        metadata.insert(MetadataKey::new("run").unwrap(), id(4));
+        metadata.insert(MetadataKey::new("output").unwrap(), "result".into());
+        output = Artifact::create(
+            *output.id(),
+            functor_model::NewArtifact::new(
+                output.slug().clone(),
+                ArtifactType::document(),
+                output.title().clone(),
+            )
+            .with_metadata(metadata),
+            at(),
+        );
+        SnapshotLoad {
+            info: Ok(info()),
+            artifacts: vec![
+                artifact(1, "source"),
+                capture(2, 1, "workflow"),
+                capture(3, 1, "input"),
+                run(4, 2),
+                result(5, 4, "succeeded", &[6]),
+                output,
+            ],
+            relationships: vec![
+                depends(10, 4, 2),
+                depends(11, 4, 3),
+                relationship(12, 5, "derived_from", 4),
+                relationship(13, 6, "derived_from", 5),
+                relationship(14, 2, "derived_from", 1),
+                relationship(15, 3, "derived_from", 1),
+            ],
+            issues: Vec::new(),
+        }
+    }
+
+    fn replace(load: &mut SnapshotLoad, bits: u128, with: Artifact) {
+        let slot = load
+            .artifacts
+            .iter_mut()
+            .find(|a| *a.id() == ArtifactId::from_bits(bits))
+            .unwrap();
+        *slot = with;
+    }
+
+    fn remove(load: &mut SnapshotLoad, bits: u128) {
+        load.artifacts
+            .retain(|a| *a.id() != ArtifactId::from_bits(bits));
+    }
+
+    #[test]
+    fn a_healthy_run_triggers_no_rule() {
+        assert_eq!(fired(&healthy_run()), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn evidence_rules_ignore_ordinary_artifacts_that_borrow_evidence_type_names() {
+        let mut load = clean();
+        load.artifacts.push(Artifact::create(
+            ArtifactId::from_bits(7),
+            functor_model::NewArtifact::new(
+                functor_model::Slug::parse("a-run").unwrap(),
+                EvidenceKind::Run.to_artifact_type(),
+                functor_model::Title::new("just named run").unwrap(),
+            ),
+            at(),
+        ));
+        assert_eq!(fired(&load), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn v0020_a_run_without_a_result() {
+        let mut load = healthy_run();
+        remove(&mut load, 5);
+        let codes = fired(&load);
+        assert!(codes.contains(&"V0020"), "{codes:?}");
+        let found = (RULES[19].check)(&load).findings;
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0].subject,
+            Subject::Artifact(ArtifactId::from_bits(4))
+        );
+        assert!(
+            found[0]
+                .message
+                .contains("still running or was interrupted")
+        );
+    }
+
+    #[test]
+    fn v0020_does_not_fire_for_a_completed_run() {
+        assert_eq!((RULES[19].check)(&healthy_run()).findings.len(), 0);
+    }
+
+    #[test]
+    fn v0021_damaged_evidence_metadata_is_an_error() {
+        for (name, bits, broken) in [
+            ("capture role", 2, capture(2, 1, "other")),
+            (
+                "capture digest",
+                2,
+                evidence(
+                    2,
+                    EvidenceKind::Capture,
+                    &[
+                        ("role", "workflow".into()),
+                        ("source", id(1)),
+                        ("source_revision", 1_i64.into()),
+                        ("sha256", "sha256:nothex".into()),
+                        ("size", 5_i64.into()),
+                    ],
+                ),
+            ),
+            ("capture source", 2, capture(2, 99, "workflow")),
+            ("run workflow capture", 4, run(4, 1)),
+            ("run workflow capture missing", 4, run(4, 99)),
+            ("result outcome", 5, result(5, 4, "exploded", &[6])),
+            ("result output missing", 5, result(5, 4, "succeeded", &[99])),
+            (
+                "result lists outputs on failure",
+                5,
+                result(5, 4, "failed", &[6]),
+            ),
+            ("result run missing", 5, result(5, 99, "succeeded", &[6])),
+        ] {
+            let mut load = healthy_run();
+            replace(&mut load, bits, broken);
+            let found = (RULES[20].check)(&load).findings;
+            assert!(!found.is_empty(), "{name}: nothing reported");
+            assert!(
+                found.iter().all(|f| f.severity == Severity::Error),
+                "{name}"
+            );
+            assert!(
+                found
+                    .iter()
+                    .any(|f| f.subject == Subject::Artifact(ArtifactId::from_bits(bits))),
+                "{name}: wrong subject"
+            );
+        }
+    }
+
+    #[test]
+    fn v0021_a_run_completed_twice_is_reported_on_the_later_result() {
+        let mut load = healthy_run();
+        load.artifacts.push(result(7, 4, "cancelled", &[]));
+        let found = (RULES[20].check)(&load).findings;
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(
+            found[0].subject,
+            Subject::Artifact(ArtifactId::from_bits(7))
+        );
+        assert_eq!(
+            found[0].related,
+            [Subject::Artifact(ArtifactId::from_bits(5))]
+        );
+    }
+
+    #[test]
+    fn v0021_reports_are_checked_for_their_subject() {
+        let report = |subject: MetadataValue| {
+            evidence(
+                8,
+                EvidenceKind::ValidationReport,
+                &[
+                    ("outcome", "passed".into()),
+                    ("completed", "2026-10-12T18:00:00Z".into()),
+                    ("strict", false.into()),
+                    ("subject", subject),
+                ],
+            )
+        };
+        let mut ok = healthy_run();
+        ok.artifacts.push(report("repository".into()));
+        ok.artifacts.push(evidence(
+            9,
+            EvidenceKind::ValidationReport,
+            &[
+                ("outcome", "passed".into()),
+                ("completed", "2026-10-12T18:00:00Z".into()),
+                ("strict", false.into()),
+                ("subject", id(6)),
+            ],
+        ));
+        ok.relationships.push(relationship(16, 9, "validates", 6));
+        assert_eq!((RULES[20].check)(&ok).findings.len(), 0);
+
+        let mut bad = healthy_run();
+        bad.artifacts.push(report(id(99)));
+        assert_eq!((RULES[20].check)(&bad).findings.len(), 1);
+    }
+
+    #[test]
+    fn v0022_orphan_captures_and_outputs() {
+        let mut load = healthy_run();
+        load.relationships
+            .retain(|r| *r.id() != RelationshipId::from_bits(11));
+        let found = (RULES[21].check)(&load).findings;
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0].subject,
+            Subject::Artifact(ArtifactId::from_bits(3))
+        );
+
+        // An output no completed run lists.
+        let mut load = healthy_run();
+        replace(&mut load, 5, result(5, 4, "succeeded", &[]));
+        let found = (RULES[21].check)(&load).findings;
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0].subject,
+            Subject::Artifact(ArtifactId::from_bits(6))
+        );
+        assert!(found[0].message.contains("was not published"));
+    }
+
+    #[test]
+    fn v0022_does_not_fire_for_a_healthy_run_or_for_plain_metadata() {
+        assert_eq!((RULES[21].check)(&healthy_run()).findings.len(), 0);
+        // An artifact that merely uses the metadata keys `output` and `run` is not an output.
+        let mut load = healthy_run();
+        let mut metadata = functor_model::Metadata::new();
+        metadata.insert(MetadataKey::new("run").unwrap(), "not an id".into());
+        metadata.insert(MetadataKey::new("output").unwrap(), "x".into());
+        load.artifacts.push(Artifact::create(
+            ArtifactId::from_bits(7),
+            functor_model::NewArtifact::new(
+                functor_model::Slug::parse("plain").unwrap(),
+                ArtifactType::document(),
+                functor_model::Title::new("plain").unwrap(),
+            )
+            .with_metadata(metadata),
+            at(),
+        ));
+        assert_eq!((RULES[21].check)(&load).findings.len(), 0);
+    }
+
+    #[test]
+    fn v0023_a_source_that_supports_and_contradicts_the_same_target() {
+        let mut load = clean();
+        load.relationships = vec![
+            relationship(10, 2, "supports", 1),
+            relationship(11, 2, "contradicts", 1),
+        ];
+        assert_eq!(fired(&load), ["V0023"]);
+        let found = (RULES[22].check)(&load).findings;
+        assert_eq!(
+            found[0].subject,
+            Subject::Relationship(RelationshipId::from_bits(10))
+        );
+        assert_eq!(
+            found[0].related,
+            [Subject::Relationship(RelationshipId::from_bits(11))]
+        );
+    }
+
+    #[test]
+    fn v0023_does_not_fire_for_opposite_directions_or_different_targets() {
+        let mut load = clean();
+        load.artifacts.push(artifact(3, "c"));
+        load.relationships = vec![
+            relationship(10, 2, "supports", 1),
+            relationship(11, 1, "contradicts", 2),
+            relationship(12, 2, "contradicts", 3),
+        ];
+        assert_eq!(fired(&load), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn evidence_rule_output_is_deterministic() {
+        let mut load = healthy_run();
+        remove(&mut load, 5);
+        load.relationships = vec![
+            relationship(10, 2, "supports", 1),
+            relationship(11, 2, "contradicts", 1),
+        ];
+        assert_eq!(fired(&load), fired(&load));
     }
 }

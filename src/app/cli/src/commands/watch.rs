@@ -137,6 +137,20 @@ async fn text_line(
         (EventKind::ValidationCompleted, _) => {
             sanitize(text_field(event, "outcome").unwrap_or("?"))
         }
+        (EventKind::RunStarted, EventSubject::Artifact(id)) => {
+            format!(
+                "{} provider={}",
+                slugs.label(repository, id).await,
+                sanitize(text_field(event, "provider").unwrap_or("?"))
+            )
+        }
+        (EventKind::RunCompleted | EventKind::ValidationRecorded, EventSubject::Artifact(id)) => {
+            format!(
+                "{} {}",
+                slugs.label(repository, id).await,
+                sanitize(text_field(event, "outcome").unwrap_or("?"))
+            )
+        }
         (_, EventSubject::Artifact(id)) => slugs.label(repository, id).await,
         (_, other) => other.canonical(),
     };

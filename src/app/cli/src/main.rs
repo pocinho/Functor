@@ -18,19 +18,21 @@ mod exit;
 mod output;
 mod render;
 mod resolve;
+mod run_render;
 #[cfg(feature = "test-support")]
 mod test_support;
 
 use cli::{Cli, Command};
 use context::{Globals, Services};
 
-/// Runs the command and returns the process exit code of a successful run: 0 for every command
-/// except `validate`, whose code depends on the outcome.
+/// Runs a command and returns its policy exit code. Validation/run outcomes are result data;
+/// infrastructure failures are errors.
 async fn run(cli: Cli) -> Result<u8, FunctorError> {
     let globals = Globals {
         repo: cli.repo,
         output: cli.output,
         quiet: cli.quiet,
+        verbose: cli.verbose,
     };
     let services = Services::from_environment()?;
     match cli.command {
@@ -49,6 +51,9 @@ async fn run(cli: Cli) -> Result<u8, FunctorError> {
         }
         Command::Validate(args) => {
             return commands::validate::run(args, &globals, &services).await;
+        }
+        Command::Run(command) => {
+            return commands::run::run(command, &globals, &services).await;
         }
         Command::Watch(args) => {
             let context = context::open(&globals, &services).await?;

@@ -120,6 +120,25 @@ When two files claim the same id, the loader keeps the one with the lexicographi
 
 Owned by `functor-events`, which depends on `functor-repository` for the log paths and the write lock. The event log uses the same lock as state writes for sequence assignment, size-based rotation and pruning (10 MiB, 10 archives, [ADR-0008](../adr/ADR-0008-event-log-rotation.md)) and an append-only write of exactly one line per event. Details in [event-model-mvp.md](event-model-mvp.md).
 
+## Evidence Persistence (Phase 1)
+
+Owned by `functor-store` (`EvidenceStore`), with the layout and the lease lock in `functor-repository`. Decisions: [ADR-0013](../adr/ADR-0013-run-lifecycle-and-evidence-persistence.md), [ADR-0016](../adr/ADR-0016-evidence-files-and-repair.md); contract: [execution-and-evidence.md](execution-and-evidence.md).
+
+Evidence reuses the entity write protocol above instead of adding a transaction. Each step is one atomic entity or file write under the normal short write lock; a run is complete if and only if its `run_result` artifact exists.
+
+| Order | Write | A crash or failure here leaves |
+|-------|-------|--------------------------------|
+| 1 | capture file (`content/evidence/captures/<hex>`), then the `capture` artifact, then its `derived_from` edge | an unreferenced file, or a capture without its edge |
+| 2 | under the request lock: the `run` artifact (intent, inline JSON), then its `depends_on` edges | a run without edges; the request id is already taken |
+| 3 | the per-run lease (`.functor/runs/<run-id>.lock`), held while the child runs | nothing; the lease dies with the process |
+| 4 | stream files, output files and output artifacts | orphan files and artifacts; the run is still incomplete |
+| 5 | the result document, then the `run_result` artifact (**commit point**) | before it: an incomplete run; after it: a complete run |
+| 6 | the result and output `derived_from` edges | a complete run with missing edges |
+
+`recover` completes runs whose lease nobody holds as `interrupted` (never rerunning, never publishing outputs, never deleting) and recreates any edge the records imply. Content files are content-addressed, so rewriting the same bytes is a no-op and a damaged file is repaired by the next write of the same content. Reading verifies digests: a missing or altered file is `Inconsistent` and names the path. Evidence artifacts are immutable: the shared store rules refuse `update` of an artifact whose type and `evidence` metadata agree.
+
+Failure injection at every one of these writes is tested in `functor-store` (`a_failure_at_every_write_never_reports_a_false_success_and_always_recovers`).
+
 ## Deferred
 
 Version history and snapshots (RFC-0016), pluggable backends (SQLite, git objects, remote), on-disk indexes, repository export and import, packaging, content-addressable storage, and migration tooling.

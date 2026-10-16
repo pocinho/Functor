@@ -5,5 +5,6 @@ pub mod artifact;
 pub mod init;
 pub mod query;
 pub mod relation;
+pub mod run;
 pub mod validate;
 pub mod watch;

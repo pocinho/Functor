@@ -1,0 +1,38 @@
+{
+  "measured_utc": "2026-10-14T17:39:25.8398115Z",
+  "os": "Microsoft Windows 10.0.26300",
+  "architecture": "X64",
+  "powershell": "7.6.6",
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "profile": "release",
+  "samples_after_warmup": 5,
+  "policy": "informational; direct child duration reported separately; no latency threshold",
+  "noop": {
+    "end_to_end_median_ms": 135.53,
+    "overhead_estimate_ms": 105.59,
+    "direct_child_median_ms": 29.94
+  },
+  "echo": {
+    "end_to_end_median_ms": 342.6,
+    "input_bytes": 1048576,
+    "overhead_estimate_ms": 312.21,
+    "output_bytes": 1048580,
+    "direct_child_median_ms": 30.39
+  },
+  "peak_cli_working_set_bytes": 15962112.0,
+  "storage": {
+    "all_capture_bytes": 1049357.0,
+    "captured_payload_files": 1,
+    "all_evidence_bytes": 3156189.0,
+    "deterministic_replay_and_deduplication": "passed",
+    "captured_payload_bytes": 1048576.0,
+    "all_evidence_files": 26
+  },
+  "limits": {
+    "timeout_end_to_end_ms": 1248.44,
+    "timeout": "60 second child interrupted at a 1 second limit",
+    "boundary_suite": "cargo test -p functor-runtime --test provider (exact and over item/total caps, timeout, streams, cancellation and tree cleanup)",
+    "streams": "1048577 bytes per stream produced; 1048576 retained, both marked truncated",
+    "output": "16777217 byte output refused; no outputs published"
+  }
+}

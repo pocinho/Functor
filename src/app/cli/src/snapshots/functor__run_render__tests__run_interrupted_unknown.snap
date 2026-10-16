@@ -1,0 +1,46 @@
+---
+source: src/app/cli/src/run_render.rs
+expression: "format!(\"--- text ---\\n{}\\n--- json ---\\n{}\", run.text(),\nserde_json::to_string_pretty(&run).unwrap())"
+---
+--- text ---
+run: art_00000000000000000000000001
+state: interrupted_unknown
+request_id: fixture-request
+provider: local-process (test)
+workflow_capture: art_00000000000000000000000002
+program: tool
+args: []
+timeout: 60 s; streams: 1048576 bytes each
+network: not_enforced (not a sandbox)
+environment names: 
+platform: test
+started: 2026-10-12T18:00:00Z
+input data: art_00000000000000000000000003
+--- json ---
+{
+  "id": "art_00000000000000000000000001",
+  "ref": "functor:artifact:art_00000000000000000000000001",
+  "state": "interrupted_unknown",
+  "request_id": "fixture-request",
+  "provider": "local-process",
+  "provider_version": "test",
+  "workflow_capture": "art_00000000000000000000000002",
+  "inputs": {
+    "data": "art_00000000000000000000000003"
+  },
+  "args": [],
+  "limits": {
+    "timeout_seconds": 60,
+    "stream_bytes": 1048576
+  },
+  "env_names": [],
+  "program": {
+    "path": "tool",
+    "sha256": null
+  },
+  "platform": "test",
+  "network": "not_enforced",
+  "started": "2026-10-12T18:00:00Z",
+  "result": null,
+  "streams": null
+}

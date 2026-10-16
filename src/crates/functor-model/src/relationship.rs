@@ -11,7 +11,15 @@ use crate::grammar::{check_name, is_lower, is_lower_digit_underscore};
 use crate::id::{ArtifactId, RelationshipId};
 use crate::timestamp::Timestamp;
 
-const BUILT_INS: [&str; 4] = ["depends_on", "references", "derived_from", "extends"];
+const BUILT_INS: [&str; 7] = [
+    "depends_on",
+    "references",
+    "derived_from",
+    "extends",
+    "supports",
+    "contradicts",
+    "validates",
+];
 
 /// The name of a custom relationship type: `[a-z][a-z0-9_]{0,63}`, never a built-in name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -59,6 +67,12 @@ pub enum RelationshipType {
     DerivedFrom,
     /// The source extends or specializes the target.
     Extends,
+    /// The source is evidence supporting the target claim (ADR-0014).
+    Supports,
+    /// The source is evidence contradicting the target claim (ADR-0014).
+    Contradicts,
+    /// The source, a validation report, evaluated the target (ADR-0014).
+    Validates,
     /// Any other well-formed type; flagged by validation (`V0012`).
     Custom(RelationshipTypeName),
 }
@@ -66,7 +80,9 @@ pub enum RelationshipType {
 impl RelationshipType {
     /// Parses a type name in `snake_case` or `kebab-case`; both spellings normalize to `snake_case`.
     ///
-    /// Built-in names always yield the built-in variant, never `Custom`.
+    /// Built-in names always yield the built-in variant, never `Custom`. Names that were custom
+    /// before ADR-0014 (`supports`, `contradicts`, `validates`) now parse as built-ins, so stored
+    /// files need no change.
     ///
     /// # Errors
     /// Fails when the normalized name violates the custom-type grammar.
@@ -77,6 +93,9 @@ impl RelationshipType {
             "references" => Self::References,
             "derived_from" => Self::DerivedFrom,
             "extends" => Self::Extends,
+            "supports" => Self::Supports,
+            "contradicts" => Self::Contradicts,
+            "validates" => Self::Validates,
             other => Self::Custom(RelationshipTypeName::new(other)?),
         })
     }
@@ -89,6 +108,9 @@ impl RelationshipType {
             Self::References => "references",
             Self::DerivedFrom => "derived_from",
             Self::Extends => "extends",
+            Self::Supports => "supports",
+            Self::Contradicts => "contradicts",
+            Self::Validates => "validates",
             Self::Custom(name) => name.as_str(),
         }
     }
@@ -103,6 +125,19 @@ impl RelationshipType {
     #[must_use]
     pub fn is_acyclic(&self) -> bool {
         matches!(self, Self::DependsOn | Self::DerivedFrom | Self::Extends)
+    }
+
+    /// Whether an edge from an artifact to itself is invalid: the acyclic types and the evidence
+    /// assertions `supports`, `contradicts` and `validates` (ADR-0014).
+    #[must_use]
+    pub fn rejects_self_reference(&self) -> bool {
+        self.is_acyclic() || self.is_evidence()
+    }
+
+    /// Whether this is an evidence assertion type: `supports`, `contradicts` or `validates`.
+    #[must_use]
+    pub fn is_evidence(&self) -> bool {
+        matches!(self, Self::Supports | Self::Contradicts | Self::Validates)
     }
 }
 
@@ -172,13 +207,13 @@ impl NewRelationship {
 }
 
 impl Relationship {
-    /// Creates a relationship, rejecting self-reference for acyclic types.
+    /// Creates a relationship, rejecting self-reference for acyclic and evidence types.
     ///
     /// Existence of the endpoints is not checked here; repositories check it on creation and
     /// validation checks it for existing data.
     ///
     /// # Errors
-    /// Fails when `source == target` and the type must be acyclic.
+    /// Fails when `source == target` and the type rejects self-reference.
     pub fn create(id: RelationshipId, new: NewRelationship, now: Timestamp) -> Result<Self> {
         Self::from_parts(
             id,
@@ -193,7 +228,7 @@ impl Relationship {
     /// Reconstitutes a relationship from stored parts, applying the same self-reference rule.
     ///
     /// # Errors
-    /// Fails when `source == target` and the type must be acyclic.
+    /// Fails when `source == target` and the type rejects self-reference.
     pub fn from_parts(
         id: RelationshipId,
         relationship_type: RelationshipType,
@@ -202,7 +237,7 @@ impl Relationship {
         created: Timestamp,
         metadata: Metadata,
     ) -> Result<Self> {
-        if source == target && relationship_type.is_acyclic() {
+        if source == target && relationship_type.rejects_self_reference() {
             return Err(ModelError::new(
                 "target",
                 format!("a `{relationship_type}` relationship cannot point to its own source"),
@@ -268,6 +303,9 @@ mod tests {
             ("derived_from", RelationshipType::DerivedFrom),
             ("derived-from", RelationshipType::DerivedFrom),
             ("extends", RelationshipType::Extends),
+            ("supports", RelationshipType::Supports),
+            ("contradicts", RelationshipType::Contradicts),
+            ("validates", RelationshipType::Validates),
         ] {
             assert_eq!(RelationshipType::parse(text).unwrap(), expected, "{text}");
         }
@@ -281,6 +319,9 @@ mod tests {
             "derived_from",
             "extends",
             "supports",
+            "contradicts",
+            "validates",
+            "related_to",
             "x1_y",
         ] {
             let parsed = RelationshipType::parse(t).unwrap();
@@ -298,9 +339,10 @@ mod tests {
 
     #[test]
     fn custom_types_are_flagged_and_validated() {
-        let supports = RelationshipType::parse("supports").unwrap();
-        assert!(!supports.is_built_in());
-        assert!(!supports.is_acyclic());
+        let related = RelationshipType::parse("related_to").unwrap();
+        assert!(!related.is_built_in());
+        assert!(!related.is_acyclic());
+        assert!(!related.rejects_self_reference());
         assert!(RelationshipType::parse("a-b").is_ok());
         for bad in ["", "Depends", "1x", "a b", "a.b", &"a".repeat(65)] {
             assert!(RelationshipType::parse(bad).is_err(), "{bad:?}");
@@ -320,6 +362,48 @@ mod tests {
         assert!(RelationshipType::DerivedFrom.is_acyclic());
         assert!(RelationshipType::Extends.is_acyclic());
         assert!(!RelationshipType::References.is_acyclic());
+    }
+
+    #[test]
+    fn evidence_types_are_built_in_but_may_form_cycles() {
+        for t in [
+            RelationshipType::Supports,
+            RelationshipType::Contradicts,
+            RelationshipType::Validates,
+        ] {
+            assert!(t.is_built_in(), "{t}");
+            assert!(t.is_evidence(), "{t}");
+            assert!(!t.is_acyclic(), "{t}");
+            assert!(t.rejects_self_reference(), "{t}");
+        }
+        assert!(!RelationshipType::References.is_evidence());
+        assert!(!RelationshipType::References.rejects_self_reference());
+    }
+
+    #[test]
+    fn evidence_direction_and_self_reference() {
+        let report = ArtifactId::from_bits(1);
+        let claim = ArtifactId::from_bits(2);
+        let now = Timestamp::parse("2026-10-12T18:05:00Z").unwrap();
+        for t in [
+            RelationshipType::Supports,
+            RelationshipType::Contradicts,
+            RelationshipType::Validates,
+        ] {
+            let edge = Relationship::create(
+                RelationshipId::from_bits(9),
+                NewRelationship::new(t.clone(), report, claim),
+                now,
+            )
+            .unwrap();
+            assert_eq!((edge.source(), edge.target()), (&report, &claim), "{t}");
+            let own = Relationship::create(
+                RelationshipId::from_bits(10),
+                NewRelationship::new(t.clone(), report, report),
+                now,
+            );
+            assert!(own.is_err(), "{t}");
+        }
     }
 
     #[test]

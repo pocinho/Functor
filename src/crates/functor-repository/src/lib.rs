@@ -9,7 +9,7 @@ mod manager;
 mod repository_file;
 pub mod toml_support;
 
-pub use fsutil::{DEFAULT_LOCK_TIMEOUT, WriteLock, atomic_write, run_blocking};
+pub use fsutil::{DEFAULT_LOCK_TIMEOUT, HeldLock, WriteLock, atomic_write, run_blocking};
 pub use layout::{FUNCTOR_DIR, GITKEEP, Layout, TEMP_MARKER};
 pub use manager::{
     FileRepositoryManager, discover_repository, discover_root, open_repository,

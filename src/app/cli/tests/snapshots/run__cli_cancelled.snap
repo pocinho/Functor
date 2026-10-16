@@ -1,0 +1,55 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "format!(\"exit: {}\\n{}\", out.code,\nserde_json::to_string_pretty(&document).unwrap())"
+---
+exit: 0
+{
+  "run": {
+    "args": [],
+    "env_names": [
+      "<environment names>"
+    ],
+    "id": "art_00000000000000000000000008",
+    "inputs": {
+      "data": "art_00000000000000000000000005"
+    },
+    "limits": {
+      "stream_bytes": 1048576,
+      "timeout_seconds": 60
+    },
+    "network": "not_enforced",
+    "platform": "<platform>",
+    "program": {
+      "path": "<program>",
+      "sha256": null
+    },
+    "provider": "local-process",
+    "provider_version": "test",
+    "ref": "functor:artifact:art_00000000000000000000000008",
+    "request_id": "cancelled-run",
+    "result": {
+      "diagnostics": [],
+      "exit_code": null,
+      "finished": "2026-10-12T18:00:00Z",
+      "id": "art_0000000000000000000000000C",
+      "outcome": "cancelled",
+      "outputs": [],
+      "truncated": {
+        "stderr": false,
+        "stdout": true
+      }
+    },
+    "started": "2026-10-12T18:00:00Z",
+    "state": "cancelled",
+    "streams": {
+      "stderr": [],
+      "stdout": [
+        0,
+        255,
+        10
+      ]
+    },
+    "workflow_capture": "art_00000000000000000000000002"
+  },
+  "schema_version": 1
+}

@@ -99,14 +99,17 @@ pub enum RelationshipType {
     References,
     DerivedFrom,
     Extends,
+    Supports,                       // evidence assertions, ADR-0014
+    Contradicts,
+    Validates,
     Custom(RelationshipTypeName),   // [a-z][a-z0-9_]{0,63}
 }
 ```
 
 - Text form is snake_case. `RelationshipType::parse` also accepts kebab-case (`depends-on`) and normalizes. `Display` always emits snake_case.
-- A built-in name always parses to the built-in variant, never to `Custom`. Constructing `Custom("depends_on")` directly is rejected.
+- A built-in name always parses to the built-in variant, never to `Custom`. Constructing `Custom("depends_on")` directly is rejected. `supports`, `contradicts` and `validates` were custom names under ADR-0007 and are built in since [ADR-0014](../adr/ADR-0014-evidence-relationships.md); stored files need no change.
 - Relationships store **ids**, never slugs or paths.
-- Constructors reject self-reference for the acyclic types (`depends_on`, `derived_from`, `extends`). Other cycle shapes are detected by validation because they need the whole graph.
+- Constructors reject self-reference for the acyclic types (`depends_on`, `derived_from`, `extends`) and the evidence types (`RelationshipType::rejects_self_reference`). Other cycle shapes are detected by validation because they need the whole graph. The evidence types may form cycles.
 - `NewRelationship { relationship_type, source, target, metadata }`. Existence of source and target is **not** checked by the model constructor, but `RelationshipRepository::create` rejects a dangling endpoint (`FunctorError::NotFound`) so the CLI cannot create invalid state. Hand-edited or merged files can still be dangling, which is why `validate` exists.
 - Relationships are immutable in the MVP. There is no update and no remove (deferred; no `relationship.deleted` event).
 

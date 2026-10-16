@@ -25,8 +25,13 @@ Specifies the minimal event subset in the MVP (ADR-0003): event types, envelope,
 | `artifact.updated` | `artifact update` | artifact id | `slug`, `revision`, `changed` (list of changed fields) |
 | `relationship.created` | `relation add` | relationship id | `relationship_type`, `source`, `target` |
 | `validation.completed` | `validate` | repository id | `outcome`, `errors`, `warnings`, `infos`, `strict` |
+| `run.started` | run orchestrator | run artifact id | `workflow`, `provider`, `request_id` |
+| `run.completed` | run orchestrator (also `run recover`) | run artifact id | `outcome`, `result`, `outputs`, `truncated` |
+| `validation.recorded` | run orchestrator, `validate --save-report` | report artifact id | `outcome`, `subject`, `errors`, `warnings`, `infos` |
 
-Not in the MVP: `artifact.deleted`, `relationship.deleted`, `repository.changed`, `repository.created` (an earlier workspace doc listed `repository.changed`; it is dropped because it overlaps the specific events), execution and capability events.
+Run and validation events follow the same rules as the others: published after the durable transition, a failed append is a warning ([execution-and-evidence.md](execution-and-evidence.md), [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md)). Evidence artifacts do not emit `artifact.created`.
+
+Not in the MVP: `artifact.deleted`, `relationship.deleted`, `repository.changed`, `repository.created` (an earlier workspace doc listed `repository.changed`; it is dropped because it overlaps the specific events) and capability events.
 
 `init` does not emit an event: the log does not exist yet and the first event is the first change after creation.
 

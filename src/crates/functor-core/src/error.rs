@@ -90,6 +90,25 @@ pub enum FunctorError {
     /// A bug: this should never be caused by user input.
     #[error("internal error: {0}")]
     Internal(String),
+
+    /// The caller has not been granted permission for an action, or a policy forbids it: no
+    /// execution grant, a disallowed environment variable, a path outside the boundary
+    /// (ADR-0012). Nothing was done.
+    #[error("permission denied for {action}: {reason}")]
+    PermissionDenied {
+        /// What was attempted, for example `execute`.
+        action: String,
+        /// Why it was refused.
+        reason: String,
+    },
+
+    /// The request names something this implementation does not support: an unknown provider, a
+    /// newer workflow schema, a network policy it cannot enforce (ADR-0012).
+    #[error("unsupported: {what}")]
+    Unsupported {
+        /// What is not supported.
+        what: String,
+    },
 }
 
 /// The variant of a [`FunctorError`] without its data.
@@ -116,11 +135,15 @@ pub enum ErrorKind {
     Storage,
     /// [`FunctorError::Internal`]
     Internal,
+    /// [`FunctorError::PermissionDenied`]
+    PermissionDenied,
+    /// [`FunctorError::Unsupported`]
+    Unsupported,
 }
 
 impl ErrorKind {
     /// Every kind, in declaration order.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 11] = [
         Self::NotFound,
         Self::Conflict,
         Self::InvalidInput,
@@ -130,6 +153,8 @@ impl ErrorKind {
         Self::Locked,
         Self::Storage,
         Self::Internal,
+        Self::PermissionDenied,
+        Self::Unsupported,
     ];
 
     /// The stable `snake_case` code used in JSON error output.
@@ -145,6 +170,8 @@ impl ErrorKind {
             Self::Locked => "locked",
             Self::Storage => "storage",
             Self::Internal => "internal",
+            Self::PermissionDenied => "permission_denied",
+            Self::Unsupported => "unsupported",
         }
     }
 }
@@ -163,7 +190,24 @@ impl FunctorError {
             Self::Locked { .. } => ErrorKind::Locked,
             Self::Storage { .. } => ErrorKind::Storage,
             Self::Internal(_) => ErrorKind::Internal,
+            Self::PermissionDenied { .. } => ErrorKind::PermissionDenied,
+            Self::Unsupported { .. } => ErrorKind::Unsupported,
         }
+    }
+
+    /// A permission-denied error.
+    #[must_use]
+    pub fn permission_denied(action: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::PermissionDenied {
+            action: action.into(),
+            reason: reason.into(),
+        }
+    }
+
+    /// An unsupported error.
+    #[must_use]
+    pub fn unsupported(what: impl Into<String>) -> Self {
+        Self::Unsupported { what: what.into() }
     }
 
     /// A not-found error without suggestions.
@@ -255,6 +299,8 @@ mod tests {
             },
             FunctorError::storage("write", "/tmp/x/a.toml", io::Error::other("disk full")),
             FunctorError::Internal("oops".into()),
+            FunctorError::permission_denied("execute", "no execution grant"),
+            FunctorError::unsupported("provider `remote`"),
         ]
     }
 
@@ -280,7 +326,9 @@ mod tests {
                 "inconsistent",
                 "locked",
                 "storage",
-                "internal"
+                "internal",
+                "permission_denied",
+                "unsupported"
             ]
         );
     }
@@ -302,6 +350,11 @@ mod tests {
         assert!(messages[6].starts_with("repository is locked by another process: "));
         assert!(messages[7].starts_with("storage error during write on "));
         assert_eq!(messages[8], "internal error: oops");
+        assert_eq!(
+            messages[9],
+            "permission denied for execute: no execution grant"
+        );
+        assert_eq!(messages[10], "unsupported: provider `remote`");
     }
 
     #[test]

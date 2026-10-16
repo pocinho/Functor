@@ -162,7 +162,44 @@ pub enum EventPosition { Start, End, After(u64) }   // sequence number
 
 ## Not in the MVP
 
-`ExecutionEngine`, `CapabilityProvider`, `Extension`, artifact and relationship deletion, relationship update, sync and federation traits. They come with later RFC work and ADRs. The earlier draft of this document listed them; they are intentionally removed so the MVP surface stays small.
+`CapabilityProvider`, `Extension`, artifact and relationship deletion, relationship update, sync and federation traits. They come with later RFC work and ADRs. The earlier draft of this document listed them; they are intentionally removed so the MVP surface stays small. Execution arrives in Phase 1 (next section).
+
+## Execution and Evidence (Phase 1)
+
+Contracts from [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md) to [ADR-0015](../adr/ADR-0015-validation-report-persistence-and-events.md); values in `functor-model`, traits in `functor-core`, all dyn-compatible.
+
+```rust
+pub trait ExecutionProvider: Send + Sync {
+    fn name(&self) -> &str;
+    fn version(&self) -> &str;
+    async fn execute(&self, plan: ExecutionPlan, cancel: CancelToken) -> Result<ProviderRun>;
+}
+
+pub trait EvidenceRecorder: Send + Sync {
+    async fn capture(&self, source: &ArtifactRef, role: CaptureRole) -> Result<CapturedBytes>;
+    async fn record_intent(&self, intent: RunIntent) -> Result<IntentRecord>;     // idempotent by request id
+    async fn acquire_lease(&self, run: &ArtifactId) -> Result<Box<dyn RunLease>>;  // dropped = released
+    async fn record_result(&self, run: &ArtifactId, finish: RunFinish) -> Result<RunRecord>; // commit point
+    async fn run(&self, run: &ArtifactRef) -> Result<Option<RunRecord>>;
+    async fn runs(&self) -> Result<Vec<RunRecord>>;
+    async fn status(&self, run: &ArtifactId) -> Result<RunStatus>;
+    async fn streams(&self, run: &ArtifactId) -> Result<Option<RunStreams>>;
+    async fn read_capture(&self, capture: &ArtifactId) -> Result<Vec<u8>>;
+    async fn recover(&self) -> Result<Vec<RunRecord>>;
+}
+
+pub trait ReportRecorder: Send + Sync {
+    async fn save_report(&self, report: &ValidationReport, subject: ReportSubject, strict: bool, rules: &str) -> Result<ArtifactId>;
+    async fn load_report(&self, id: &ArtifactId) -> Result<Option<(ValidationReport, ReportSubject)>>;
+}
+```
+
+- **Provider.** Receives a prepared `ExecutionPlan` (captured workflow and inputs, effective limits, an `ExecutionGrant`) and returns a `ProviderRun`. It never opens the repository, persists, validates or publishes events. A child failure, timeout, cancellation or missing program is an outcome (`ProviderRun::outcome`), never an `Err`; `Err` is a refusal (`Unsupported`, `PermissionDenied`, `InvalidInput`, all produced by `ExecutionPlan::check` before any side effect) or an infrastructure fault. `ProviderRun::check` verifies a report honours the contract before the orchestrator publishes anything.
+- **Cancellation.** `CancelToken` is a shared flag (`std` only; core names no runtime). Providers poll it and must stop the whole process tree.
+- **Recorder.** One short critical section per method; the write lock is never held across a child. A run is complete if and only if its `run_result` exists; `record_result` refuses a second result (`Conflict`) and an inconsistent `RunFinish` (`InvalidInput`, nothing written). `RunStatus` is derived (`Running` only while a lease is held). `recover` completes orphans as `interrupted` and never reruns, publishes or deletes.
+- **Reports.** `ReportRecorder` is separate from `ValidationEngine`, which stays free of side effects.
+- **Outcome versus error.** A run that finishes badly is `Ok(RunRecord)` with its outcome; infrastructure and policy failures are `FunctorError`.
+- `RunOrchestrator` in `functor-runtime` wires capture, intent, execution, publication, relationships, validation and events. There is no `ExecutionEngine` trait. A `RunRequest` may bind an expected workflow digest (`with_workflow_digest`) to refuse changes between a caller's permission preview and the authoritative capture.
 
 ## Implementations
 
@@ -175,6 +212,8 @@ pub enum EventPosition { Start, End, After(u64) }   // sequence number
 | `ValidationEngine` | `RuleValidationEngine<'a, R>` (borrows any `R: RepositoryReader + ?Sized`, takes the injected `Clock`; one lenient load per call) | `functor-validation` |
 | `EventPublisher`, `EventSource` | `FileEventLog` | `functor-events` |
 | `Clock`, `IdGenerator` | `SystemClock`, `UlidGenerator` in `functor-core`; `FixedClock`, `SequentialIds` in `functor-testkit` | `functor-core`, `functor-testkit` |
+| `ExecutionProvider` | `LocalProcessProvider` (`local-process`, P1.3); `FakeProvider` (testkit) | `functor-runtime`, `functor-testkit` |
+| `EvidenceRecorder`, `ReportRecorder` | `FileEvidence`, `InMemoryEvidence` (both `EvidenceStore`, P1.2); `MemoryEvidence` is the simpler testkit fake | `functor-store`, `functor-testkit` |
 
 `MemoryStore` and `FileStore` must pass the same conformance test suite (see [testing-strategy.md](../quality/testing-strategy.md)); that suite is what makes the storage-independence promise of RFC-0008 enforceable. `RepositoryManager` is tested in `functor-repository`.
 

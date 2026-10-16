@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "functor run show",
+  "type": "object",
+  "required": ["schema_version", "run"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run": { "$ref": "#/$defs/Run" }
+  },
+  "$defs": {
+    "Id": { "type": "string", "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "Digest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "Outcome": { "enum": ["succeeded", "failed", "timed_out", "cancelled", "start_failed", "interrupted"] },
+    "Bytes": { "type": "array", "maxItems": 8388608, "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+    "Limits": {
+      "type": "object",
+      "required": ["timeout_seconds", "stream_bytes"],
+      "additionalProperties": false,
+      "properties": {
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 3600 },
+        "stream_bytes": { "type": "integer", "minimum": 1, "maximum": 8388608 }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "required": ["id", "outcome", "finished", "exit_code", "truncated", "outputs", "diagnostics"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "outcome": { "$ref": "#/$defs/Outcome" },
+        "finished": { "type": "string", "format": "date-time" },
+        "exit_code": { "type": ["integer", "null"], "minimum": -2147483648, "maximum": 2147483647 },
+        "truncated": {
+          "type": "object",
+          "required": ["stdout", "stderr"],
+          "additionalProperties": false,
+          "properties": { "stdout": { "type": "boolean" }, "stderr": { "type": "boolean" } }
+        },
+        "outputs": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/Id" } },
+        "diagnostics": { "type": "array", "items": { "type": "string" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "enum": ["succeeded", "failed"] } } },
+          "then": { "properties": { "exit_code": { "type": "integer" } } },
+          "else": { "properties": { "exit_code": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "not": { "const": "succeeded" } } } },
+          "then": { "properties": { "outputs": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "Run": {
+      "type": "object",
+      "required": ["id", "ref", "state", "request_id", "provider", "provider_version", "workflow_capture", "inputs", "args", "limits", "env_names", "program", "platform", "network", "started", "result", "streams"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "ref": { "type": "string", "pattern": "^functor:artifact:art_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "state": { "enum": ["running", "interrupted_unknown", "succeeded", "failed", "timed_out", "cancelled", "start_failed", "interrupted"] },
+        "request_id": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "provider_version": { "type": "string" },
+        "workflow_capture": { "$ref": "#/$defs/Id" },
+        "inputs": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Id" } },
+        "args": { "type": "array", "maxItems": 64, "items": { "type": "string" } },
+        "limits": { "$ref": "#/$defs/Limits" },
+        "env_names": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "program": {
+          "type": "object",
+          "required": ["path", "sha256"],
+          "additionalProperties": false,
+          "properties": { "path": { "type": "string" }, "sha256": { "$ref": "#/$defs/Digest" } }
+        },
+        "platform": { "type": "string", "minLength": 1 },
+        "network": { "const": "not_enforced" },
+        "started": { "type": "string", "format": "date-time" },
+        "result": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/Result" }] },
+        "streams": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["stdout", "stderr"],
+              "additionalProperties": false,
+              "properties": { "stdout": { "$ref": "#/$defs/Bytes" }, "stderr": { "$ref": "#/$defs/Bytes" } }
+            }
+          ]
+        }
+      },
+      "allOf": [{
+        "if": { "properties": { "state": { "enum": ["running", "interrupted_unknown"] } } },
+        "then": { "properties": { "result": { "type": "null" }, "streams": { "type": "null" } } },
+        "else": { "properties": { "result": { "$ref": "#/$defs/Result" } } }
+      }]
+    }
+  }
+}

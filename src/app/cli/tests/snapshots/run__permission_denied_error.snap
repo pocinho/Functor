@@ -1,0 +1,11 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "serde_json::to_string_pretty(&out.error_json()).unwrap()"
+---
+{
+  "error": {
+    "code": "permission_denied",
+    "message": "permission denied for execute: no permission; review the plan and pass --grant-exec"
+  },
+  "exit_code": 9
+}

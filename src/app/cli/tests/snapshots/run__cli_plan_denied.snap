@@ -1,0 +1,23 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "format!(\"exit: {}\\n{}\", out.code,\nserde_json::to_string_pretty(&document).unwrap())"
+---
+exit: 9
+{
+  "args": [
+    "echo-input",
+    "inputs/data",
+    "outputs/result"
+  ],
+  "env_names": [
+    "<environment names>"
+  ],
+  "granted": false,
+  "limits": {
+    "stream_bytes": 1048576,
+    "timeout_seconds": 60
+  },
+  "network": "not_enforced",
+  "program": "<program>",
+  "schema_version": 1
+}

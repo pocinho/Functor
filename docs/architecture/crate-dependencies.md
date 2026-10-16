@@ -16,7 +16,7 @@ Dependencies flow **downward** only.
 ```text
 Projections        functor-cli  (composition root)
       ↓
-Services           functor-store  functor-query  functor-validation  functor-events
+Services           functor-store  functor-query  functor-validation  functor-events  functor-runtime
       ↓            (store and events also use the foundation service below)
 Foundation service functor-repository
       ↓
@@ -36,12 +36,13 @@ Services are **siblings**: none depends on another, with one exception. `functor
 | `functor-model` | none | `ulid`, `thiserror` |
 | `functor-core` | `functor-model` | `thiserror`, `async-trait` |
 | `functor-repository` | `functor-core`, `functor-model` | `toml_edit`, `tokio` (rt), `async-trait` |
-| `functor-store` | `functor-core`, `functor-model`, `functor-repository` | `toml_edit`, `tokio` (rt), `async-trait` |
+| `functor-store` | `functor-core`, `functor-model`, `functor-repository` | `toml_edit`, `tokio` (rt), `async-trait`, `serde_json`, `sha2` (evidence documents and digests, ADR-0016) |
 | `functor-query` | `functor-core`, `functor-model` | `async-trait` |
 | `functor-validation` | `functor-core`, `functor-model` | `async-trait` |
 | `functor-events` | `functor-core`, `functor-model`, `functor-repository` | `serde`, `serde_json`, `tokio`, `notify`, `async-trait` |
+| `functor-runtime` | `functor-core`, `functor-model` | `tokio` (rt), `async-trait`, `sha2`, `toml_edit` (reads the `functor.workflow/1` format), `process-wrap` (Job Object and process-group termination, [ADR-0012](../adr/ADR-0012-execution-provider-and-safety.md)) |
 | `functor-testkit` | `functor-core`, `functor-model` | `tempfile`, `proptest` (added when first needed); `async-trait` (dev, for its own self-tests) |
-| `functor-cli` | all of the above | `clap`, `serde`, `serde_json`, `tokio` |
+| `functor-cli` | all of the above except `functor-testkit` (dev only) | `clap`, `serde`, `serde_json`, `tokio`, `sha2` (reviewed workflow and report-subject digests) |
 
 Dev-dependencies (any crate): `functor-testkit`, `proptest`, `insta`, `tempfile`; CLI tests also `assert_cmd` and `predicates`. The approved list and rules for adding crates are in [dependency-policy.md](dependency-policy.md).
 
@@ -53,7 +54,7 @@ Dev-dependencies (any crate): `functor-testkit`, `proptest`, `insta`, `tempfile`
 storage, runtime (tokio), CLI, networking, serde or any other serialization framework
 ```
 
-Serialization belongs to the crate that owns the representation (ADR-0005): the TOML mapping in `functor-store` (entities) and `functor-repository` (`repository.toml`), event JSON in `functor-events`, CLI output JSON in `functor-cli`. The TOML mapping is written by hand over the `toml_edit` document rather than with `serde` derives (see [dependency-policy.md](dependency-policy.md)), so `serde` is used only where JSON is produced. This resolves the earlier contradiction between "the model must be serialization free" and "artifacts are TOML".
+Serialization belongs to the crate that owns the representation (ADR-0005): the TOML mapping in `functor-store` (entities) and `functor-repository` (`repository.toml`), event JSON in `functor-events`, evidence JSON documents in `functor-store` (ADR-0016), CLI output JSON in `functor-cli`. The TOML mapping is written by hand over the `toml_edit` document rather than with `serde` derives (see [dependency-policy.md](dependency-policy.md)), so `serde` is used only where JSON is produced. This resolves the earlier contradiction between "the model must be serialization free" and "artifacts are TOML".
 
 ## Composition Root
 

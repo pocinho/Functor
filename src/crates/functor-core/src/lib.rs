@@ -8,11 +8,21 @@
 
 mod clock;
 mod error;
+mod evidence;
+mod execution;
 mod repository;
 mod services;
 
 pub use clock::{Clock, IdGenerator, SystemClock, UlidGenerator};
 pub use error::{ErrorKind, FunctorError, Result};
+pub use evidence::{
+    CapturedBytes, EvidenceRecorder, IntentRecord, PublishedOutput, ReportRecorder, ReportSubject,
+    RunFinish, RunLease, RunStreams,
+};
+pub use execution::{
+    CancelToken, ExecutionGrant, ExecutionPlan, ExecutionProvider, InputPayload, OutputPayload,
+    ProviderRun, StreamCapture, check_grant,
+};
 pub use repository::{
     InitOptions, LoadIssue, LoadIssueKind, RepositoryHandle, RepositoryManager, RepositoryReader,
     SnapshotLoad,

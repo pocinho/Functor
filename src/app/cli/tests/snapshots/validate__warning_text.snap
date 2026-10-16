@@ -4,7 +4,7 @@ expression: transcript(&out)
 ---
 exit: 0
 --- stdout ---
-warning V0012 relationship rel_00000000000000000000000069: custom relationship type `supports`
+warning V0012 relationship rel_00000000000000000000000069: custom relationship type `related_to`
 validated 2 artifacts, 2 relationships
 outcome: warning (0 errors, 1 warning)
 --- stderr ---

@@ -33,11 +33,11 @@ Defines how the Functor CLI MVP is tested, what must be covered at each level, a
 
 ### functor-model
 
-Every invariant in the table at the end of [domain-model.md](../design/domain-model.md): id round trips, slug grammar tables, relationship type parsing (including the kebab alias and the built-in-never-custom rule), `Revision` non-zero, tag normalization, `ContentPath` rejection cases, outcome derivation.
+Every invariant in the table at the end of [domain-model.md](../design/domain-model.md): id round trips, slug grammar tables, relationship type parsing (including the kebab alias, the built-in-never-custom rule and the evidence types), `Revision` non-zero, tag normalization, `ContentPath` rejection cases, outcome derivation. Phase 1 adds the execution and evidence values (`evidence.rs`): workflow bounds at and over every limit, secret-looking environment names, binding checks, limits that may only be lowered, digests, run result consistency (a success is always a real success) and the single `complete` transition of a run.
 
 ### functor-core
 
-Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit), and a compile-time check that every core trait is object-safe (`&dyn Trait` coerces, [ADR-0010](../adr/ADR-0010-async-trait-and-dyn.md)).
+Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and `SequentialIds` behavior (in testkit), and a compile-time check that every core trait is object-safe (`&dyn Trait` coerces, [ADR-0010](../adr/ADR-0010-async-trait-and-dyn.md)). Phase 1 adds the provider preflight (`ExecutionPlan::check`: error kinds and input size boundaries) and `ProviderRun::check`, which rejects every contract-breaking provider report.
 
 ### functor-repository
 
@@ -48,6 +48,7 @@ Error variant to exit code and JSON code mapping (exhaustive), `FixedClock` and 
 - Canonical serialization of **new** files: `serialize(parse(serialize(x))) == serialize(x)` (property), golden TOML files for artifact, relationship and repository.
 - In-place updates ([ADR-0011](../adr/ADR-0011-toml-edit-preserving-updates.md)): comments, key order, whitespace, line endings and unknown keys and tables survive an update; a new optional key is inserted at its canonical position; removing a value removes only its attached comments; a no-op update writes nothing; an update of a hand-edited, non-canonical file changes only the affected lines (diff-based assertion).
 - `FileStore` specifics: atomic replace with failure injected before the rename, stray `.tmp-` files ignored, read while write, CRLF input, size caps, path traversal in `content.path`, lenient `load()` reporting each `LoadIssue` kind.
+- Evidence (`functor-store/src/evidence/tests.rs`): the shared evidence suite on `FileEvidence` and `InMemoryEvidence`; evidence as ordinary artifacts traversable both ways; restart and moved repository; interrupted work exposed without rerunning; concurrent recordings of one request id; an input changing during capture (retried once, then `Conflict`); damaged, altered and missing evidence files; a storage fault before any record exists; a damaged repository refusing evidence reads and writes; and a failure injected at **every** write of a complete run (no false success, recovery completes and repairs, the repository stays valid). `functor-repository` tests the lease lock (`HeldLock`).
 
 ### functor-query
 
@@ -55,7 +56,7 @@ Table-driven traversal tests (chain, diamond, cycle, disconnected, depth 0, 1, n
 
 ### functor-validation
 
-One minimal fixture repository **per rule code** (`V0001` to `V0019`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
+One minimal fixture repository **per rule code** (`V0001` to `V0023`) that triggers exactly that rule, plus a clean repository with zero findings; outcome and exit-code tables; byte-identical report across runs; cycle cases.
 
 ### functor-events
 
@@ -85,7 +86,21 @@ Strict-versus-lenient behavior on **damaged** data needs store-specific injectio
 
 **The suite is itself tested.** `functor-testkit` contains a small reference store that must pass, plus deliberately broken variants (duplicate slugs allowed, expected revision ignored, endpoint check skipped, duplicate relationships allowed, list in reverse, revision bumped on a no-op) that the suite must reject. A suite that cannot fail would prove nothing.
 
+### Execution and evidence suites (Phase 1)
+
+`run_provider_conformance(&subject)` takes a `ProviderUnderTest` (the provider, a plan per `ProviderScenario`, and a count of started executions). It covers: success with the declared output; failure, missing program, missing required output and timeout as outcomes (never errors); output cut exactly at the stream limit with truncation indicated; cancellation as an outcome; refusals (`Unsupported`, `PermissionDenied`, `InvalidInput`) that start nothing; and deterministic replay of declared outputs. Every report also passes `ProviderRun::check`. `FakeProvider` runs it in-process, and `LocalProcessProvider` runs it against real child processes (`functor-runtime/tests/provider.rs`, using the `runtime-fixture` helper program), plus its own boundary tests for every limit, the grant, the environment, cancellation and process-tree cleanup.
+
+`run_evidence_conformance(factory)` takes a factory of `EvidenceUnderTest` (the two recorder traits plus helpers to create and edit live artifacts, the digest in use and damaging a capture). It covers: exact captures that survive later edits; `NotFound` for unknown sources; idempotent intent by request id; intent requiring existing captures; exclusive leases released on drop; derived status; the result as the single commit point with the injected time; inconsistent finishes rejected with nothing written; every non-success outcome recorded without outputs; recovery completing only orphans and being idempotent; damaged captures reported as `Inconsistent`; run ordering; and report round trips and immutability. `MemoryEvidence` runs it as a fake, and `FileEvidence` and `InMemoryEvidence` run it as the real recorders (P1.2).
+
+Both suites are themselves tested with deliberately broken fakes (six provider defects, nine recorder defects), each of which the suite must reject.
+
+### Orchestration tests (P1.4)
+
+Two layers in `functor-runtime/tests`. `orchestrator.rs` is fast and deterministic: a counting wrapper over the testkit's `FakeProvider`, in-memory evidence with switchable write failures, and a recording event publisher, so every failure ordering (intent, result, report, events, provider fault) and every outcome is exercised in milliseconds. `end_to_end.rs` uses everything real (file store, file event log, `LocalProcessProvider`, the `runtime-fixture` program): restart and reopen, replay from captured inputs, timeout, cancellation, a refused grant, an unwritable or deleted event log, concurrent requests with one id, and clean validation afterwards. Both build repositories under the git-ignored `tests/scratch` folder.
+
 ## Fixtures
+
+Phase 1 CLI execution tests use the same runtime fixture source as a feature-gated binary (`execution-fixture`, `test-support` only), so default builds do not ship it. Run text/JSON goldens cover every outcome and derived state; integration tests cover schema rejection, program failure, timeout, saved-report failure, partial result publication and recovery, cross-process inspection and library/CLI interoperability. Shared JSON schemas are registered locally in the test validator; schema checking performs no network requests. Terminal confirmation and signal cancellation use injected readers/futures rather than relying on a CI console.
 
 - Builders in `functor-testkit` create repositories programmatically (`RepoFixture::new().artifact("rfc-0000").artifact("rfc-0001").relation("rfc-0001", "depends_on", "rfc-0000").build()` returns a strict `RepositorySnapshot`).
 - Static fixture repositories live in `examples/` and `tests/fixtures/`: `clean/`, `one-per-rule/V00NN/`, `getting-started/`. They are real repositories on disk, created once by tests using the library and committed; a test verifies the checked-in fixtures are still produced by the current serializer (prevents silent drift).
@@ -143,6 +158,16 @@ Further checks in the same file:
 
 `src/app/cli/tests/library.rs` runs the same scenario through the library API only (no CLI), which proves the CLI is a pure projection (exit criterion 6 in [mvp-scope.md](../planning/mvp-scope.md)). It also checks that a repository written by the libraries is read by the CLI and the other way round (the reference repository), that moving a repository directory changes no identity, and that editing repository metadata changes no result.
 
+### Phase 1 acceptance and measurements
+
+`functor-runtime/tests/end_to_end.rs::phase_one_acceptance_preserves_claims_reports_and_replay_after_live_edits` runs the complete execution/evidence workflow through library APIs only: explicit grant, real child, reopen, exact workflow/input captures, output validation/report round trip, deliberate supporting/contradicting assertions with `V0023`, bidirectional provenance traversal, a live edit, and deterministic replay from both captures. A conflict warning does not change the historical run outcome or imply the claim's truth.
+
+`functor-cli/tests/run.rs::phase_one_cli_acceptance_traces_claims_and_replays_captured_inputs` repeats this using separate CLI processes, validates JSON schemas, then cross-reads the graph and report through the library. The same file's Windows-only owner-kill test waits for a real grandchild heartbeat, kills the CLI, verifies the heartbeat stops and the lease is released, checks idempotent resubmission starts nothing, and recovers the prior intent without rerunning.
+
+`scripts/bench-execution.ps1` reports release execution overhead separately from direct-child workload, sampled CLI memory, content-addressed storage/deduplication and limit checks; [phase-1.json](benchmarks/phase-1.json) is the recorded measurement. It is informational for timing, but incorrect outcomes/bytes/limits fail. `scripts/bench.ps1` continues to compare the existing repository budgets against the unchanged Phase 0 baseline. See the [phase-exit record](../planning/phase-1-execution-provenance-roadmap.md#phase-exit-evidence-2026-10-14) for exact commands/results.
+
+**Manual console check:** run a slow workflow on Windows, explicitly confirm it, press Ctrl-C, and check exit 8 plus a durable `cancelled` result. The signal adapter and runtime cancellation/tree cleanup are automated; actual console signal delivery is not. Non-Windows tests remain informational.
+
 ## Failure Injection
 
 Store functions accept a test hook (compiled under `cfg(test)` or a `test-hooks` feature of `functor-store`) to fail at defined points: before rename, after rename, during event append. Tests assert the crash table in [storage-design.md](../design/storage-design.md).
@@ -165,4 +190,4 @@ Runs formatting checks, clippy with warnings denied, unit, integration, conforma
 
 ## Test Data Hygiene
 
-No test touches the real user home or the repository working tree: always use `tempfile::tempdir()`. Tests never depend on the order of `read_dir`; any listing comparison sorts explicitly.
+No test touches the real user home or tracked working-tree data. Use isolated temporary repositories; real-process tests and benchmarks put uniquely named directories under git-ignored `tests/scratch` and remove only their own directories. CI must not recursively delete this shared root or the caller's test logs. A killed test can leave a directory for explicit, targeted cleanup. Tests never depend on the order of `read_dir`; any listing comparison sorts explicitly.

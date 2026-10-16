@@ -1,0 +1,12 @@
+---
+source: src/app/cli/tests/run.rs
+expression: "serde_json::to_string_pretty(&golden_error).unwrap()"
+---
+{
+  "error": {
+    "code": "storage",
+    "message": "<storage diagnostic>"
+  },
+  "exit_code": 7,
+  "run": "art_0000000000000000000000009M"
+}

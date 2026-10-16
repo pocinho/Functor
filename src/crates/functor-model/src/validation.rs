@@ -2,8 +2,11 @@
 //!
 //! See `docs/design/validation-rules.md`.
 
+use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::{Mutex, OnceLock, PoisonError};
 
+use crate::error::ModelError;
 use crate::id::{ArtifactId, RelationshipId};
 use crate::repository::RepoPath;
 use crate::timestamp::Timestamp;
@@ -17,6 +20,34 @@ impl RuleCode {
     #[must_use]
     pub const fn new(code: &'static str) -> Self {
         Self(code)
+    }
+
+    /// Parses a code read from stored data: `V` followed by four digits.
+    ///
+    /// Codes are `&'static str`, so each distinct parsed code is interned once; the grammar caps
+    /// the table at 10,000 entries.
+    ///
+    /// # Errors
+    /// Fails when the text is not `V` followed by exactly four ASCII digits.
+    pub fn parse(input: &str) -> Result<Self, ModelError> {
+        static INTERNED: OnceLock<Mutex<BTreeMap<String, &'static str>>> = OnceLock::new();
+        let digits = input.strip_prefix('V').unwrap_or_default();
+        if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return Err(ModelError::new(
+                "rule code",
+                "must be `V` followed by four digits",
+            ));
+        }
+        let mut table = INTERNED
+            .get_or_init(Mutex::default)
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(existing) = table.get(input) {
+            return Ok(Self(existing));
+        }
+        let leaked: &'static str = Box::leak(input.to_owned().into_boxed_str());
+        table.insert(input.to_owned(), leaked);
+        Ok(Self(leaked))
     }
 
     /// The code text.
@@ -52,6 +83,22 @@ impl Severity {
             Self::Info => "info",
             Self::Warning => "warning",
             Self::Error => "error",
+        }
+    }
+
+    /// Parses the lowercase name.
+    ///
+    /// # Errors
+    /// Fails for any other text.
+    pub fn parse(input: &str) -> Result<Self, ModelError> {
+        match input {
+            "info" => Ok(Self::Info),
+            "warning" => Ok(Self::Warning),
+            "error" => Ok(Self::Error),
+            _ => Err(ModelError::new(
+                "severity",
+                "must be info, warning or error",
+            )),
         }
     }
 }
@@ -99,6 +146,23 @@ impl Outcome {
             Self::Warning => "warning",
             Self::Failed => "failed",
             Self::Unknown => "unknown",
+        }
+    }
+
+    /// Parses the lowercase name.
+    ///
+    /// # Errors
+    /// Fails for any other text.
+    pub fn parse(input: &str) -> Result<Self, ModelError> {
+        match input {
+            "passed" => Ok(Self::Passed),
+            "warning" => Ok(Self::Warning),
+            "failed" => Ok(Self::Failed),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err(ModelError::new(
+                "outcome",
+                "must be passed, warning, failed or unknown",
+            )),
         }
     }
 }
@@ -285,6 +349,33 @@ mod tests {
     #[test]
     fn severity_is_ordered() {
         assert!(Severity::Info < Severity::Warning && Severity::Warning < Severity::Error);
+    }
+
+    #[test]
+    fn names_parse_back_and_codes_are_interned() {
+        for severity in [Severity::Info, Severity::Warning, Severity::Error] {
+            assert_eq!(Severity::parse(severity.as_str()).unwrap(), severity);
+        }
+        for outcome in [
+            Outcome::Passed,
+            Outcome::Warning,
+            Outcome::Failed,
+            Outcome::Unknown,
+        ] {
+            assert_eq!(Outcome::parse(outcome.as_str()).unwrap(), outcome);
+        }
+        assert!(Severity::parse("fatal").is_err());
+        assert!(Outcome::parse("ok").is_err());
+
+        let code = RuleCode::parse("V0042").unwrap();
+        assert_eq!(code, RuleCode::new("V0042"));
+        assert!(std::ptr::eq(
+            code.as_str(),
+            RuleCode::parse("V0042").unwrap().as_str()
+        ));
+        for bad in ["", "V", "V12", "V12345", "X0001", "v0001", "V00a1"] {
+            assert!(RuleCode::parse(bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

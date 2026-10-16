@@ -1,0 +1,83 @@
+---
+source: src/app/cli/src/run_render.rs
+expression: "format!(\"--- text ---\\n{}\\n--- json ---\\n{}\", document.run.text(),\nserde_json::to_string_pretty(&document).unwrap())"
+---
+--- text ---
+run: art_00000000000000000000000001
+state: start_failed
+request_id: fixture-request
+provider: local-process (test)
+workflow_capture: art_00000000000000000000000002
+program: tool
+args: []
+timeout: 60 s; streams: 1048576 bytes each
+network: not_enforced (not a sandbox)
+environment names: 
+platform: test
+started: 2026-10-12T18:00:00Z
+input data: art_00000000000000000000000003
+result: art_00000000000000000000000004
+finished: 2026-10-12T18:00:00Z
+truncated: stdout=true, stderr=false
+diagnostic: fixture failure
+stdout: \u{0}�\n
+stderr: boom\n
+--- json ---
+{
+  "schema_version": 1,
+  "run": {
+    "id": "art_00000000000000000000000001",
+    "ref": "functor:artifact:art_00000000000000000000000001",
+    "state": "start_failed",
+    "request_id": "fixture-request",
+    "provider": "local-process",
+    "provider_version": "test",
+    "workflow_capture": "art_00000000000000000000000002",
+    "inputs": {
+      "data": "art_00000000000000000000000003"
+    },
+    "args": [],
+    "limits": {
+      "timeout_seconds": 60,
+      "stream_bytes": 1048576
+    },
+    "env_names": [],
+    "program": {
+      "path": "tool",
+      "sha256": null
+    },
+    "platform": "test",
+    "network": "not_enforced",
+    "started": "2026-10-12T18:00:00Z",
+    "result": {
+      "id": "art_00000000000000000000000004",
+      "outcome": "start_failed",
+      "finished": "2026-10-12T18:00:00Z",
+      "exit_code": null,
+      "truncated": {
+        "stdout": true,
+        "stderr": false
+      },
+      "outputs": [],
+      "diagnostics": [
+        "fixture failure"
+      ]
+    },
+    "streams": {
+      "stdout": [
+        0,
+        255,
+        10
+      ],
+      "stderr": [
+        98,
+        111,
+        111,
+        109,
+        10
+      ]
+    }
+  },
+  "created": true,
+  "validations": []
+}

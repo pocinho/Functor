@@ -7,11 +7,13 @@ Related docs: [mvp-scope.md](mvp-scope.md), [workspace-layout.md](../architectur
 
 The ordered, milestone-level plan to build the CLI MVP. The goal is not to implement every RFC; it is to validate the core architectural assumptions of RFC-0000 to RFC-0018 through a working API-first implementation. Scope is in [mvp-scope.md](mvp-scope.md); this document says in what order and with what acceptance evidence.
 
+Phase 0 is complete; M0-M9 below preserve its implementation and exit evidence. This baseline is not a product release. Continued working-prototype development follows [product-roadmap.md](product-roadmap.md), starting with the detailed [Phase 1 execution and provenance roadmap](phase-1-execution-provenance-roadmap.md).
+
 ## Guiding Rules
 
 - **API first.** Each capability is implemented and tested through core traits before the CLI exposes it. The CLI never becomes the system of record.
 - **Semantic first.** Follow the RFC-derived model in [domain-model.md](../design/domain-model.md).
-- **Every milestone is usable and shippable.** It leaves `main` green: format, clippy, tests and the dependency-edge check pass.
+- **Every milestone is usable and integrable.** It leaves `main` green: format, clippy, tests and the dependency-edge check pass. Integration is not a product release.
 - **Tests with the code.** A milestone is not done until its test obligations in the linked docs exist.
 - **Contracts before code.** If implementation requires changing a contract doc, change the doc (or add an ADR) in the same pull request.
 
